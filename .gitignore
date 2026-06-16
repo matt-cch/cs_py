@@ -1,0 +1,48 @@
+# ========================================
+# 安全屏蔽：禁止上传敏感文件与隔离环境
+# ========================================
+
+# 环境变量与密钥（最高优先级）
+.env
+.env.*
+*.key
+*.pem
+*-key.txt
+*-key.pem
+*secret*
+*token*
+*password*
+credentials*
+
+# 隔离工具链（不应上传）
+venv/
+
+# 编辑器本地配置（含绝对路径）
+.vscode/settings.json
+.cursor/settings.json
+.idea/
+
+# 调试与临时产物
+debug/
+out/
+logs/
+*.log
+venv/tmp/
+
+# 运行时数据（含状态、缓存）
+venv/data-*/
+venv/cache-*/
+venv/state-*/
+
+# 构建输出与依赖锁定（按需开放）
+__pycache__/
+*.pyc
+node_modules/
+
+# 真源检测报告（可能含本地路径）
+references/runtime/verify-runtime-report-*.json
+
+# 其他
+*.zip
+*.7z
+*.tar.gz
