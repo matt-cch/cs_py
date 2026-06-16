@@ -94,11 +94,14 @@ $headers = @{
     'User-Agent' = 'deploy-git-isolated/1.0'
 }
 
-$body = @{
+$bodyJson = @{
     title = $issueTitle
     body = $issueBody
     labels = @('task-active')
 } | ConvertTo-Json -Depth 10
+
+# 显式编码为 UTF-8 bytes，避免 PowerShell 5.1 默认用 GBK 发送导致中文乱码
+$bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($bodyJson)
 
 # 发送请求
 Write-Host "[GitHub API] 创建 Issue..."
@@ -106,7 +109,7 @@ Write-Host "  URL: $apiUrl"
 Write-Host "  Title: $issueTitle"
 
 try {
-    $response = Invoke-RestMethod -Uri $apiUrl -Method POST -Headers $headers -Body $body -ContentType 'application/json' -TimeoutSec 30
+    $response = Invoke-RestMethod -Uri $apiUrl -Method POST -Headers $headers -Body $bodyBytes -ContentType 'application/json; charset=utf-8' -TimeoutSec 30
     Write-Host ""
     Write-Host "Issue 创建成功!"
     Write-Host "  Number: #$($response.number)"
