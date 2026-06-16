@@ -1,0 +1,74 @@
+{
+  "$schema": "../../schema/structure/task-trigger-index.schema.json",
+  "meta": {
+    "task_name": "deploy-git-isolated",
+    "task_path": "references/tasks/deploy-git-isolated",
+    "description": "隔离 Git CLI 渐进式部署任务的触发条件索引，覆盖安装、配置、推送、验证等 5 个场景",
+    "version": "1.0.0",
+    "last_updated": "2026-06-16",
+    "governance": {
+      "global_index": "references/runtime/verified-trigger-index.json",
+      "schema_file": "schema/structure/task-trigger-index.schema.json",
+      "intent_doc": "references/tasks/deploy-git-isolated/DESIGN.md#6-trigger-治理设计意图元原则",
+      "intent_summary": "Trigger 必须有治理，登记必须有参照，边界必须有比较，冲突必须有协调，过程必须可审计并且有依据，甚至对重建都可能有作用"
+    }
+  },
+  "source_prefix": "task-deploy-git",
+  "scenarios": [
+    {
+      "id": "task-deploy-git-S01",
+      "scenario_name": "从零部署隔离 Git",
+      "trigger_words": ["部署git", "装git", "隔离git", "git部署", "minigit", "安装git到venv"],
+      "confidence": "high",
+      "entry_script": "scripts/github-step-01-init.ps1",
+      "description": "venv/git/ 不存在或需要重新部署，执行完整 8 步部署流水线"
+    },
+    {
+      "id": "task-deploy-git-S02",
+      "scenario_name": "执行安全推送",
+      "trigger_words": ["推送github", "git push", "安全推送", "提交到github", "github推送"],
+      "confidence": "high",
+      "entry_script": "scripts/github-safety-check.ps1",
+      "description": "repo 已初始化，执行推送前安全检查 + git push"
+    },
+    {
+      "id": "task-deploy-git-S03",
+      "scenario_name": "验证隔离状态",
+      "trigger_words": ["验证git隔离", "检查git隔离", "git隔离验证", "git是否隔离"],
+      "confidence": "high",
+      "entry_script": "scripts/github-step-07-verify.ps1",
+      "description": "怀疑 PATH 泄漏或配置污染，验证 HOME 重定向与配置隔离"
+    },
+    {
+      "id": "task-deploy-git-S04",
+      "scenario_name": "配置 Git 身份",
+      "trigger_words": ["配置git身份", "设git用户名", "git identity", "git用户名邮箱"],
+      "confidence": "high",
+      "entry_script": "scripts/github-step-04-config.ps1",
+      "description": "隔离 Git 已安装，仅需配置 user.name / user.email"
+    },
+    {
+      "id": "task-deploy-git-S05",
+      "scenario_name": "查看场景速查",
+      "trigger_words": ["git场景", "git速查", "deploy-git场景", "git任务", "git怎么开始"],
+      "confidence": "medium",
+      "entry_script": "README.md",
+      "description": "不确定走哪个场景，展示 README 场景化决策入口"
+    }
+  ],
+  "conflict_domains": {
+    "task-deploy-git": {
+      "name": "隔离 Git 部署任务",
+      "description": "本任务处理 Git CLI 的隔离部署与 GitHub 推送操作，不涉及代理下载或运行时工具分发",
+      "boundary_with_global": [
+        "skill-proxy-downloader: 本任务不处理 GitHub Release 代理下载",
+        "skill-proxy-test: 本任务不执行代理连通性测试",
+        "mdc-download-runtime: 本任务不处理运行时工具（Python/Node/Chromium 等）下载",
+        "mdc-project-handoff: 本任务产物为 env-migration 级别，非项目级 handoff",
+        "mdc-env-migration: 本任务执行完成后可触发 env-migration 记录，但本身不是记录任务"
+      ],
+      "resolution_strategy": "priority",
+      "notes": "用户提及'git'时，若同时涉及'代理下载'/'运行时下载'，优先执行对应 skill/mdc；本任务仅聚焦 Git CLI 部署与操作"
+    }
+  }
+}

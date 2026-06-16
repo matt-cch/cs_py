@@ -1,0 +1,184 @@
+{
+  "meta": {
+    "description": "deploy-git-isolated 机器可读真源索引",
+    "version": "0.5.0",
+    "version_history": [
+      {"version": "0.1.0", "date": "2026-06-16", "note": "骨架创建，设计冻结，ENTRY/DESIGN/CONFIG/README 定稿"},
+      {"version": "0.2.0", "date": "2026-06-16", "note": "Step 1-8 执行通过，MinGit 2.54.0 部署成功，插件架构就绪，verified-runtime-index 已登记"},
+      {"version": "0.3.0", "date": "2026-06-16", "note": "新增 task-scenario-triggers.json 触发条件真源，$schema 自描述，全局 verified-trigger-index 已登记 task-deploy-git"},
+      {"version": "0.4.0", "date": "2026-06-16", "note": "拆分 TASK-TOOLS-INDEX.md，SOP-CHEATSHEET 精简为纯命令速查，修订联动 ENTRY/README"},
+      {"version": "0.5.0", "date": "2026-06-16", "note": "新增 task-canonical-baseline.md 规范基线，记录 Agent 遗忘踩坑到 gotchas/，README 顶部增加自检提示"}
+    ],
+    "last_updated": "2026-06-16",
+    "source_of_truth": "README.md",
+    "trigger_index": "references/tasks/deploy-git-isolated/task-scenario-triggers.json",
+    "tools_index": "references/tasks/deploy-git-isolated/TASK-TOOLS-INDEX.md",
+    "canonical_baseline": "references/tasks/deploy-git-isolated/task-canonical-baseline.md"
+  },
+  "current_workflow": {
+    "entry_script": "scripts/github-lib.ps1",
+    "description": "共享库入口：拓扑排序加载插件，被各 step 脚本点源导入",
+    "usage": ". (Join-Path $PSScriptRoot \"github-lib.ps1\")"
+  },
+  "scenarios": [
+    {
+      "id": "deploy-git",
+      "trigger": ["部署隔离 Git", "装 git", "初始化 git", "git init"],
+      "description": "首次部署隔离 Git 并连接 GitHub",
+      "scripts": [
+        "scripts/github-step-01-init.ps1",
+        "scripts/github-step-02-gitignore.ps1",
+        "scripts/github-step-03-readme.ps1",
+        "scripts/github-step-04-stage.ps1",
+        "scripts/github-step-05-commit.ps1",
+        "scripts/github-step-06-remote.ps1",
+        "scripts/github-step-07-push.ps1",
+        "scripts/github-step-08-upstream.ps1"
+      ],
+      "prerequisites": [".env 中 GIT_USER_NAME/GIT_USER_EMAIL", ".env 中 GITHUB_REPO_URL", ".env 中 GITHUB_PAT"]
+    },
+    {
+      "id": "safety-check",
+      "trigger": ["安全检查", "哪些会上传", "push 前检查", "敏感文件"],
+      "description": "Push 前强制安全检查",
+      "scripts": ["scripts/github-safety-check.ps1"],
+      "prerequisites": []
+    },
+    {
+      "id": "daily-git",
+      "trigger": ["git status", "git log", "git diff", "git add", "git commit"],
+      "description": "日常 Git 操作（通用包装器）",
+      "scripts": ["scripts/git-isolated.ps1"],
+      "prerequisites": []
+    },
+    {
+      "id": "github-connect",
+      "trigger": ["连 GitHub", "push 到 github", "新仓库"],
+      "description": "连接新的 GitHub 仓库",
+      "scripts": [
+        "scripts/github-step-06-remote.ps1",
+        "scripts/github-step-07-push.ps1",
+        "scripts/github-step-08-upstream.ps1"
+      ],
+      "prerequisites": [".env 中 GITHUB_REPO_URL", ".env 中 GITHUB_PAT"]
+    }
+  ],
+  "active_scripts": [
+    {
+      "name": "github-lib.ps1",
+      "role": "共享库聚合入口：拓扑排序加载插件",
+      "path": "references/tasks/deploy-git-isolated/scripts/github-lib.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "github-step-01-init.ps1",
+      "role": "Step 1: git init + 身份配置",
+      "path": "references/tasks/deploy-git-isolated/scripts/github-step-01-init.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "github-step-02-gitignore.ps1",
+      "role": "Step 2: 生成安全 .gitignore",
+      "path": "references/tasks/deploy-git-isolated/scripts/github-step-02-gitignore.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "github-step-03-readme.ps1",
+      "role": "Step 3: 生成 README",
+      "path": "references/tasks/deploy-git-isolated/scripts/github-step-03-readme.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "github-step-04-stage.ps1",
+      "role": "Step 4: 安全 add",
+      "path": "references/tasks/deploy-git-isolated/scripts/github-step-04-stage.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "github-step-05-commit.ps1",
+      "role": "Step 5: git commit",
+      "path": "references/tasks/deploy-git-isolated/scripts/github-step-05-commit.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "github-step-06-remote.ps1",
+      "role": "Step 6: 添加 remote",
+      "path": "references/tasks/deploy-git-isolated/scripts/github-step-06-remote.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "github-step-07-push.ps1",
+      "role": "Step 7: git push（使用 PAT）",
+      "path": "references/tasks/deploy-git-isolated/scripts/github-step-07-push.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "github-step-08-upstream.ps1",
+      "role": "Step 8: 设置 upstream",
+      "path": "references/tasks/deploy-git-isolated/scripts/github-step-08-upstream.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "github-safety-check.ps1",
+      "role": "综合安全检查（push 前必执行）",
+      "path": "references/tasks/deploy-git-isolated/scripts/github-safety-check.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "git-isolated.ps1",
+      "role": "隔离 Git 通用包装器（透传 git 子命令）",
+      "path": "references/tasks/deploy-git-isolated/scripts/git-isolated.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "step-00-precheck.py",
+      "role": "Step 0: 空状态检测与网络确认",
+      "path": "references/tasks/deploy-git-isolated/skeleton/step-00-precheck.py",
+      "status": "ready"
+    },
+    {
+      "name": "step-02-process.py",
+      "role": "Step 2: 下载 MinGit（Python 骨架）",
+      "path": "references/tasks/deploy-git-isolated/skeleton/step-02-process.py",
+      "status": "ready"
+    },
+    {
+      "name": "step-03-verify.py",
+      "role": "Step 3: 验证隔离效果（Python 骨架）",
+      "path": "references/tasks/deploy-git-isolated/skeleton/step-03-verify.py",
+      "status": "ready"
+    }
+  ],
+  "maintenance_scripts": [
+    {
+      "name": "git-config-global.ps1",
+      "role": "设置隔离全局身份（独立使用）",
+      "path": "references/tasks/deploy-git-isolated/scripts/git-config-global.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "git-clone-isolated.ps1",
+      "role": "隔离方式 Clone",
+      "path": "references/tasks/deploy-git-isolated/scripts/git-clone-isolated.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "git-multi-identity.ps1",
+      "role": "多身份切换演示",
+      "path": "references/tasks/deploy-git-isolated/scripts/git-multi-identity.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "git-verify-isolation.ps1",
+      "role": "验证隔离效果（独立使用）",
+      "path": "references/tasks/deploy-git-isolated/scripts/git-verify-isolation.ps1",
+      "status": "ready"
+    }
+  ],
+  "design_doc": "references/tasks/deploy-git-isolated/DESIGN.md",
+  "cheatsheet": "references/tasks/deploy-git-isolated/scripts/SOP-CHEATSHEET.md",
+  "changelog_dir": "references/tasks/deploy-git-isolated/changelog",
+  "gotchas_dir": "references/tasks/deploy-git-isolated/gotchas",
+  "output_dir": "venv/tmp/deploy-git-isolated",
+  "groups": {}
+}

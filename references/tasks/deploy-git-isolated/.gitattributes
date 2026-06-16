@@ -1,0 +1,12 @@
+# 强制本目录及子目录所有文本文件使用 LF 换行符
+# 确保 Windows / Linux / GitHub 三者一致
+* text eol=lf
+
+# 二进制文件不受换行符转换影响
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.7z binary

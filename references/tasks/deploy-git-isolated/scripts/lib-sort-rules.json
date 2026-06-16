@@ -1,0 +1,40 @@
+{
+  "meta": {
+    "description": "lib-plugins 目录下点源模块的依赖排序真源。由 github-lib.ps1 读取并执行拓扑排序，决定加载顺序。",
+    "strategy": "topological_sort",
+    "algorithm": "Kahn",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "core",
+      "file": "core.ps1",
+      "depends": [],
+      "description": "Test-IsolatedGit / Write-StepHeader，无外部依赖"
+    },
+    {
+      "name": "encoding",
+      "file": "encoding.ps1",
+      "depends": [],
+      "description": "Switch-ToUtf8 / Restore-Encoding，纯编码函数"
+    },
+    {
+      "name": "constants",
+      "file": "constants.ps1",
+      "depends": [],
+      "description": "项目常量 $devroot / $gitExe / $gitHome / $envFile"
+    },
+    {
+      "name": "env-config",
+      "file": "env-config.ps1",
+      "depends": ["constants"],
+      "description": "Read-EnvConfig，依赖 constants 提供的 $envFile"
+    },
+    {
+      "name": "git-checks",
+      "file": "git-checks.ps1",
+      "depends": ["core", "constants"],
+      "description": "Git 检查函数，依赖 core 的 Write-StepHeader 和 constants 的路径常量"
+    }
+  ]
+}

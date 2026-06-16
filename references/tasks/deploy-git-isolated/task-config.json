@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "description": "deploy-git-isolated 任务配置",
+    "version": "0.1",
+    "schema": "schema/task-template/reference/task-config-schema.json"
+  },
+  "toolchain": {
+    "python": "D:\\pjt\\cursor\\cs_py\\venv\\py\\python.exe",
+    "powershell": "powershell.exe"
+  },
+  "paths": {
+    "devroot": "D:\\pjt\\cursor\\cs_py",
+    "git_dist_dir": "D:\\pjt\\cursor\\cs_py\\venv\\git",
+    "git_data_dir": "D:\\pjt\\cursor\\cs_py\\venv\\data-git",
+    "git_config_file": "D:\\pjt\\cursor\\cs_py\\venv\\data-git\\.gitconfig",
+    "tmp_dir": "D:\\pjt\\cursor\\cs_py\\venv\\tmp\\deploy-git-isolated"
+  },
+  "download": {
+    "source": "github_release",
+    "owner": "git-for-windows",
+    "repo": "git",
+    "version": "2.54.0",
+    "asset_name": "MinGit-2.54.0-64-bit.zip",
+    "proxy_candidates": [
+      "https://gh-proxy.com",
+      "https://gh.llkk.cc",
+      "https://ghproxy.net"
+    ],
+    "fallback_direct": "https://github.com/git-for-windows/git/releases/download/v2.54.0.windows.1/MinGit-2.54.0-64-bit.zip"
+  },
+  "git_config": {
+    "user_name": "",
+    "user_email": "",
+    "credential_helper": "cache",
+    "core_autocrlf": "false",
+    "core_eol": "lf"
+  },
+  "groups": [
+    {
+      "name": "mingit",
+      "description": "MinGit 隔离部署",
+      "src": "",
+      "output": "",
+      "process_cwd": "D:\\pjt\\cursor\\cs_py"
+    }
+  ]
+}
