@@ -179,6 +179,7 @@
   "cheatsheet": "references/tasks/deploy-git-isolated/scripts/SOP-CHEATSHEET.md",
   "changelog_dir": "references/tasks/deploy-git-isolated/changelog",
   "gotchas_dir": "references/tasks/deploy-git-isolated/gotchas",
+  "playbooks_dir": "references/tasks/deploy-git-isolated/docs",
   "output_dir": "venv/tmp/deploy-git-isolated",
   "groups": {}
 }
