@@ -91,7 +91,7 @@ try {
     if (-not (Test-Path $libPath)) {
         throw "github-lib.ps1 不存在: $libPath"
     }
-    . $libPath
+    . $libPath -Profile "issue-sync"
 
     # ============================================================
     # 2. 读取配置

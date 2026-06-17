@@ -42,5 +42,27 @@
       "depends": ["constants", "env-config"],
       "description": "GitHub REST API 封装：Invoke-GitHubApi / New-GitHubIssue / Update-GitHubIssue / New-GitHubIssueComment，自动处理 UTF-8 encoding"
     }
-  ]
+  ],
+  "profiles": {
+    "_default": {
+      "include": [],
+      "exclude": [],
+      "description": "向后兼容，加载全部插件"
+    },
+    "deploy": {
+      "include": ["core","constants","encoding","env-config","git-checks"],
+      "exclude": [],
+      "description": "Git 部署流水线（Step 1-8），不需要 github-api"
+    },
+    "issue-sync": {
+      "include": ["core","constants","encoding","env-config","git-checks","github-api"],
+      "exclude": [],
+      "description": "Issue 同步（github-sync-issue.ps1），全功能"
+    },
+    "minimal": {
+      "include": ["core","constants"],
+      "exclude": [],
+      "description": "最小功能集，仅基础常量和工具函数"
+    }
+  }
 }
