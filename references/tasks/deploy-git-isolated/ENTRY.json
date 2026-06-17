@@ -13,7 +13,8 @@
     "source_of_truth": "README.md",
     "trigger_index": "references/tasks/deploy-git-isolated/task-scenario-triggers.json",
     "tools_index": "references/tasks/deploy-git-isolated/TASK-TOOLS-INDEX.md",
-    "canonical_baseline": "references/tasks/deploy-git-isolated/task-canonical-baseline.md"
+    "canonical_baseline": "references/tasks/deploy-git-isolated/task-canonical-baseline.md",
+    "goal_doc": "references/tasks/deploy-git-isolated/GOAL.md"
   },
   "current_workflow": {
     "entry_script": "scripts/github-lib.ps1",

@@ -7,7 +7,7 @@ date: 2026-06-16
 # deploy-git-isolated — 隔离 Git 部署任务
 
 > **版本**: v0.5.0 | **状态**: 核心功能 ready，可执行部署与 GitHub 交互  
-> **真源索引**: [ENTRY.json](ENTRY.json) | **命令速查**: [scripts/SOP-CHEATSHEET.md](scripts/SOP-CHEATSHEET.md) | **工具索引**: [TASK-TOOLS-INDEX.md](TASK-TOOLS-INDEX.md)  
+> **真源索引**: [ENTRY.json](ENTRY.json) | **目标闭环**: [GOAL.md](GOAL.md) | **命令速查**: [scripts/SOP-CHEATSHEET.md](scripts/SOP-CHEATSHEET.md) | **工具索引**: [TASK-TOOLS-INDEX.md](TASK-TOOLS-INDEX.md)  
 > **设计文档**: [DESIGN.md](DESIGN.md) | **架构说明**: [docs/PLUGIN-ARCHITECTURE.md](docs/PLUGIN-ARCHITECTURE.md) | **规范基线**: [task-canonical-baseline.md](task-canonical-baseline.md)
 >
 > ⚠️ **Agent 注意**：本 task 有已定义的规范基线 `task-canonical-baseline.md`。如果你在对话中遗忘了本文件的存在，说明上下文已碎片化——请**立即停止推理，重新读取 `task-canonical-baseline.md`**。
@@ -120,6 +120,7 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | 文件 | 职责 | 何时读 |
 |------|------|--------|
 | `README.md` | **本文件**：Agent 快速决策、场景路径、状态总览 | **每次进入本 task 先读** |
+| `GOAL.md` | **目标闭环**：Goal → Solution → SOP → Apply → Review → Ralph Loop 完整链条 | 首次接触 / 跨 session 接续时 |
 | `ENTRY.json` | 机器真源：脚本清单、版本历史、场景映射 | Agent 工具调用前读取 |
 | `TASK-TOOLS-INDEX.md` | **工具速查表**：本 task 全部可用工具索引（本地+外部引用+边界矩阵） | 想知道「有什么工具、该调哪个、边界在哪」时 |
 | `scripts/SOP-CHEATSHEET.md` | **命令速查**：Agent/终端双格式执行命令 | 需要具体命令复制粘贴时 |
