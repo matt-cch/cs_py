@@ -27,14 +27,23 @@ date: 2026-06-16
 | `github-step-07-push.ps1` | git push（从 .env 读取 PAT） | 推送到远程 | ready |
 | `github-step-08-upstream.ps1` | 设置 upstream | 建立分支追踪 | ready |
 
-### 1.2 安全与检查
+### 1.2 Issue 同步（新增）
+
+| 脚本 | 职责 | 典型场景 | 状态 |
+|------|------|---------|------|
+| `github-sync-issue.ps1` | Issue 同步入口：create / update / comment / list-comments / get-issue | commit 后同步变更历史到 Issue | ready |
+| `github-sync-issue-config.json` | 配置真源：模板、labels、endpoint 映射 | 调整 Issue 格式时修改此文件，不动脚本 | ready |
+
+> **与 github-create-issue.ps1 的区别**：`github-create-issue.ps1` 是 Phase 3 的遗留脚本，功能单一（仅 create）；`github-sync-issue.ps1` 是统一入口，覆盖全部 Issue 生命周期操作，使用插件架构（github-api.ps1），推荐新场景使用。
+
+### 1.3 安全与检查
 
 | 脚本 | 职责 | 典型场景 | 状态 |
 |------|------|---------|------|
 | `github-safety-check.ps1` | 综合安全检查（tracked/staged/敏感文件） | push 前必执行 | ready |
 | `git-verify-isolation.ps1` | 验证隔离效果（独立使用） | 怀疑 PATH 泄漏时 | ready |
 
-### 1.3 通用包装器
+### 1.4 通用包装器
 
 | 脚本 | 职责 | 典型场景 | 状态 |
 |------|------|---------|------|
@@ -43,15 +52,16 @@ date: 2026-06-16
 | `git-config-global.ps1` | 设置隔离全局身份（独立使用） | 仅需改身份时 | ready |
 | `git-multi-identity.ps1` | 多身份切换演示 | 教学/验证 | ready |
 
-### 1.4 共享库体系
+### 1.5 共享库体系
 
 | 文件 | 职责 | 扩展方式 |
 |------|------|---------|
 | `github-lib.ps1` | 共享库聚合入口（拓扑排序加载插件） | 不直接修改，通过 JSON 驱动 |
 | `lib-sort-rules.json` | 插件依赖图与加载顺序真源 | 追加条目即可 |
-| `lib-plugins/*.ps1` | 5 个共享函数插件 | 新建 `.ps1` + 登记 JSON |
+| `lib-plugins/*.ps1` | 6 个共享函数插件 | 新建 `.ps1` + 登记 JSON |
 
 > 插件架构详情见：`docs/PLUGIN-ARCHITECTURE.md`
+> 新增插件：`github-api.ps1`（GitHub REST API 封装，自动 UTF-8 encoding）
 
 ---
 
@@ -88,6 +98,7 @@ date: 2026-06-16
 | 日常 git 操作 | `git-isolated.ps1`（本地） | — | 禁止裸 `git` 调用（可能命中系统版） |
 | 真源扫描 | `verify-runtime.ps1`（通用） | — | 禁止自行实现文件存在性扫描 |
 | 下载 MinGit | `download-runtime-tool.ps1`（通用） | — | 禁止自行写 `curl`/`Invoke-WebRequest` 下载 |
+| Issue 同步（create/update/comment） | `github-sync-issue.ps1`（本地） | — | 禁止裸 API 调用，禁止重复造轮子 |
 
 ---
 
@@ -104,6 +115,9 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 
 # 通用包装器（示例：git status）
 powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\git-isolated.ps1" status
+
+# Issue 同步（示例：追加评论记录 commit）
+powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-sync-issue.ps1" -Mode comment -IssueNumber 1 -Body "commit abc123: 新增 GOAL.md"
 ```
 
 > 完整命令见：`scripts/SOP-CHEATSHEET.md`

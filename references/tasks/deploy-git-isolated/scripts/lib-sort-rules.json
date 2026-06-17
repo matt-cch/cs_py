@@ -35,6 +35,12 @@
       "file": "git-checks.ps1",
       "depends": ["core", "constants"],
       "description": "Git 检查函数，依赖 core 的 Write-StepHeader 和 constants 的路径常量"
+    },
+    {
+      "name": "github-api",
+      "file": "github-api.ps1",
+      "depends": ["constants", "env-config"],
+      "description": "GitHub REST API 封装：Invoke-GitHubApi / New-GitHubIssue / Update-GitHubIssue / New-GitHubIssueComment，自动处理 UTF-8 encoding"
     }
   ]
 }

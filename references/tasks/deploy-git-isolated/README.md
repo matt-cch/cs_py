@@ -23,6 +23,7 @@ date: 2026-06-16
 | "检查哪些文件会传上去" / "安全确认" | **场景 C: 安全检查** | 执行 `github-safety-check.ps1` |
 | "git status" / "看看改了什么" / "哪些 staged" | **场景 D: 日常查询** | 执行 `git-isolated.ps1 status` |
 | "commit" / "push" / "add" | **场景 E: 日常操作** | 执行 `git-isolated.ps1 <子命令>` |
+| "同步 Issue" / "更新 Issue" / "追加评论" | **场景 F: Issue 同步** | 执行 `github-sync-issue.ps1` |
 
 > **铁律**：不确定时先执行 `github-safety-check.ps1`，确认无敏感文件后再 push。
 
@@ -133,6 +134,9 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `scripts/lib-plugins/*.ps1` | 共享函数插件：编码/常量/配置/检查 | 被 github-lib.ps1 自动加载 |
 | `scripts/github-step-0N-*.ps1` | Step 脚本：部署流程的 8 个步骤 | 按场景执行 |
 | `scripts/github-safety-check.ps1` | 安全检查：push 前必执行 | push 前 |
+| `scripts/github-sync-issue.ps1` | **Issue 同步入口**：create / update / comment / list-comments / get-issue | commit 后同步变更历史 |
+| `scripts/github-sync-issue-config.json` | Issue 同步配置真源：模板、labels、endpoint 映射 | 调整 Issue 格式时 |
+| `scripts/lib-plugins/github-api.ps1` | 插件：GitHub REST API 封装（UTF-8 encoding） | 被 sync-issue / 其他脚本点源加载 |
 | `scripts/git-isolated.ps1` | 通用包装器：日常 git 子命令 | 日常操作 |
 
 ---
@@ -150,8 +154,9 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `verified-runtime-index.json` | ✅ | Git 工具链已登记 |
 | 命令速查 | ✅ | SOP-CHEATSHEET.md v1.2（纯命令） |
 | 工具索引 | ✅ | TASK-TOOLS-INDEX.md v1.0（本地+外部引用+边界） |
+| Issue 同步体系 | ✅ | github-sync-issue.ps1 + github-api.ps1 + config.json |
 
 ---
 
-*任务版本: v0.4.0*  
+*任务版本: v0.6.0*  
 *演进历史: 见 ENTRY.json `meta.version_history`*

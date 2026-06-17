@@ -7,9 +7,10 @@
       {"version": "0.2.0", "date": "2026-06-16", "note": "Step 1-8 执行通过，MinGit 2.54.0 部署成功，插件架构就绪，verified-runtime-index 已登记"},
       {"version": "0.3.0", "date": "2026-06-16", "note": "新增 task-scenario-triggers.json 触发条件真源，$schema 自描述，全局 verified-trigger-index 已登记 task-deploy-git"},
       {"version": "0.4.0", "date": "2026-06-16", "note": "拆分 TASK-TOOLS-INDEX.md，SOP-CHEATSHEET 精简为纯命令速查，修订联动 ENTRY/README"},
-      {"version": "0.5.0", "date": "2026-06-16", "note": "新增 task-canonical-baseline.md 规范基线，记录 Agent 遗忘踩坑到 gotchas/，README 顶部增加自检提示"}
+      {"version": "0.5.0", "date": "2026-06-16", "note": "新增 task-canonical-baseline.md 规范基线，记录 Agent 遗忘踩坑到 gotchas/，README 顶部增加自检提示"},
+      {"version": "0.6.0", "date": "2026-06-17", "note": "新增 github-sync-issue 体系：github-api.ps1 插件 + github-sync-issue.ps1 入口 + github-sync-issue-config.json 配置真源，支持 create/update/comment/list-comments/get-issue 五种模式，实现 commit → Issue 同步闭环"}
     ],
-    "last_updated": "2026-06-16",
+    "last_updated": "2026-06-17",
     "source_of_truth": "README.md",
     "trigger_index": "references/tasks/deploy-git-isolated/task-scenario-triggers.json",
     "tools_index": "references/tasks/deploy-git-isolated/TASK-TOOLS-INDEX.md",
@@ -62,6 +63,13 @@
         "scripts/github-step-08-upstream.ps1"
       ],
       "prerequisites": [".env 中 GITHUB_REPO_URL", ".env 中 GITHUB_PAT"]
+    },
+    {
+      "id": "issue-sync",
+      "trigger": ["同步 Issue", "更新 Issue", "追加评论", "commit 同步到 Issue"],
+      "description": "GitHub Issue 同步：创建/更新/评论/列出评论",
+      "scripts": ["scripts/github-sync-issue.ps1"],
+      "prerequisites": [".env 中 GITHUB_PAT", "github-sync-issue-config.json 存在"]
     }
   ],
   "active_scripts": [
@@ -147,6 +155,24 @@
       "name": "step-03-verify.py",
       "role": "Step 3: 验证隔离效果（Python 骨架）",
       "path": "references/tasks/deploy-git-isolated/skeleton/step-03-verify.py",
+      "status": "ready"
+    },
+    {
+      "name": "github-sync-issue.ps1",
+      "role": "GitHub Issue 同步入口：create/update/comment/list-comments/get-issue",
+      "path": "references/tasks/deploy-git-isolated/scripts/github-sync-issue.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "github-api.ps1",
+      "role": "插件：GitHub REST API 封装（Invoke-GitHubApi / New-GitHubIssue / Update-GitHubIssue / New-GitHubIssueComment），自动处理 UTF-8 encoding",
+      "path": "references/tasks/deploy-git-isolated/scripts/lib-plugins/github-api.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "github-sync-issue-config.json",
+      "role": "配置真源：Issue 模板、labels、API endpoint 映射",
+      "path": "references/tasks/deploy-git-isolated/scripts/github-sync-issue-config.json",
       "status": "ready"
     }
   ],
