@@ -128,7 +128,10 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `DESIGN.md` | 设计文档：决策记录、SOP、踩坑 | 需要理解设计背景时 |
 | `task-canonical-baseline.md` | **规范基线**：本 task 的认知契约、命名约定、修订联动规则 | 需要理解「文件该怎么组织、怎么命名、怎么联动」时 |
 | `docs/PLUGIN-ARCHITECTURE.md` | 插件架构说明：为什么三层、怎么扩展 | 新增插件或维护架构时 |
-| `docs/github-publish-playbook.md` | **发布手册**：task 发布到 GitHub 的完整实录（三篇文章原理、实施步骤、踩坑） | 需要复现 GitHub 发布流程或理解设计思路时 |
+| `docs/patterns/profile-filter-pattern.md` | **设计模式**：Profile 筛选（稳定框架+黑白名单+依赖补齐） | 需要复用插件筛选机制时 |
+| `docs/patterns/manifest-plugin-pattern.md` | **设计模式**：Manifest + Plugins 扩展（机器真源+人类速查+可插拔代码） | 需要复用工具索引体系时 |
+| `docs/harness/delivery-checklist.md` | **交付流程**：最小范围测试 → Lint → 验证 → 归档 | 交付前自检 |
+| `docs/playbooks/github-publish-playbook.md` | **发布手册**：task 发布到 GitHub 的完整实录 | 需要复现 GitHub 发布流程时 |
 | `scripts/github-lib.ps1` | 共享库入口：拓扑排序加载所有插件 | 被 step 脚本点源导入 |
 | `scripts/lib-sort-rules.json` | 插件排序真源：依赖图定义 | 新增/修改插件时 |
 | `scripts/lib-plugins/*.ps1` | 共享函数插件：编码/常量/配置/检查 | 被 github-lib.ps1 自动加载 |
