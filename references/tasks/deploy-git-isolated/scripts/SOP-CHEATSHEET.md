@@ -147,7 +147,54 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 - 插件架构详情见：`../docs/PLUGIN-ARCHITECTURE.md`
 - 工具索引与边界说明见：`../TASK-TOOLS-INDEX.md`
 
-## 9. 安全检查（综合）
+## 9. Issue 同步
+
+### 9.1 追加评论（记录 commit）
+
+**Agent:**
+```powershell
+powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-sync-issue.ps1" -Mode comment -IssueNumber 1 -Body "commit abc123: 新增功能"
+```
+
+**终端:**
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\deploy-git-isolated\scripts\github-sync-issue.ps1 -Mode comment -IssueNumber 1 -Body "commit abc123: 新增功能"
+```
+
+### 9.2 获取 Issue 详情
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-sync-issue.ps1" -Mode get-issue -IssueNumber 1
+```
+
+### 9.3 列出评论
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-sync-issue.ps1" -Mode list-comments -IssueNumber 1
+```
+
+---
+
+## 10. 插件 Profile 筛选（高级）
+
+**直接点源 github-lib 时指定 Profile：**
+
+```powershell
+# 使用预设 profile（deploy/issue-sync/minimal）
+. "${devroot}\references\tasks\deploy-git-isolated\scripts\github-lib.ps1" -Profile "issue-sync"
+
+# 命令行覆盖：排除特定插件
+. "${devroot}\references\tasks\deploy-git-isolated\scripts\github-lib.ps1" -Profile "issue-sync" -Exclude @("git-checks")
+
+# 仅加载指定插件（自动补齐依赖）
+. "${devroot}\references\tasks\deploy-git-isolated\scripts\github-lib.ps1" -Include @("constants", "github-api")
+```
+
+> 优先级：`-Include/-Exclude` > `-Profile` > `_default`（向后兼容，加载全部）
+
+---
+
+## 11. 安全检查（综合）
 
 **Agent:**
 ```powershell

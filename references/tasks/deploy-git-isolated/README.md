@@ -150,13 +150,14 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | Step 脚本 1-8 | ✅ | 全部 ready，可执行完整 GitHub 初始化流程 |
 | 安全检查脚本 | ✅ | `github-safety-check.ps1` 可用 |
 | 通用包装器 | ✅ | `git-isolated.ps1` 可用 |
-| 插件架构 | ✅ | 拓扑排序自动加载，5 个插件就绪 |
+| 插件架构 | ✅ | 拓扑排序自动加载，6 个插件就绪 |
 | `verified-runtime-index.json` | ✅ | Git 工具链已登记 |
 | 命令速查 | ✅ | SOP-CHEATSHEET.md v1.2（纯命令） |
 | 工具索引 | ✅ | TASK-TOOLS-INDEX.md v1.0（本地+外部引用+边界） |
 | Issue 同步体系 | ✅ | github-sync-issue.ps1 + github-api.ps1 + config.json |
+| **Profile 筛选机制** | ✅ | github-lib.ps1 支持 Profile/Include/Exclude 三层筛选，依赖自动补齐，向后兼容 |
 
 ---
 
-*任务版本: v0.6.0*  
+*任务版本: v0.7.0*  
 *演进历史: 见 ENTRY.json `meta.version_history`*

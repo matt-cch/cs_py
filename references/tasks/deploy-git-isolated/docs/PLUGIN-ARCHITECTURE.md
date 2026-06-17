@@ -54,14 +54,15 @@ date: 2026-06-16
 
 ```
 scripts/
-├── github-lib.ps1          # 聚合入口（只读 JSON → 排序 → 循环导入）
-├── lib-sort-rules.json     # 排序真源（依赖图定义）
+├── github-lib.ps1          # 聚合入口（读取 JSON → 筛选 → 排序 → 循环导入）
+├── lib-sort-rules.json     # 真源：依赖图 + Profile 定义 + 加载顺序
 └── lib-plugins/            # 纯代码目录（只放 .ps1）
     ├── core.ps1
     ├── encoding.ps1
     ├── constants.ps1
     ├── env-config.ps1
-    └── git-checks.ps1
+    ├── git-checks.ps1
+    └── github-api.ps1
 ```
 
 | 层级 | 职责 | 修改频率 |
@@ -81,14 +82,19 @@ github-lib.ps1
     ↓
 读取 lib-sort-rules.json（ConvertFrom-Json）
     ↓
-Invoke-TopologicalSort（Kahn 算法）
+Resolve-PluginFilter（Profile / Include / Exclude 三层筛选）
+    ├── Profile 层：从 profiles 节读取 include/exclude
+    ├── 命令行覆盖：-Include / -Exclude 最高优先级
+    └── 依赖自动补齐：递归拉入缺失的依赖插件
+    ↓
+Invoke-TopologicalSort（Kahn 算法，在筛选后的子图上）
     ↓
 按排序结果遍历插件
     ├── 校验：后缀必须是 .ps1
     ├── 校验：文件必须存在于 lib-plugins/
     └── 点源导入：. $filePath
     ↓
-输出加载完成日志
+输出加载完成日志（含筛选前后数量对比）
 ```
 
 ### 3.2 拓扑排序（Kahn 算法）
@@ -105,7 +111,37 @@ Invoke-TopologicalSort（Kahn 算法）
 
 **输出**：按依赖关系排好序的插件对象数组。
 
-### 3.3 校验层
+### 3.3 Profile 筛选层（Resolve-PluginFilter）
+
+**三层优先级**（从高到低）：
+
+| 层级 | 来源 | 说明 |
+|------|------|------|
+| 1. 命令行覆盖 | `-Include` / `-Exclude` | 显式指定，最高优先级 |
+| 2. Profile 预设 | `-Profile "xxx"` | 从 JSON `profiles` 节读取 |
+| 3. 默认回退 | `_default` / 无参数 | 向后兼容，加载全部插件 |
+
+**语义规则**：
+- `include: []` → 表示 all（加载全部）
+- `exclude: []` → 表示 all（不排除任何）
+- 若筛选结果包含未定义插件名 → `throw` 报错
+- 筛选后**自动递归补齐依赖**：若 profile 包含 `env-config`（依赖 `constants`），但 profile 没列 `constants`，算法自动拉入
+
+**生效验证日志示例**：
+```
+[github-lib] Profile: issue-sync
+[github-lib] 全图插件: 6 个
+[github-lib] 筛选后加载顺序:
+  1. constants (constants.ps1)
+  2. core (core.ps1)
+  3. encoding (encoding.ps1)
+  4. env-config (env-config.ps1) [auto-dep]
+  5. git-checks (git-checks.ps1)
+  6. github-api (github-api.ps1)
+[github-lib] 实际加载: 6 个（过滤前 6 个）
+```
+
+### 3.4 校验层
 
 | 校验项 | 时机 | 失败行为 |
 |--------|------|---------|
@@ -137,9 +173,25 @@ Invoke-TopologicalSort（Kahn 算法）
 }
 ```
 
-**Step 3**：如有必要，修改下游插件的 `depends` 数组
+**Step 3**（可选）：如需绑定到特定 profile，在 `profiles` 节中追加插件名
 
-**Step 4**：执行 `github-lib.ps1` 自检，确认排序输出符合预期
+```json
+"profiles": {
+  "deploy": { "include": ["core","constants","encoding","env-config","git-checks","middleware"] }
+}
+```
+
+**Step 4**：如有必要，修改下游插件的 `depends` 数组
+
+**Step 5**：执行 `github-lib.ps1` 自检，确认排序输出符合预期
+
+```powershell
+# 验证全量加载
+. .\github-lib.ps1
+
+# 验证特定 profile
+. .\github-lib.ps1 -Profile "deploy"
+```
 
 > **禁止**：新建 `.ps1` 后忘记在 JSON 中登记 → 会导致插件不被加载
 
@@ -164,6 +216,7 @@ Invoke-TopologicalSort（Kahn 算法）
 | 3 | 在 `lib-plugins/` 下放非 `.ps1` 文件 | 后缀校验失败，加载中断 |
 | 4 | 插件隐式依赖（JSON 不声明，代码里直接用） | 加载顺序不确定，运行时失败 |
 | 5 | 修改 `github-lib.ps1` 的排序/加载逻辑 | 破坏架构稳定性，除非架构升级 |
+| 6 | Profile 定义了 `include` 但忘记补齐依赖 | 已自动处理，但手动 exclude 依赖会导致运行时失败 |
 
 ---
 
@@ -220,6 +273,7 @@ Invoke-TopologicalSort（Kahn 算法）
 
 ---
 
-*文档版本: v1.0*  
+*文档版本: v1.1*  
 *创建时间: 2026-06-16*  
-*对应架构: github-lib.ps1 v1.0 + lib-sort-rules.json v1.0*
+*修订: 2026-06-17 — 新增 Profile 筛选层（Resolve-PluginFilter）、依赖自动补齐、三层优先级*
+*对应架构: github-lib.ps1 v2.0 + lib-sort-rules.json v2.0*

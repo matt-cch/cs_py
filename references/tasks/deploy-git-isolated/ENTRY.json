@@ -8,7 +8,8 @@
       {"version": "0.3.0", "date": "2026-06-16", "note": "新增 task-scenario-triggers.json 触发条件真源，$schema 自描述，全局 verified-trigger-index 已登记 task-deploy-git"},
       {"version": "0.4.0", "date": "2026-06-16", "note": "拆分 TASK-TOOLS-INDEX.md，SOP-CHEATSHEET 精简为纯命令速查，修订联动 ENTRY/README"},
       {"version": "0.5.0", "date": "2026-06-16", "note": "新增 task-canonical-baseline.md 规范基线，记录 Agent 遗忘踩坑到 gotchas/，README 顶部增加自检提示"},
-      {"version": "0.6.0", "date": "2026-06-17", "note": "新增 github-sync-issue 体系：github-api.ps1 插件 + github-sync-issue.ps1 入口 + github-sync-issue-config.json 配置真源，支持 create/update/comment/list-comments/get-issue 五种模式，实现 commit → Issue 同步闭环"}
+      {"version": "0.6.0", "date": "2026-06-17", "note": "新增 github-sync-issue 体系：github-api.ps1 插件 + github-sync-issue.ps1 入口 + github-sync-issue-config.json 配置真源，支持 create/update/comment/list-comments/get-issue 五种模式，实现 commit → Issue 同步闭环"},
+      {"version": "0.7.0", "date": "2026-06-17", "note": "github-lib 支持 Profile/Include/Exclude 三层筛选机制，lib-sort-rules.json 新增 profiles 节，依赖自动补齐，向后兼容"}
     ],
     "last_updated": "2026-06-17",
     "source_of_truth": "README.md",
@@ -75,8 +76,14 @@
   "active_scripts": [
     {
       "name": "github-lib.ps1",
-      "role": "共享库聚合入口：拓扑排序加载插件",
+      "role": "共享库聚合入口：拓扑排序 + Profile/Include/Exclude 三层筛选 + 依赖自动补齐",
       "path": "references/tasks/deploy-git-isolated/scripts/github-lib.ps1",
+      "status": "ready"
+    },
+    {
+      "name": "lib-sort-rules.json",
+      "role": "插件依赖图、加载顺序真源、Profile 定义（_default/deploy/issue-sync/minimal）",
+      "path": "references/tasks/deploy-git-isolated/scripts/lib-sort-rules.json",
       "status": "ready"
     },
     {

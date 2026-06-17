@@ -56,9 +56,21 @@ date: 2026-06-16
 
 | 文件 | 职责 | 扩展方式 |
 |------|------|---------|
-| `github-lib.ps1` | 共享库聚合入口（拓扑排序加载插件） | 不直接修改，通过 JSON 驱动 |
-| `lib-sort-rules.json` | 插件依赖图与加载顺序真源 | 追加条目即可 |
-| `lib-plugins/*.ps1` | 6 个共享函数插件 | 新建 `.ps1` + 登记 JSON |
+| `github-lib.ps1` | 共享库聚合入口（拓扑排序 + Profile 筛选 + 依赖自动补齐） | 不直接修改，通过 JSON 驱动 |
+| `lib-sort-rules.json` | 插件依赖图、加载顺序真源、**Profile 定义** | 追加条目 / 新增 profile |
+| `lib-plugins/*.ps1` | 6 个共享函数插件 | 新建 `.ps1` + 登记 JSON + 可选绑定 profile |
+
+**Profile 用法速查**：
+```powershell
+# 默认（向后兼容，加载全部）
+. $libPath
+
+# 使用预设 profile（deploy/issue-sync/minimal）
+. $libPath -Profile "issue-sync"
+
+# 命令行覆盖（最高优先级）
+. $libPath -Profile "issue-sync" -Exclude @("git-checks")
+```
 
 > 插件架构详情见：`docs/PLUGIN-ARCHITECTURE.md`
 > 新增插件：`github-api.ps1`（GitHub REST API 封装，自动 UTF-8 encoding）
@@ -99,6 +111,7 @@ date: 2026-06-16
 | 真源扫描 | `verify-runtime.ps1`（通用） | — | 禁止自行实现文件存在性扫描 |
 | 下载 MinGit | `download-runtime-tool.ps1`（通用） | — | 禁止自行写 `curl`/`Invoke-WebRequest` 下载 |
 | Issue 同步（create/update/comment） | `github-sync-issue.ps1`（本地） | — | 禁止裸 API 调用，禁止重复造轮子 |
+| 插件筛选加载 | `github-lib.ps1` -Profile（本地） | — | 禁止全量加载冗余插件 |
 
 ---
 
