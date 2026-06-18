@@ -181,7 +181,6 @@ opencode.ai/config.json      →  task-trigger-index.schema.json（结构契约�
 3. **发现冲突域重叠时**：不是简单改 trigger 词，而是先修订 `conflict_domains` 和 `conflict_resolution_rules`
 4. **环境重建时**：读取 `verified-trigger-index.json` 获取全部 source_prefix → 逐个读取各 task 的 `task-scenario-triggers.json` → 重建完整触发图谱
 
----
 
 *文档版本: v0.2*  
 *创建时间: 2026-06-16*  

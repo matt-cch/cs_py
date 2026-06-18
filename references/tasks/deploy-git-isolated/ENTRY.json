@@ -1,7 +1,7 @@
 {
   "meta": {
     "description": "deploy-git-isolated 机器可读真源索引",
-    "version": "0.5.0",
+    "version": "0.8.0",
     "version_history": [
       {"version": "0.1.0", "date": "2026-06-16", "note": "骨架创建，设计冻结，ENTRY/DESIGN/CONFIG/README 定稿"},
       {"version": "0.2.0", "date": "2026-06-16", "note": "Step 1-8 执行通过，MinGit 2.54.0 部署成功，插件架构就绪，verified-runtime-index 已登记"},
@@ -9,19 +9,247 @@
       {"version": "0.4.0", "date": "2026-06-16", "note": "拆分 TASK-TOOLS-INDEX.md，SOP-CHEATSHEET 精简为纯命令速查，修订联动 ENTRY/README"},
       {"version": "0.5.0", "date": "2026-06-16", "note": "新增 task-canonical-baseline.md 规范基线，记录 Agent 遗忘踩坑到 gotchas/，README 顶部增加自检提示"},
       {"version": "0.6.0", "date": "2026-06-17", "note": "新增 github-sync-issue 体系：github-api.ps1 插件 + github-sync-issue.ps1 入口 + github-sync-issue-config.json 配置真源，支持 create/update/comment/list-comments/get-issue 五种模式，实现 commit → Issue 同步闭环"},
-      {"version": "0.7.0", "date": "2026-06-17", "note": "github-lib 支持 Profile/Include/Exclude 三层筛选机制，lib-sort-rules.json 新增 profiles 节，依赖自动补齐，向后兼容"}
+      {"version": "0.7.0", "date": "2026-06-17", "note": "github-lib 支持 Profile/Include/Exclude 三层筛选机制，lib-sort-rules.json 新增 profiles 节，依赖自动补齐，向后兼容"},
+      {"version": "0.8.0", "date": "2026-06-18", "note": "SOP 重构：scripts/SOP-CHEATSHEET.md → 根目录 SOP.md（标准流程）+ scripts/EXEC-CHEATSHEET.md（执行速查）；新增 Step Manifest 结构（Input→Process→Output→Validation→Audit Trail→Rollback）；Ralph Loop 自闭环框架落地"}
     ],
-    "last_updated": "2026-06-17",
+    "last_updated": "2026-06-18",
     "source_of_truth": "README.md",
     "trigger_index": "references/tasks/deploy-git-isolated/task-scenario-triggers.json",
     "tools_index": "references/tasks/deploy-git-isolated/TASK-TOOLS-INDEX.md",
     "canonical_baseline": "references/tasks/deploy-git-isolated/task-canonical-baseline.md",
-    "goal_doc": "references/tasks/deploy-git-isolated/GOAL.md"
+    "goal_doc": "references/tasks/deploy-git-isolated/GOAL.md",
+    "sop": "references/tasks/deploy-git-isolated/SOP.md",
+    "exec_cheatsheet": "references/tasks/deploy-git-isolated/scripts/EXEC-CHEATSHEET.md"
   },
   "current_workflow": {
     "entry_script": "scripts/github-lib.ps1",
     "description": "共享库入口：拓扑排序加载插件，被各 step 脚本点源导入",
     "usage": ". (Join-Path $PSScriptRoot \"github-lib.ps1\")"
+  },
+  "step_manifests": {
+    "schema_version": "1.0",
+    "description": "每个 Step 的 Ralph Loop 契约：Input → Process → Output → Validation → Audit Trail → Rollback",
+    "steps": [
+      {
+        "id": 0,
+        "name": "precheck",
+        "stage": "S1",
+        "input_schema": {
+          "required_env": ["GIT_USER_NAME", "GIT_USER_EMAIL"],
+          "optional_env": ["GITHUB_REPO_URL", "GITHUB_PAT"],
+          "preconditions": [".env 可读", "网络可用"]
+        },
+        "process_script": "skeleton/step-00-precheck.py",
+        "output_schema": {
+          "fields": ["environment_status", "available_vars", "risk_warnings"],
+          "format": "text_report"
+        },
+        "validation_rules": [
+          "GIT_USER_NAME 非空",
+          "GIT_USER_EMAIL 非空"
+        ],
+        "audit_trail": {
+          "status": "pending",
+          "log_path": "logs/step-00-precheck.log",
+          "artifacts": ["precheck_report"]
+        },
+        "rollback": "无需回滚（只读操作）"
+      },
+      {
+        "id": 1,
+        "name": "init",
+        "stage": "S1",
+        "input_schema": {
+          "required_env": ["GIT_USER_NAME", "GIT_USER_EMAIL"],
+          "preconditions": ["Step 0 通过", "目标目录无 .git/ 残留"]
+        },
+        "process_script": "scripts/ps-steps/github-step-01-init.ps1",
+        "output_schema": {
+          "fields": [".git/", "venv/data-git/.gitconfig"],
+          "format": "filesystem"
+        },
+        "validation_rules": [
+          "git config --global user.name 返回预期值",
+          "--show-origin 指向隔离目录"
+        ],
+        "audit_trail": {
+          "status": "pending",
+          "log_path": "logs/step-01-init.log",
+          "artifacts": [".git/", ".gitconfig"]
+        },
+        "rollback": "Remove-Item -Recurse .git/; Remove-Item venv/data-git/.gitconfig"
+      },
+      {
+        "id": 2,
+        "name": "gitignore",
+        "stage": "S1",
+        "input_schema": {
+          "preconditions": ["Step 1 完成", ".gitignore 不存在或允许覆盖"]
+        },
+        "process_script": "scripts/ps-steps/github-step-02-gitignore.ps1",
+        "output_schema": {
+          "fields": [".gitignore"],
+          "format": "filesystem"
+        },
+        "validation_rules": [
+          "git check-ignore -v .env 返回匹配规则",
+          "git check-ignore -v venv/ 返回匹配规则"
+        ],
+        "audit_trail": {
+          "status": "pending",
+          "log_path": "logs/step-02-gitignore.log",
+          "artifacts": [".gitignore"]
+        },
+        "rollback": "Remove-Item .gitignore 或 git checkout -- .gitignore"
+      },
+      {
+        "id": 3,
+        "name": "readme",
+        "stage": "S1",
+        "input_schema": {
+          "preconditions": ["Step 2 完成", "README.md 不存在或允许覆盖"]
+        },
+        "process_script": "scripts/ps-steps/github-step-03-readme.ps1",
+        "output_schema": {
+          "fields": ["README.md"],
+          "format": "filesystem"
+        },
+        "validation_rules": [
+          "Test-Path README.md = True",
+          "文件内容非空"
+        ],
+        "audit_trail": {
+          "status": "pending",
+          "log_path": "logs/step-03-readme.log",
+          "artifacts": ["README.md"]
+        },
+        "rollback": "Remove-Item README.md 或 git checkout -- README.md"
+      },
+      {
+        "id": 4,
+        "name": "stage",
+        "stage": "S2",
+        "input_schema": {
+          "preconditions": ["Step 3 完成", "有文件需要提交"]
+        },
+        "process_script": "scripts/ps-steps/github-step-04-stage.ps1",
+        "output_schema": {
+          "fields": ["staged_files"],
+          "format": "text_list"
+        },
+        "validation_rules": [
+          "git diff --cached --name-only 返回预期文件",
+          ".env 不在 staged 列表中"
+        ],
+        "audit_trail": {
+          "status": "pending",
+          "log_path": "logs/step-04-stage.log",
+          "artifacts": ["staged_files_list"]
+        },
+        "rollback": "git reset HEAD"
+      },
+      {
+        "id": 5,
+        "name": "commit",
+        "stage": "S2",
+        "input_schema": {
+          "preconditions": ["Step 4 完成", "有 staged 文件", "commit 消息非空"]
+        },
+        "process_script": "scripts/ps-steps/github-step-05-commit.ps1",
+        "output_schema": {
+          "fields": ["commit_hash", "commit_message"],
+          "format": "git_log"
+        },
+        "validation_rules": [
+          "git log -1 --oneline 返回预期消息",
+          "commit hash 存在且长度为 40"
+        ],
+        "audit_trail": {
+          "status": "pending",
+          "log_path": "logs/step-05-commit.log",
+          "artifacts": ["commit_hash"]
+        },
+        "rollback": "git reset --soft HEAD~1"
+      },
+      {
+        "id": 6,
+        "name": "remote",
+        "stage": "S3",
+        "input_schema": {
+          "required_env": ["GITHUB_REPO_URL"],
+          "preconditions": ["Step 5 完成"]
+        },
+        "process_script": "scripts/ps-steps/github-step-06-remote.ps1",
+        "output_schema": {
+          "fields": ["remote_config"],
+          "format": "git_config"
+        },
+        "validation_rules": [
+          "git remote -v 返回 origin 配置",
+          "URL 与 .env 一致"
+        ],
+        "audit_trail": {
+          "status": "pending",
+          "log_path": "logs/step-06-remote.log",
+          "artifacts": ["remote_config"]
+        },
+        "rollback": "git remote remove origin"
+      },
+      {
+        "id": 7,
+        "name": "push",
+        "stage": "S3",
+        "input_schema": {
+          "required_env": ["GITHUB_PAT"],
+          "preconditions": ["Step 6 完成", "安全检查通过"]
+        },
+        "process_script": "scripts/ps-steps/github-step-07-push.ps1",
+        "output_schema": {
+          "fields": ["push_output", "github_commit_url"],
+          "format": "mixed"
+        },
+        "validation_rules": [
+          "GitHub 仓库可见提交记录",
+          "git log --graph --oneline 显示远程分支"
+        ],
+        "audit_trail": {
+          "status": "pending",
+          "log_path": "logs/step-07-push.log",
+          "artifacts": ["github_commit_url"]
+        },
+        "rollback": "git push --force-with-lease origin HEAD^:main（谨慎）"
+      },
+      {
+        "id": 8,
+        "name": "upstream",
+        "stage": "S3",
+        "input_schema": {
+          "preconditions": ["Step 7 完成", "远程分支存在"]
+        },
+        "process_script": "scripts/ps-steps/github-step-08-upstream.ps1",
+        "output_schema": {
+          "fields": ["upstream_config"],
+          "format": "git_config"
+        },
+        "validation_rules": [
+          "git branch -vv 显示 [origin/main] 追踪关系"
+        ],
+        "audit_trail": {
+          "status": "pending",
+          "log_path": "logs/step-08-upstream.log",
+          "artifacts": ["upstream_config"]
+        },
+        "rollback": "git branch --unset-upstream main"
+      }
+    ],
+    "stages": [
+      {"id": "S1", "name": "初始化", "steps": [0, 1, 2, 3], "completion_criteria": ".git/ 创建 && .gitignore 生效 && README 存在"},
+      {"id": "S2", "name": "提交", "steps": [4, 5], "completion_criteria": "文件 staged && commit 成功"},
+      {"id": "S3", "name": "连接", "steps": [6, 7, 8], "completion_criteria": "remote 配置 && push 成功 && upstream 设置"},
+      {"id": "S4", "name": "安全检查", "steps": ["safety-check"], "completion_criteria": "敏感文件被屏蔽 && 无泄漏风险"},
+      {"id": "S5", "name": "日常操作", "steps": ["daily-ops"], "completion_criteria": "命令执行成功"},
+      {"id": "S6", "name": "Issue 同步", "steps": ["issue-sync"], "completion_criteria": "GitHub API 返回 200"}
+    ]
   },
   "scenarios": [
     {
@@ -29,14 +257,14 @@
       "trigger": ["部署隔离 Git", "装 git", "初始化 git", "git init"],
       "description": "首次部署隔离 Git 并连接 GitHub",
       "scripts": [
-        "scripts/github-step-01-init.ps1",
-        "scripts/github-step-02-gitignore.ps1",
-        "scripts/github-step-03-readme.ps1",
-        "scripts/github-step-04-stage.ps1",
-        "scripts/github-step-05-commit.ps1",
-        "scripts/github-step-06-remote.ps1",
-        "scripts/github-step-07-push.ps1",
-        "scripts/github-step-08-upstream.ps1"
+        "scripts/ps-steps/github-step-01-init.ps1",
+        "scripts/ps-steps/github-step-02-gitignore.ps1",
+        "scripts/ps-steps/github-step-03-readme.ps1",
+        "scripts/ps-steps/github-step-04-stage.ps1",
+        "scripts/ps-steps/github-step-05-commit.ps1",
+        "scripts/ps-steps/github-step-06-remote.ps1",
+        "scripts/ps-steps/github-step-07-push.ps1",
+        "scripts/ps-steps/github-step-08-upstream.ps1"
       ],
       "prerequisites": [".env 中 GIT_USER_NAME/GIT_USER_EMAIL", ".env 中 GITHUB_REPO_URL", ".env 中 GITHUB_PAT"]
     },
@@ -44,14 +272,14 @@
       "id": "safety-check",
       "trigger": ["安全检查", "哪些会上传", "push 前检查", "敏感文件"],
       "description": "Push 前强制安全检查",
-      "scripts": ["scripts/github-safety-check.ps1"],
+      "scripts": ["scripts/ps-tools/github-safety-check.ps1"],
       "prerequisites": []
     },
     {
       "id": "daily-git",
       "trigger": ["git status", "git log", "git diff", "git add", "git commit"],
       "description": "日常 Git 操作（通用包装器）",
-      "scripts": ["scripts/git-isolated.ps1"],
+      "scripts": ["scripts/ps-tools/git-isolated.ps1"],
       "prerequisites": []
     },
     {
@@ -59,9 +287,9 @@
       "trigger": ["连 GitHub", "push 到 github", "新仓库"],
       "description": "连接新的 GitHub 仓库",
       "scripts": [
-        "scripts/github-step-06-remote.ps1",
-        "scripts/github-step-07-push.ps1",
-        "scripts/github-step-08-upstream.ps1"
+        "scripts/ps-steps/github-step-06-remote.ps1",
+        "scripts/ps-steps/github-step-07-push.ps1",
+        "scripts/ps-steps/github-step-08-upstream.ps1"
       ],
       "prerequisites": [".env 中 GITHUB_REPO_URL", ".env 中 GITHUB_PAT"]
     },
@@ -69,7 +297,7 @@
       "id": "issue-sync",
       "trigger": ["同步 Issue", "更新 Issue", "追加评论", "commit 同步到 Issue"],
       "description": "GitHub Issue 同步：创建/更新/评论/列出评论",
-      "scripts": ["scripts/github-sync-issue.ps1"],
+      "scripts": ["scripts/ps-tools/github-sync-issue.ps1"],
       "prerequisites": [".env 中 GITHUB_PAT", "github-sync-issue-config.json 存在"]
     }
   ],
@@ -89,61 +317,61 @@
     {
       "name": "github-step-01-init.ps1",
       "role": "Step 1: git init + 身份配置",
-      "path": "references/tasks/deploy-git-isolated/scripts/github-step-01-init.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-steps/github-step-01-init.ps1",
       "status": "ready"
     },
     {
       "name": "github-step-02-gitignore.ps1",
       "role": "Step 2: 生成安全 .gitignore",
-      "path": "references/tasks/deploy-git-isolated/scripts/github-step-02-gitignore.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-steps/github-step-02-gitignore.ps1",
       "status": "ready"
     },
     {
       "name": "github-step-03-readme.ps1",
       "role": "Step 3: 生成 README",
-      "path": "references/tasks/deploy-git-isolated/scripts/github-step-03-readme.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-steps/github-step-03-readme.ps1",
       "status": "ready"
     },
     {
       "name": "github-step-04-stage.ps1",
       "role": "Step 4: 安全 add",
-      "path": "references/tasks/deploy-git-isolated/scripts/github-step-04-stage.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-steps/github-step-04-stage.ps1",
       "status": "ready"
     },
     {
       "name": "github-step-05-commit.ps1",
       "role": "Step 5: git commit",
-      "path": "references/tasks/deploy-git-isolated/scripts/github-step-05-commit.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-steps/github-step-05-commit.ps1",
       "status": "ready"
     },
     {
       "name": "github-step-06-remote.ps1",
       "role": "Step 6: 添加 remote",
-      "path": "references/tasks/deploy-git-isolated/scripts/github-step-06-remote.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-steps/github-step-06-remote.ps1",
       "status": "ready"
     },
     {
       "name": "github-step-07-push.ps1",
       "role": "Step 7: git push（使用 PAT）",
-      "path": "references/tasks/deploy-git-isolated/scripts/github-step-07-push.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-steps/github-step-07-push.ps1",
       "status": "ready"
     },
     {
       "name": "github-step-08-upstream.ps1",
       "role": "Step 8: 设置 upstream",
-      "path": "references/tasks/deploy-git-isolated/scripts/github-step-08-upstream.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-steps/github-step-08-upstream.ps1",
       "status": "ready"
     },
     {
       "name": "github-safety-check.ps1",
       "role": "综合安全检查（push 前必执行）",
-      "path": "references/tasks/deploy-git-isolated/scripts/github-safety-check.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-tools/github-safety-check.ps1",
       "status": "ready"
     },
     {
       "name": "git-isolated.ps1",
       "role": "隔离 Git 通用包装器（透传 git 子命令）",
-      "path": "references/tasks/deploy-git-isolated/scripts/git-isolated.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-tools/git-isolated.ps1",
       "status": "ready"
     },
     {
@@ -167,7 +395,7 @@
     {
       "name": "github-sync-issue.ps1",
       "role": "GitHub Issue 同步入口：create/update/comment/list-comments/get-issue",
-      "path": "references/tasks/deploy-git-isolated/scripts/github-sync-issue.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-tools/github-sync-issue.ps1",
       "status": "ready"
     },
     {
@@ -179,7 +407,73 @@
     {
       "name": "github-sync-issue-config.json",
       "role": "配置真源：Issue 模板、labels、API endpoint 映射",
-      "path": "references/tasks/deploy-git-isolated/scripts/github-sync-issue-config.json",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-tools/github-sync-issue-config.json",
+      "status": "ready"
+    },
+    {
+      "name": "py_lib.py",
+      "role": "Python 插件聚合入口：拓扑排序 + 标签筛选 + 依赖补齐 + devroot 路径解析（对称于 github-lib.ps1）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py_lib.py",
+      "status": "ready"
+    },
+    {
+      "name": "py-sort-rules.json",
+      "role": "Python 插件配置：依赖图、加载顺序真源、Profile 定义（_default/core/md-validation/minimal）（对称于 lib-sort-rules.json）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-sort-rules.json",
+      "status": "ready"
+    },
+    {
+      "name": "check-links.py",
+      "role": "Python 工具：Markdown 内部链接验证（走 py_lib 入口的正规用法示范）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/check-links.py",
+      "status": "ready"
+    },
+    {
+      "name": "md_lint.py",
+      "role": "Python 插件：Markdown 格式 Linter，检测并修复 frontmatter 边界污染（正文 ---）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/md_lint.py",
+      "status": "ready"
+    },
+    {
+      "name": "usage-demo.py",
+      "role": "Python 示例：py_lib 插件体系用法演示（core / md-validation / EncodingGuard）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-examples/usage-demo.py",
+      "status": "ready"
+    },
+    {
+      "name": "detect_devroot.py",
+      "role": "Python 插件：Devroot 探测与真源验证（monorepo 开发根目录定位）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/detect_devroot.py",
+      "status": "ready"
+    },
+    {
+      "name": "encoding.py",
+      "role": "Python 插件：编码处理（sys.stdout 重配置、UTF-8 切换与恢复）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/encoding.py",
+      "status": "ready"
+    },
+    {
+      "name": "constants.py",
+      "role": "Python 插件：项目常量（devroot、git 路径、env 文件等）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/constants.py",
+      "status": "ready"
+    },
+    {
+      "name": "core.py",
+      "role": "Python 插件：核心工具（步骤头、日志、计时器、StepContext 审计追踪）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/core.py",
+      "status": "ready"
+    },
+    {
+      "name": "env_config.py",
+      "role": "Python 插件：环境配置读取（.env 文件解析、必填项检查）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/env_config.py",
+      "status": "ready"
+    },
+    {
+      "name": "link_checker.py",
+      "role": "Python 插件：Markdown 内部相对链接验证",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/link_checker.py",
       "status": "ready"
     }
   ],
@@ -187,30 +481,31 @@
     {
       "name": "git-config-global.ps1",
       "role": "设置隔离全局身份（独立使用）",
-      "path": "references/tasks/deploy-git-isolated/scripts/git-config-global.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-tools/git-config-global.ps1",
       "status": "ready"
     },
     {
       "name": "git-clone-isolated.ps1",
       "role": "隔离方式 Clone",
-      "path": "references/tasks/deploy-git-isolated/scripts/git-clone-isolated.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-tools/git-clone-isolated.ps1",
       "status": "ready"
     },
     {
       "name": "git-multi-identity.ps1",
       "role": "多身份切换演示",
-      "path": "references/tasks/deploy-git-isolated/scripts/git-multi-identity.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-tools/git-multi-identity.ps1",
       "status": "ready"
     },
     {
       "name": "git-verify-isolation.ps1",
       "role": "验证隔离效果（独立使用）",
-      "path": "references/tasks/deploy-git-isolated/scripts/git-verify-isolation.ps1",
+      "path": "references/tasks/deploy-git-isolated/scripts/ps-tools/git-verify-isolation.ps1",
       "status": "ready"
     }
   ],
   "design_doc": "references/tasks/deploy-git-isolated/DESIGN.md",
-  "cheatsheet": "references/tasks/deploy-git-isolated/scripts/SOP-CHEATSHEET.md",
+  "cheatsheet": "references/tasks/deploy-git-isolated/scripts/EXEC-CHEATSHEET.md",
+  "sop": "references/tasks/deploy-git-isolated/SOP.md",
   "changelog_dir": "references/tasks/deploy-git-isolated/changelog",
   "gotchas_dir": "references/tasks/deploy-git-isolated/gotchas",
   "playbooks_dir": "references/tasks/deploy-git-isolated/docs",

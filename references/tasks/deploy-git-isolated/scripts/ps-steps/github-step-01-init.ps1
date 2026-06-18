@@ -13,7 +13,7 @@
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
 # 点源导入共享库
-$libPath = Join-Path $PSScriptRoot "github-lib.ps1"
+$libPath = Join-Path (Split-Path -Parent $PSScriptRoot) "github-lib.ps1"
 . $libPath
 
 Switch-ToUtf8

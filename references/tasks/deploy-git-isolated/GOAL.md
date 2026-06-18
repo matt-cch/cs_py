@@ -11,9 +11,8 @@ date: 2026-06-17
 > **读取顺序建议**：
 > 1. 首次接触本 task → 先读 `README.md`（快速决策）→ 再读 `GOAL.md`（理解完整链条）
 > 2. 跨 session 接续 → 先读 `GOAL.md`（确认目标与当前状态）→ 再读 `DESIGN.md`（深入决策细节）
-> 3. 执行具体步骤 → 读 `scripts/SOP-CHEATSHEET.md`（复制命令）
+> 3. 执行具体步骤 → 读 `scripts/EXEC-CHEATSHEET.md`（复制命令）→ 读 `SOP.md`（确认验收条件）
 
----
 
 ## 1. GOAL — 目标
 
@@ -46,7 +45,6 @@ date: 2026-06-17
 - **MinGit 优先**：不选 PortableGit（无冗余 GUI/Bash），与现有 zip 分发工具链风格一致
 - **全路径调用**：所有脚本显式指定 `${devroot}\venv\git\cmd\git.exe`
 
----
 
 ## 2. SOLUTION — 方案
 
@@ -97,7 +95,6 @@ date: 2026-06-17
 - **本 task 不做**：Git 服务器搭建、复杂分支策略、完整的 CI/CD 平台（如 Jenkins/GitHub Actions 本身）
 - **本 task 做**：MinGit 部署、隔离配置初始化、GitHub 连接、安全检查、日常操作包装、**CI/CD 可调用接口**（提供脚本化 Git 操作能力与身份切换机制）
 
----
 
 ## 3. SOP — 标准操作流程
 
@@ -158,11 +155,24 @@ $env:GIT_CONFIG_GLOBAL = "${devroot}\venv\data-git\.gitconfig-special"
 - `HOME` 重定向确保配置隔离，不污染 CI 运行环境的系统配置
 - 所有操作可脚本化、可 headless（无 GUI、无阻塞）
 
-### 3.5 分步命令速查
+### 3.5 Stage 状态追踪
 
-详见 `scripts/SOP-CHEATSHEET.md`（Agent/终端双格式对照）。
+| Stage | 名称 | 包含 Step | 完成标准 | 当前状态 |
+|-------|------|-----------|---------|---------|
+| S1 | 初始化 | Step 0 → Step 3 | `.git/` 创建、`.gitignore` 生效、README 存在 | 按场景执行 |
+| S2 | 提交 | Step 4 → Step 5 | 文件 staged、commit 成功 | 按场景执行 |
+| S3 | 连接 | Step 6 → Step 8 | remote 配置、push 成功、upstream 设置 | 按场景执行 |
+| S4 | 安全检查 | Safety Check | 敏感文件被屏蔽、无泄漏风险 | 每次 push 前强制 |
+| S5 | 日常操作 | Daily Ops | 任意 git 子命令透传执行 | 按需执行 |
+| S6 | Issue 同步 | Issue Sync | commit 历史同步到 GitHub Issue | commit 后可选 |
 
----
+> **状态流转**：每个 Stage 完成后更新 `ENTRY.json` `step_manifests.stages[].status`，支持跨 session 接续。
+
+### 3.6 分步命令速查
+
+详见 `scripts/EXEC-CHEATSHEET.md`（Agent/终端双格式对照）。
+标准操作流程与验收条件详见 `SOP.md`（Step 节点契约：Input → Process → Output → Validation）。
+
 
 ## 4. APPLY — 应用/执行
 
@@ -191,7 +201,6 @@ $env:GIT_CONFIG_GLOBAL = "${devroot}\venv\data-git\.gitconfig-special"
 - **Agent 格式**：`powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\<script>.ps1"`
 - **终端格式**：`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\deploy-git-isolated\scripts\<script>.ps1`
 
----
 
 ## 5. REVIEW — 审查与验收
 
@@ -225,11 +234,37 @@ $env:GIT_CONFIG_GLOBAL = "${devroot}\venv\data-git\.gitconfig-special"
 - **编码合规**：所有 `.ps1` 含中文内容必须为 UTF-8 with BOM
 - **文件写入合规**：所有文件写入必须通过 `file-write-helper.py`，禁止 Shell 内嵌字符串写盘
 
----
 
 ## 6. RALPH LOOP — 闭环与迭代
 
-### 6.1 回滚方案（Rollback）
+### 6.1 Ralph Loop 自闭环结构
+
+> **来源**：用户明确确认（2026-06-18）。最小执行单元必须自闭环。
+
+每个 Step 都是一个 Ralph Loop 节点：
+
+```
+┌─────────────────────────────────────────┐
+│  Step N                                 │
+│  ├─ Input（预期输入）                    │
+│  ├─ Process（执行过程）                  │
+│  ├─ Output（预期输出）                   │
+│  ├─ Validation（验收条件）               │
+│  ├─ Audit Trail（执行记录）              │
+│  │   ├─ status: pending/running/completed/failed
+│  │   ├─ log_path: 执行日志路径
+│  │   └─ artifacts: 输出产物清单
+│  └─ Rollback（回滚路径）                 │
+└─────────────────────────────────────────┘
+```
+
+**自闭环原则**：
+1. **输入可预期**：不满足 Input 条件不得执行
+2. **输出可验证**：必须通过 Validation 后才可进入下一步
+3. **过程可追踪**：执行后必须留下 Audit Trail
+4. **失败可回滚**：每个 Step 定义 Rollback 路径
+
+### 6.2 回滚方案（Rollback）
 
 | 回滚场景 | 操作 | 影响 |
 |---------|------|------|
@@ -251,7 +286,7 @@ $env:GIT_CONFIG_GLOBAL = "${devroot}\venv\data-git\.gitconfig-special"
 | **执行** | 按 SOP 执行 Step 脚本 | 操作结果（成功/失败） |
 | **记录** | 变更记入 `changelog/` | `changelog-YYYY-MM-DD-*.md` |
 | **复盘** | 踩坑记入 `gotchas/` | `gotchas/*.md` |
-| **改进** | 更新脚本 / SOP / 设计决策 | `scripts/*.ps1`, `DESIGN.md`, `SOP-CHEATSHEET.md` |
+| **改进** | 更新脚本 / SOP / 设计决策 | `scripts/*.ps1`, `SOP.md`, `DESIGN.md`, `EXEC-CHEATSHEET.md` |
 | **再执行** | 验证改进效果 | 测试通过即固化 |
 
 ### 6.3 版本演进触发条件
@@ -274,7 +309,6 @@ $env:GIT_CONFIG_GLOBAL = "${devroot}\venv\data-git\.gitconfig-special"
 
 > **自检**：如果在对话中遗忘了 `task-canonical-baseline.md` 的存在，说明上下文已碎片化——请**立即停止推理，重新读取 `task-canonical-baseline.md`**。
 
----
 
 ## 7. 文件导航
 
@@ -284,11 +318,11 @@ $env:GIT_CONFIG_GLOBAL = "${devroot}\venv\data-git\.gitconfig-special"
 | `README.md` | **速查**：场景决策、当前状态、待办 | 每次进入 task 先读 |
 | `DESIGN.md` | **深度**：设计决策、踩坑、Trigger 治理意图 | 需要理解「为什么这样设计」时 |
 | `task-canonical-baseline.md` | **规范**：命名约定、文件组织、修订联动规则 | 需要理解「文件该怎么组织」时 |
-| `scripts/SOP-CHEATSHEET.md` | **执行**：Agent/终端双格式命令 | 需要复制具体命令时 |
+| `SOP.md` | **标准流程**：Step 节点契约、验收条件、回滚路径 | 需要理解「流程是什么、怎么验收」时 |
+| `scripts/EXEC-CHEATSHEET.md` | **执行速查**：命令、配置、参数 | 需要复制具体命令时 |
 | `TASK-TOOLS-INDEX.md` | **能力地图**：有什么工具、边界在哪 | 规划「该调哪个工具」时 |
 | `ENTRY.json` | **机器真源**：脚本清单、版本历史、状态 | Agent 工具调用前读取 |
 
----
 
 *文档版本: v1.0*  
 *创建时间: 2026-06-17*  

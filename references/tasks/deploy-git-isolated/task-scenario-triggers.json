@@ -20,7 +20,7 @@
       "scenario_name": "从零部署隔离 Git",
       "trigger_words": ["部署git", "装git", "隔离git", "git部署", "minigit", "安装git到venv"],
       "confidence": "high",
-      "entry_script": "scripts/github-step-01-init.ps1",
+      "entry_script": "scripts/ps-steps/github-step-01-init.ps1",
       "description": "venv/git/ 不存在或需要重新部署，执行完整 8 步部署流水线"
     },
     {
@@ -28,7 +28,7 @@
       "scenario_name": "执行安全推送",
       "trigger_words": ["推送github", "git push", "安全推送", "提交到github", "github推送"],
       "confidence": "high",
-      "entry_script": "scripts/github-safety-check.ps1",
+      "entry_script": "scripts/ps-tools/github-safety-check.ps1",
       "description": "repo 已初始化，执行推送前安全检查 + git push"
     },
     {
@@ -36,7 +36,7 @@
       "scenario_name": "验证隔离状态",
       "trigger_words": ["验证git隔离", "检查git隔离", "git隔离验证", "git是否隔离"],
       "confidence": "high",
-      "entry_script": "scripts/github-step-07-verify.ps1",
+      "entry_script": "scripts/ps-tools/git-verify-isolation.ps1",
       "description": "怀疑 PATH 泄漏或配置污染，验证 HOME 重定向与配置隔离"
     },
     {
@@ -44,7 +44,7 @@
       "scenario_name": "配置 Git 身份",
       "trigger_words": ["配置git身份", "设git用户名", "git identity", "git用户名邮箱"],
       "confidence": "high",
-      "entry_script": "scripts/github-step-04-config.ps1",
+      "entry_script": "scripts/ps-steps/github-step-01-init.ps1",
       "description": "隔离 Git 已安装，仅需配置 user.name / user.email"
     },
     {

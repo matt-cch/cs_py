@@ -16,7 +16,7 @@ param(
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
-$libPath = Join-Path $PSScriptRoot "github-lib.ps1"
+$libPath = Join-Path (Split-Path -Parent $PSScriptRoot) "github-lib.ps1"
 . $libPath
 
 Switch-ToUtf8

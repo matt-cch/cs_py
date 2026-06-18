@@ -9,7 +9,6 @@ date: 2026-06-17
 > **来源**：deploy-git-isolated task 的工具索引与插件架构演进。
 > **核心洞察**：同一套能力需要同时服务三类消费者——机器（脚本解析）、人类（快速定位）、开发者（渐进扩展）。单层结构无法同时满足。
 
----
 
 ## 1. 三层结构
 
@@ -48,7 +47,8 @@ date: 2026-06-17
     ↓
 【必须】更新 TASK-TOOLS-INDEX.md（人类速查）
     ↓
-【可选】更新 SOP-CHEATSHEET.md（命令速查）
+【可选】更新 SOP.md（标准流程）
+【可选】更新 EXEC-CHEATSHEET.md（执行速查）
     ↓
 【可选】更新 README.md（场景导航）
 ```
@@ -75,10 +75,10 @@ TASK-TOOLS-INDEX.md 中的「边界矩阵」回答核心问题：
 
 - 机器真源：`ENTRY.json`
 - 人类速查：`TASK-TOOLS-INDEX.md`
-- 命令速查：`scripts/SOP-CHEATSHEET.md`
+- 标准流程：`SOP.md`
+- 执行速查：`scripts/EXEC-CHEATSHEET.md`
 - 插件目录：`scripts/lib-plugins/`
 
----
 
 *模式版本: v1.0*  
 *沉淀时间: 2026-06-17*  

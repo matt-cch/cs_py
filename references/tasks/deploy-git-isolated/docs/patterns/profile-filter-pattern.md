@@ -9,7 +9,6 @@ description: 从 github-lib 插件架构演进中沉淀的设计模式：通过 
 > **问题**：插件目录膨胀后，入口脚本对所有调用者一视同仁加载全部插件，造成冗余导入。
 > **解法**：Profile / Include / Exclude 三层筛选 + 依赖自动补齐。
 
----
 
 ## 1. 问题场景
 
@@ -88,7 +87,6 @@ Profile "deploy" 包含 env-config
 - 配置真源：`scripts/lib-sort-rules.json`
 - 架构文档：`docs/PLUGIN-ARCHITECTURE.md`
 
----
 
 *模式版本: v1.0*  
 *沉淀时间: 2026-06-17*  

@@ -1,0 +1,81 @@
+{
+  "meta": {
+    "description": "py-plugins/ 目录下 Python 模块的依赖排序与标签筛选真源。由 py_lib.py 读取并执行拓扑排序，决定加载顺序。入口与配置在 scripts/ 根下，对称于 github-lib.ps1 + lib-sort-rules.json 架构。",
+    "strategy": "topological_sort",
+    "algorithm": "Kahn",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "detect_devroot",
+      "module": "detect_devroot",
+      "depends": [],
+      "tags": ["core"],
+      "description": "Devroot 探测与真源验证：在 monorepo 结构中定位开发根目录"
+    },
+    {
+      "name": "encoding",
+      "module": "encoding",
+      "depends": [],
+      "tags": ["core"],
+      "description": "编码处理：sys.stdout 重配置、UTF-8 切换与恢复"
+    },
+    {
+      "name": "constants",
+      "module": "constants",
+      "depends": ["devroot"],
+      "tags": ["core"],
+      "description": "项目常量：devroot、git 路径、env 文件等（依赖 devroot 提供已验证路径）"
+    },
+    {
+      "name": "core",
+      "module": "core",
+      "depends": ["encoding"],
+      "tags": ["core"],
+      "description": "核心工具：步骤头、日志、计时器、StepContext（Ralph Loop 审计追踪）"
+    },
+    {
+      "name": "env_config",
+      "module": "env_config",
+      "depends": ["constants"],
+      "tags": ["core"],
+      "description": "环境配置读取：.env 文件解析、必填项检查（依赖 constants 提供路径）"
+    },
+    {
+      "name": "link_checker",
+      "module": "link_checker",
+      "depends": ["core", "constants"],
+      "tags": ["md", "validation"],
+      "description": "验证 Markdown 内部相对链接有效性"
+    },
+    {
+      "name": "md_lint",
+      "module": "md_lint",
+      "depends": [],
+      "tags": ["md", "validation"],
+      "description": "Markdown 格式 Linter：检测并修复 frontmatter 边界污染（正文 ---）"
+    }
+  ],
+  "profiles": {
+    "_default": {
+      "include_tags": [],
+      "exclude_tags": [],
+      "description": "向后兼容，加载全部插件"
+    },
+    "core": {
+      "include_tags": ["core"],
+      "exclude_tags": [],
+      "description": "仅加载基础设施插件（devroot/encoding/constants/core/env_config）"
+    },
+    "md-validation": {
+      "include_tags": ["md", "validation"],
+      "exclude_tags": [],
+      "description": "Markdown 验证相关插件（含 core 依赖自动补齐）"
+    },
+    "minimal": {
+      "include_tags": [],
+      "exclude_tags": [],
+      "description": "最小功能集（占位）"
+    }
+  }
+}

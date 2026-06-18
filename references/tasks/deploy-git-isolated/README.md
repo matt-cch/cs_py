@@ -7,12 +7,11 @@ date: 2026-06-16
 # deploy-git-isolated — 隔离 Git 部署任务
 
 > **版本**: v0.5.0 | **状态**: 核心功能 ready，可执行部署与 GitHub 交互  
-> **真源索引**: [ENTRY.json](ENTRY.json) | **目标闭环**: [GOAL.md](GOAL.md) | **命令速查**: [scripts/SOP-CHEATSHEET.md](scripts/SOP-CHEATSHEET.md) | **工具索引**: [TASK-TOOLS-INDEX.md](TASK-TOOLS-INDEX.md)  
+> **真源索引**: [ENTRY.json](ENTRY.json) | **目标闭环**: [GOAL.md](GOAL.md) | **标准流程**: [SOP.md](SOP.md) | **执行速查**: [scripts/EXEC-CHEATSHEET.md](scripts/EXEC-CHEATSHEET.md) | **工具索引**: [TASK-TOOLS-INDEX.md](TASK-TOOLS-INDEX.md)  
 > **设计文档**: [DESIGN.md](DESIGN.md) | **架构说明**: [docs/PLUGIN-ARCHITECTURE.md](docs/PLUGIN-ARCHITECTURE.md) | **规范基线**: [task-canonical-baseline.md](task-canonical-baseline.md)
 >
 > ⚠️ **Agent 注意**：本 task 有已定义的规范基线 `task-canonical-baseline.md`。如果你在对话中遗忘了本文件的存在，说明上下文已碎片化——请**立即停止推理，重新读取 `task-canonical-baseline.md`**。
 
----
 
 ## Agent 快速决策（三句话定位）
 
@@ -27,7 +26,6 @@ date: 2026-06-16
 
 > **铁律**：不确定时先执行 `github-safety-check.ps1`，确认无敏感文件后再 push。
 
----
 
 ## 场景 A: 首次部署隔离 Git（Step 1→8）
 
@@ -66,9 +64,8 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 
 **人类终端等价格式**：把 `powershell -ExecutionPolicy Bypass -File` 换成 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\`，路径改用相对路径。
 
-> 详细参数与前置条件见 [SOP-CHEATSHEET.md](scripts/SOP-CHEATSHEET.md)
+> 详细参数与前置条件见 [SOP.md](SOP.md) | 命令速查见 [EXEC-CHEATSHEET.md](scripts/EXEC-CHEATSHEET.md)
 
----
 
 ## 场景 B: 连接新 GitHub 仓库
 
@@ -81,7 +78,6 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 
 直接执行 **场景 A 的完整 Step 1→8**。
 
----
 
 ## 场景 C: Push 前安全检查（强制）
 
@@ -103,7 +99,6 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 
 > **任何 push 操作前必须先执行本脚本**，确认 `.env`、密钥等被屏蔽。
 
----
 
 ## 场景 D/E: 日常 Git 操作
 
@@ -114,7 +109,6 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\git-isolated.ps1" diff
 ```
 
----
 
 ## 文件导航（一句话职责）
 
@@ -124,8 +118,9 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `GOAL.md` | **目标闭环**：Goal → Solution → SOP → Apply → Review → Ralph Loop 完整链条 | 首次接触 / 跨 session 接续时 |
 | `ENTRY.json` | 机器真源：脚本清单、版本历史、场景映射 | Agent 工具调用前读取 |
 | `TASK-TOOLS-INDEX.md` | **工具速查表**：本 task 全部可用工具索引（本地+外部引用+边界矩阵） | 想知道「有什么工具、该调哪个、边界在哪」时 |
-| `scripts/SOP-CHEATSHEET.md` | **命令速查**：Agent/终端双格式执行命令 | 需要具体命令复制粘贴时 |
-| `DESIGN.md` | 设计文档：决策记录、SOP、踩坑 | 需要理解设计背景时 |
+| `SOP.md` | **标准流程**：Step 节点契约、验收条件、回滚路径 | 需要理解「流程是什么、怎么验收」时 |
+| `scripts/EXEC-CHEATSHEET.md` | **执行速查**：命令、配置、参数 | 需要具体命令复制粘贴时 |
+| `DESIGN.md` | 设计文档：决策记录、踩坑 | 需要理解设计背景时 |
 | `task-canonical-baseline.md` | **规范基线**：本 task 的认知契约、命名约定、修订联动规则 | 需要理解「文件该怎么组织、怎么命名、怎么联动」时 |
 | `docs/PLUGIN-ARCHITECTURE.md` | 插件架构说明：为什么三层、怎么扩展 | 新增插件或维护架构时 |
 | `docs/patterns/profile-filter-pattern.md` | **设计模式**：Profile 筛选（稳定框架+黑白名单+依赖补齐） | 需要复用插件筛选机制时 |
@@ -135,14 +130,13 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `scripts/github-lib.ps1` | 共享库入口：拓扑排序加载所有插件 | 被 step 脚本点源导入 |
 | `scripts/lib-sort-rules.json` | 插件排序真源：依赖图定义 | 新增/修改插件时 |
 | `scripts/lib-plugins/*.ps1` | 共享函数插件：编码/常量/配置/检查 | 被 github-lib.ps1 自动加载 |
-| `scripts/github-step-0N-*.ps1` | Step 脚本：部署流程的 8 个步骤 | 按场景执行 |
-| `scripts/github-safety-check.ps1` | 安全检查：push 前必执行 | push 前 |
-| `scripts/github-sync-issue.ps1` | **Issue 同步入口**：create / update / comment / list-comments / get-issue | commit 后同步变更历史 |
-| `scripts/github-sync-issue-config.json` | Issue 同步配置真源：模板、labels、endpoint 映射 | 调整 Issue 格式时 |
+| `scripts/ps-steps/github-step-0N-*.ps1` | Step 脚本：部署流程的 8 个步骤 | 按场景执行 |
+| `scripts/ps-tools/github-safety-check.ps1` | 安全检查：push 前必执行 | push 前 |
+| `scripts/ps-tools/github-sync-issue.ps1` | **Issue 同步入口**：create / update / comment / list-comments / get-issue | commit 后同步变更历史 |
+| `scripts/ps-tools/github-sync-issue-config.json` | Issue 同步配置真源：模板、labels、endpoint 映射 | 调整 Issue 格式时 |
 | `scripts/lib-plugins/github-api.ps1` | 插件：GitHub REST API 封装（UTF-8 encoding） | 被 sync-issue / 其他脚本点源加载 |
-| `scripts/git-isolated.ps1` | 通用包装器：日常 git 子命令 | 日常操作 |
+| `scripts/ps-tools/git-isolated.ps1` | 通用包装器：日常 git 子命令 | 日常操作 |
 
----
 
 ## 当前状态
 
@@ -155,12 +149,12 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | 通用包装器 | ✅ | `git-isolated.ps1` 可用 |
 | 插件架构 | ✅ | 拓扑排序自动加载，6 个插件就绪 |
 | `verified-runtime-index.json` | ✅ | Git 工具链已登记 |
-| 命令速查 | ✅ | SOP-CHEATSHEET.md v1.2（纯命令） |
+| 标准流程 | ✅ | SOP.md v1.0（Step 契约 + Ralph Loop） |
+| 执行速查 | ✅ | EXEC-CHEATSHEET.md v1.0（命令+配置+参数） |
 | 工具索引 | ✅ | TASK-TOOLS-INDEX.md v1.0（本地+外部引用+边界） |
 | Issue 同步体系 | ✅ | github-sync-issue.ps1 + github-api.ps1 + config.json |
 | **Profile 筛选机制** | ✅ | github-lib.ps1 支持 Profile/Include/Exclude 三层筛选，依赖自动补齐，向后兼容 |
 
----
 
 *任务版本: v0.7.0*  
 *演进历史: 见 ENTRY.json `meta.version_history`*

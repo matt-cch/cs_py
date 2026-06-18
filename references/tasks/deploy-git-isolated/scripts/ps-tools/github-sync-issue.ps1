@@ -87,7 +87,7 @@ try {
     # ============================================================
     # 1. 加载插件体系
     # ============================================================
-    $libPath = Join-Path $PSScriptRoot 'github-lib.ps1'
+    $libPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'github-lib.ps1'
     if (-not (Test-Path $libPath)) {
         throw "github-lib.ps1 不存在: $libPath"
     }

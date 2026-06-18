@@ -6,9 +6,8 @@ date: 2026-06-16
 
 # deploy-git-isolated 可用工具速查表
 
-> **与 SOP-CHEATSHEET 的区别**：本文件回答「有什么工具、在哪里、什么时候用」；SOP-CHEATSHEET 回答「命令怎么执行」。二者互补，不重叠。
+> **与 EXEC-CHEATSHEET 的区别**：本文件回答「有什么工具、在哪里、什么时候用」；EXEC-CHEATSHEET 回答「命令怎么执行」。二者互补，不重叠。
 
----
 
 ## 1. 本地专属脚本（scripts/）
 
@@ -75,7 +74,6 @@ date: 2026-06-16
 > 插件架构详情见：`docs/PLUGIN-ARCHITECTURE.md`
 > 新增插件：`github-api.ps1`（GitHub REST API 封装，自动 UTF-8 encoding）
 
----
 
 ## 2. 外部通用工具引用（runtime / schema/tool）
 
@@ -94,7 +92,6 @@ date: 2026-06-16
 
 > **铁律**：以上工具已存在且已登记，本 task 禁止自行实现同类功能。新增需求时先查 `verified-task-index.json` → `available_scripts_and_tools`。
 
----
 
 ## 3. 边界矩阵（什么时候用什么）
 
@@ -113,7 +110,6 @@ date: 2026-06-16
 | Issue 同步（create/update/comment） | `github-sync-issue.ps1`（本地） | — | 禁止裸 API 调用，禁止重复造轮子 |
 | 插件筛选加载 | `github-lib.ps1` -Profile（本地） | — | 禁止全量加载冗余插件 |
 
----
 
 ## 4. 速查命令
 
@@ -133,7 +129,8 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-sync-issue.ps1" -Mode comment -IssueNumber 1 -Body "commit abc123: 新增 GOAL.md"
 ```
 
-> 完整命令见：`scripts/SOP-CHEATSHEET.md`
+> 完整命令见：`scripts/EXEC-CHEATSHEET.md`
+> 标准流程与验收条件见：`SOP.md`
 
 ### 4.2 外部通用工具调用
 
@@ -151,7 +148,6 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 "${devroot}\venv\py\python.exe" "${devroot}\schema\tool\file-write-helper.py" --config "${devroot}\venv\tmp\job.ini"
 ```
 
----
 
 ## 5. 关联文件导航
 
@@ -160,11 +156,11 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 | `README.md` | 场景化决策入口（5 个场景速查） |
 | `ENTRY.json` | 机器真源（脚本清单、状态、版本历史） |
 | `task-scenario-triggers.json` | 触发条件真源（5 场景 trigger 映射） |
-| `scripts/SOP-CHEATSHEET.md` | 命令速查（Agent/终端双格式） |
+| `SOP.md` | 标准流程（Step 契约 + Ralph Loop） |
+| `scripts/EXEC-CHEATSHEET.md` | 执行速查（命令+配置+参数） |
 | `docs/PLUGIN-ARCHITECTURE.md` | 插件化架构设计文档 |
 | `DESIGN.md` | 设计决策与踩坑记录 |
 
----
 
 *速查表版本: v1.0*  
 *创建时间: 2026-06-16*  

@@ -10,7 +10,6 @@ date: 2026-06-17
 > **阅读对象**：需要理解本次发布设计思路、复现操作步骤、或维护相关脚本的 Agent / Human。  
 > **关联文档**：DESIGN.md（设计决策）、ENTRY.json（机器真源）、task-canonical-baseline.md（规范基线）
 
----
 
 ## 一、设计灵感来源 — 三篇文章的原理启发
 
@@ -21,7 +20,7 @@ date: 2026-06-17
 | 文章 | 《爆火 14k 星！GBrain 彻底解决 AI Agent 失忆痛点》 |
 |------|-----------------------------------------------------|
 | **核心命题** | 用 Markdown + Git 作为人类与 AI 共享的真值源，解决 Agent "失忆"问题 |
-| **本 task 的借鉴** | `deploy-git-isolated/` 目录内全部是 Markdown + JSON 配置，天然适合作为"真值源"。发布到 GitHub 后，设计决策（DESIGN.md）、操作规范（SOP-CHEATSHEET.md）、踩坑记录（gotchas/）全部以文件形式存在，人类可读、Agent 可解析、Git 可回溯。 |
+| **本 task 的借鉴** | `deploy-git-isolated/` 目录内全部是 Markdown + JSON 配置，天然适合作为"真值源"。发布到 GitHub 后，设计决策（DESIGN.md）、标准流程（SOP.md）、执行速查（EXEC-CHEATSHEET.md）、踩坑记录（gotchas/）全部以文件形式存在，人类可读、Agent 可解析、Git 可回溯。 |
 | **落地体现** | 目录结构即知识图谱：README.md 是入口，ENTRY.json 是真源索引，scripts/ 是技能工作流，changelog/ 是时间线。 |
 
 ### 1.2 goal / Autoloop — Git 分支作为 Agent 的工作记忆
@@ -47,7 +46,6 @@ date: 2026-06-17
 !/references/tasks/deploy-git-isolated/
 ``` |
 
----
 
 ## 二、实施过程 — 完整时间线
 
@@ -92,7 +90,6 @@ date: 2026-06-17
 | | 修复 Issue #1 乱码内容（通过 Python 脚本 PATCH API，将 body 更新为正确 UTF-8）。 |
 | | 最终 commit：`c913cc4 fix: github-create-issue.ps1 UTF-8 encoding for API body`。 |
 
----
 
 ## 三、形成的脚本与文件
 
@@ -103,13 +100,13 @@ date: 2026-06-17
 | `.gitignore` | `D:\pjt\cursor\cs_py\.gitignore` | 白名单模式：默认排除所有根级目录，只放行目标路径 | 重写 |
 | `.gitattributes` | `references/tasks/deploy-git-isolated/.gitattributes` | 强制 LF 换行符，确保跨平台一致 | 新增 |
 | `constants.ps1` | `references/tasks/deploy-git-isolated/scripts/lib-plugins/constants.ps1` | 动态探测 devroot（从脚本位置向上遍历） | 修改 |
-| `github-create-issue.ps1` | `references/tasks/deploy-git-isolated/scripts/github-create-issue.ps1` | 自动化创建 GitHub Issue 脚本 | 新增 |
+| `github-create-issue.ps1` | `references/tasks/deploy-git-isolated/scripts/ps-tools/github-create-issue.ps1` | 自动化创建 GitHub Issue 脚本 | 新增 |
 
 ### 3.2 github-create-issue.ps1 核心能力
 
 ```powershell
 # 用法
-powershell.exe -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-create-issue.ps1"
+powershell.exe -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\ps-tools\github-create-issue.ps1"
 
 # 自动完成：
 # 1. 从 .env 读取 GITHUB_PAT / GITHUB_USERNAME / GITHUB_REPO_URL
@@ -129,7 +126,6 @@ $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($bodyJson)
 Invoke-RestMethod ... -Body $bodyBytes -ContentType 'application/json; charset=utf-8'
 ```
 
----
 
 ## 四、最终结果
 
@@ -179,7 +175,6 @@ cs_py/                           ← 仓库根（其他路径未跟踪）
                 └── github-create-issue.ps1
 ```
 
----
 
 ## 五、踩坑记录
 
@@ -216,7 +211,6 @@ cs_py/                           ← 仓库根（其他路径未跟踪）
 | **修复** | 通过 `[System.IO.File]::WriteAllText($path, $content, (New-Object System.Text.UTF8Encoding $true))` 重写文件，确保 BOM 存在。 |
 | **教训** | 含中文的 `.ps1` 必须 UTF-8 with BOM，这是项目硬性规则，不可省略。 |
 
----
 
 ## 六、后续操作指引
 
@@ -247,7 +241,6 @@ powershell.exe -ExecutionPolicy Bypass -File "${devroot}\references\tasks\<task-
 !/apps/api-demo/
 ```
 
----
 
 *文档生成时间: 2026-06-17*  
 *记录人: Agent Session*  

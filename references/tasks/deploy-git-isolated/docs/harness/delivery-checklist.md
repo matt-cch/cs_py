@@ -8,7 +8,6 @@ description: deploy-git-isolated task 的脚本/文档交付标准流程。核�
 > **来源**：deploy-git-isolated task 的多次踩坑教训。
 > **核心原则**：**先跑通，再写文档**。文档是代码的镜像，代码不稳则文档必谎。
 
----
 
 ## 1. 反模式（踩坑记录）
 
@@ -28,7 +27,6 @@ description: deploy-git-isolated task 的脚本/文档交付标准流程。核�
 
 **代价**：问题发现太晚，影响范围不可控。
 
----
 
 ## 2. 正模式：四步交付流
 
@@ -89,12 +87,12 @@ description: deploy-git-isolated task 的脚本/文档交付标准流程。核�
 【必须】ENTRY.json — 版本号、脚本清单、状态
 【必须】TASK-TOOLS-INDEX.md — 工具速查表
 【必须】README.md — 场景导航、状态表
-【按需】SOP-CHEATSHEET.md — 命令速查
+【按需】SOP.md — 标准流程（Step 契约）
+【按需】EXEC-CHEATSHEET.md — 执行速查（命令+配置+参数）
 【按需】PLUGIN-ARCHITECTURE.md — 架构设计
 【按需】CHANGELOG — 变更记录
 ```
 
----
 
 ## 3. 流程检查清单（Checklist）
 
@@ -110,7 +108,6 @@ description: deploy-git-isolated task 的脚本/文档交付标准流程。核�
 
 **未全部勾选 → 禁止标记为"完成"**
 
----
 
 ## 4. 本次实践的验证记录
 
@@ -121,7 +118,6 @@ description: deploy-git-isolated task 的脚本/文档交付标准流程。核�
 | 3 | `Read-EnvConfig` 返回 PSCustomObject，但 `github-api.ps1` 用字典访问 | Step 3 业务验证 | 统一改为属性访问 `$cfg.Pat` |
 | 4 | 先写文档后测试，发现 bug 导致文档返工 | 反模式 A 实例 | 确立"先验证后文档"流程 |
 
----
 
 ## 5. 关联文件
 
@@ -129,7 +125,6 @@ description: deploy-git-isolated task 的脚本/文档交付标准流程。核�
 - 索引体系：`TASK-TOOLS-INDEX.md`、`ENTRY.json`
 - 踩坑记录：`gotchas/`
 
----
 
 *流程版本: v1.0*  
 *沉淀时间: 2026-06-17*  

@@ -10,7 +10,6 @@ date: 2026-06-16
 > **阅读对象**：未来需要新增插件、修改加载顺序或维护本架构的 Agent / Human。  
 > **版本**：v1.0（与 task-canonical-baseline.md 对齐）
 
----
 
 ## 1. 背景与问题
 
@@ -37,7 +36,6 @@ date: 2026-06-16
 - 中间插入新模块时必须重命名后续所有文件
 - 违反「文件名一旦确定，永不再改」的硬性原则
 
----
 
 ## 2. 设计决策
 
@@ -71,7 +69,6 @@ scripts/
 | **真源** `lib-sort-rules.json` | 定义插件列表、依赖关系、文件映射 | **渐进式**（新增插件时追加） |
 | **插件** `lib-plugins/*.ps1` | 实现具体共享函数 | **按需新增** |
 
----
 
 ## 3. 实现逻辑
 
@@ -151,7 +148,6 @@ Invoke-TopologicalSort（Kahn 算法，在筛选后的子图上）
 | 后缀 `.ps1` | 点源导入前 | `Write-Error` + `exit 1` |
 | 文件存在性 | 点源导入前 | `Write-Error` + `exit 1` |
 
----
 
 ## 4. 操作要求
 
@@ -218,7 +214,6 @@ Invoke-TopologicalSort（Kahn 算法，在筛选后的子图上）
 | 5 | 修改 `github-lib.ps1` 的排序/加载逻辑 | 破坏架构稳定性，除非架构升级 |
 | 6 | Profile 定义了 `include` 但忘记补齐依赖 | 已自动处理，但手动 exclude 依赖会导致运行时失败 |
 
----
 
 ## 5. 示例：在 env-config 和 git-checks 之间插入新插件
 
@@ -261,7 +256,6 @@ Invoke-TopologicalSort（Kahn 算法，在筛选后的子图上）
 
 **注意**：零文件重命名，`env-config.ps1` 和 `git-checks.ps1` 完全不动。
 
----
 
 ## 6. 与 Canonical Baseline 的关系
 
@@ -271,7 +265,6 @@ Invoke-TopologicalSort（Kahn 算法，在筛选后的子图上）
 - **渐进式确认**：新增插件后通过入口脚本日志验证排序结果
 - **修订联动**：新增/修改插件时必须同步更新 JSON，并在 `changelog/` 记录
 
----
 
 *文档版本: v1.1*  
 *创建时间: 2026-06-16*  
