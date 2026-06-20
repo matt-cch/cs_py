@@ -73,10 +73,11 @@ def main():
     parser.add_argument("--message", default="init: empty scaffold with safety gitignore", help="Commit message")
     parser.add_argument(
         "--step",
-        choices=["4", "5", "6", "7", "8", "all"],
+        choices=["4", "5", "6", "7", "8", "9", "all"],
         default="all",
         help="执行单步或全部 (默认 all)"
     )
+    parser.add_argument("--issue", type=int, default=1, help="Issue 编号 (Step 9 用, 默认 1)")
     args = parser.parse_args()
 
     devroot = Path(args.devroot)
@@ -102,6 +103,8 @@ def main():
         steps.append(("Step 7: push", _PY_STEPS_DIR / "step-07-github-push.py", ["--devroot", str(devroot)]))
     if args.step in ("8", "all"):
         steps.append(("Step 8: upstream", _PY_STEPS_DIR / "step-08-github-upstream.py", ["--devroot", str(devroot)]))
+    if args.step in ("9", "all"):
+        steps.append(("Step 9: issue sync", _PY_STEPS_DIR / "step-09-github-sync-issue.py", ["--devroot", str(devroot), "--issue", str(args.issue)]))
 
     all_ok = True
     for name, script, extra in steps:
