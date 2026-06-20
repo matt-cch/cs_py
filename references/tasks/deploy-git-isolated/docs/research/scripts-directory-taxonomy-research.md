@@ -1,6 +1,8 @@
 ---
 title: scripts/ 目录子分类重构深度研究
-description: 记录 deploy-git-isolated 任务 scripts/ 目录从摊平到六分法的完整决策过程，涵盖问题背景、方案对比、选型理由、实施验证与经验沉淀。date: 2026-06-18
+description: 记录 deploy-git-isolated 任务 scripts/ 目录从摊平到六分法的完整决策过程，涵盖问题背景、方案对比、选型理由、实施验证与经验沉淀。
+date: 2026-06-18
+meta: {}
 ---
 
 # scripts/ 目录子分类重构深度研究

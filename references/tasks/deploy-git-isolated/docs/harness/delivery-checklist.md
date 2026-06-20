@@ -1,6 +1,8 @@
 ---
 title: 交付流程 — 最小范围测试 → Lint → 验证 → 归档
-description: deploy-git-isolated task 的脚本/文档交付标准流程。核心原则：先验证业务逻辑，再更新说明文档，避免"文档写完了才发现代码有 bug"的返工。date: 2026-06-17
+description: deploy-git-isolated task 的脚本/文档交付标准流程。核心原则：先验证业务逻辑，再更新说明文档，避免"文档写完了才发现代码有 bug"的返工。
+date: 2026-06-17
+meta: {}
 ---
 
 # 交付流程 — 最小范围测试 → Lint → 验证 → 归档

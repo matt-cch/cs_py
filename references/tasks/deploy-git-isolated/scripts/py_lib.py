@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-py_lib.py — Python 插件聚合入口（v1.0.0）
+py_lib.py — Python 插件聚合入口（v1.1.0）
 职责：读取 py-sort-rules.json → 拓扑排序 → 标签筛选 → 动态 import 插件
 
 设计原则：
@@ -202,6 +202,46 @@ class PluginRegistry:
         return list(self._plugins.keys())
 
 
+def list_plugins(tags=None):
+    """
+    列出 py-sort-rules.json 中定义的可用插件（不加载，只返回元数据）。
+
+    这是发现「有哪些插件可用」的正规入口，禁止直接翻查 py-plugins/ 目录。
+
+    参数:
+        tags: 标签列表，只返回包含任一指定标签的插件。None 表示返回全部。
+
+    返回:
+        list[dict]: 每个 dict 包含 name, module, tags, description
+    """
+    rules = _load_rules()
+    all_plugins = rules.get("plugins", [])
+
+    if tags:
+        tag_set = set(tags)
+        result = []
+        for p in all_plugins:
+            p_tags = set(p.get("tags", []))
+            if p_tags & tag_set:
+                result.append({
+                    "name": p["name"],
+                    "module": p["module"],
+                    "tags": p.get("tags", []),
+                    "description": p.get("description", ""),
+                })
+        return result
+
+    return [
+        {
+            "name": p["name"],
+            "module": p["module"],
+            "tags": p.get("tags", []),
+            "description": p.get("description", ""),
+        }
+        for p in all_plugins
+    ]
+
+
 def load_plugins(devroot=None, tags=None, profile="_default"):
     """
     加载 py-plugins/ 下的插件
@@ -237,7 +277,12 @@ def load_plugins(devroot=None, tags=None, profile="_default"):
 
 
 if __name__ == "__main__":
-    # 自检：加载全部插件并列出
-    registry = load_plugins(devroot=r"D:\pjt\cursor\cs_py")
+    # 自检：先列出可用插件，再加载并列出已加载
+    print("=== 可用插件清单（list_plugins）===")
+    for p in list_plugins():
+        print(f"  {p['name']}: {p['description']} (tags: {p['tags']})")
+
+    print("\n=== 加载 lint profile ===")
+    registry = load_plugins(devroot=r"D:\pjt\cursor\cs_py", profile="lint")
     print(f"devroot: {registry.devroot}")
     print(f"已加载插件: {registry.list_loaded()}")

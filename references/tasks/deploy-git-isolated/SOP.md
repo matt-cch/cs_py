@@ -2,6 +2,7 @@
 title: deploy-git-isolated — 标准操作流程（SOP）
 description: 本 task 的标准操作流程。每个 Step 定义 Input → Process → Output → Validation 契约，支持 Ralph Loop 自闭环追踪审计。
 date: 2026-06-18
+meta: {}
 ---
 
 # deploy-git-isolated — 标准操作流程（SOP）

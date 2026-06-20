@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "plugin-result-schema",
+  "title": "py_lib Plugin Result Schema",
+  "description": "所有 py_lib 插件 validate/validate_file/scan 方法的统一返回格式。默认实现为 dict，可选通过 schema/models.py 的 Pydantic Model 验证。",
+  "version": "1.0.0",
+  "type": "object",
+  "required": [
+    "success",
+    "schema_version",
+    "plugin",
+    "files_scanned",
+    "files_with_violations",
+    "violations_found",
+    "violations"
+  ],
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "插件执行是否成功（无异常）。有 violations 时仍为 true，只有执行异常时才为 false。"
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "本返回格式版本号",
+      "const": "1.0.0"
+    },
+    "plugin": {
+      "type": "string",
+      "description": "插件标识名（如 lint_python, lint_encoding）"
+    },
+    "files_scanned": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "扫描/处理文件总数"
+    },
+    "files_with_violations": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "至少含 1 处违规的文件数"
+    },
+    "violations_found": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "违规总项数"
+    },
+    "violations": {
+      "type": "array",
+      "description": "违规详情列表",
+      "items": {
+        "type": "object",
+        "required": ["file", "context"],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "违规文件路径（绝对路径或相对路径）"
+          },
+          "line": {
+            "type": ["integer", "null"],
+            "description": "违规所在行号，无行号时为 null"
+          },
+          "context": {
+            "type": "string",
+            "description": "违规描述文本"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warning", "info"],
+            "default": "error",
+            "description": "违规严重程度"
+          },
+          "fixable": {
+            "type": "boolean",
+            "default": false,
+            "description": "是否可通过 amend/fix 自动修复"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "插件自定义扩展字段。如 lint_encoding 的 fixed_files、md_lint 的 files_fixed 等。"
+    }
+  },
+  "examples": [
+    {
+      "success": true,
+      "schema_version": "1.0.0",
+      "plugin": "lint_python",
+      "files_scanned": 1,
+      "files_with_violations": 0,
+      "violations_found": 0,
+      "violations": [],
+      "metadata": {}
+    },
+    {
+      "success": true,
+      "schema_version": "1.0.0",
+      "plugin": "lint_encoding",
+      "files_scanned": 1,
+      "files_with_violations": 1,
+      "violations_found": 2,
+      "violations": [
+        {
+          "file": "refs/tasks/x/script.py",
+          "line": null,
+          "context": ".py 文件不应包含 UTF-8 BOM（AGENTS.md 规定）",
+          "severity": "error",
+          "fixable": true
+        },
+        {
+          "file": "refs/tasks/x/script.py",
+          "line": null,
+          "context": ".md 文件必须使用 LF 换行符，检测到 3 处 CRLF",
+          "severity": "error",
+          "fixable": true
+        }
+      ],
+      "metadata": {
+        "files_fixed": 1,
+        "fixed_files": [
+          {
+            "file": "refs/tasks/x/script.py",
+            "actions": ["去BOM", "CRLF→LF(3)"]
+          }
+        ]
+      }
+    }
+  ]
+}

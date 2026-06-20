@@ -1,7 +1,9 @@
 ---
 title: deploy-git-isolated 可用工具速查表
 description: 本 task 全部可用工具的索引、职责、路径与边界说明。包含本地专属脚本与外部通用工具的引用链路，防止重复造轮子。
-date: 2026-06-16
+date: 2026-06-20
+meta:
+  version: 1.1
 ---
 
 # deploy-git-isolated 可用工具速查表
@@ -32,8 +34,10 @@ date: 2026-06-16
 |------|------|---------|------|
 | `github-sync-issue.ps1` | Issue 同步入口：create / update / comment / list-comments / get-issue | commit 后同步变更历史到 Issue | ready |
 | `github-sync-issue-config.json` | 配置真源：模板、labels、endpoint 映射 | 调整 Issue 格式时修改此文件，不动脚本 | ready |
+| `fetch_issue.py` | Python CLI：获取 Issue 完整内容（含评论） | 通过 py_lib 调用 github_api 插件查看 Issue | ready |
 
 > **与 github-create-issue.ps1 的区别**：`github-create-issue.ps1` 是 Phase 3 的遗留脚本，功能单一（仅 create）；`github-sync-issue.ps1` 是统一入口，覆盖全部 Issue 生命周期操作，使用插件架构（github-api.ps1），推荐新场景使用。
+> **Python 版补充**：`fetch_issue.py` 走 py_lib 插件体系，与 PS 版 `github-sync-issue.ps1 -Mode get-issue/list-comments` 功能互补，输出格式对齐。
 
 ### 1.3 安全与检查
 
@@ -41,6 +45,70 @@ date: 2026-06-16
 |------|------|---------|------|
 | `github-safety-check.ps1` | 综合安全检查（tracked/staged/敏感文件） | push 前必执行 | ready |
 | `git-verify-isolation.ps1` | 验证隔离效果（独立使用） | 怀疑 PATH 泄漏时 | ready |
+
+### 1.4 Lint 插件体系（新增）
+
+**可用能力**（由 `py_lib` 插件体系动态提供）：
+
+lint 体系覆盖 JSON / PowerShell / Python / Encoding / Markdown / Link 等验证。具体有哪些插件可用、各自的标签与职责，**通过入口 API 动态发现**，禁止在静态文档中硬编码插件清单。
+
+```python
+# 发现全部可用插件（正规入口）
+from py_lib import list_plugins
+for p in list_plugins():
+    print(f"{p['name']}: {p['description']} (tags: {p['tags']})")
+
+# 按标签筛选（如只看 lint 相关）
+lint_plugins = list_plugins(tags=["lint"])
+```
+
+> **铁律**：插件清单的唯一真源是 `py-sort-rules.json`（机器可读）。人类速查表只说明「有哪些能力类别」，不列出具体插件文件名，防止上层调用者越级直接 import。
+
+**CLI 入口**（`py-tools/`，即 Workflow 层）：
+
+| 脚本 | 职责 | 典型场景 | 状态 |
+|------|------|---------|------|
+| `run-lint.py` | **Workflow：全量 lint + 单文件列表 lint（`--files` 混合类型自动路由）**。通过 py_lib 加载 lint 插件，统一执行、统一报告 | 脚本交付前全量/按需/单文件 lint | ready |
+| `workflow-lint-amend-lint.py` | **Workflow：编码修复闭环**。通过 py_lib 加载 lint_encoding，完成"检测→修复→验证" | 编码问题发现后的修复闭环 | ready |
+
+**架构铁律**：
+- workflow 层 **禁止** 直接 `import` plugin
+- 所有能力必须通过 `py_lib.load_plugins()` 获取
+- workflow 只负责步骤编排，不实现检测/修复逻辑
+
+**lint + fix 典型工作流**：
+```powershell
+# Step 1: 全量检测（run-lint workflow → py_lib → plugins）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint
+
+# Step 1b: 单文件/多文件混合类型检测（自动按扩展名路由到对应插件）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --files "${devroot}\references\tasks\deploy-git-isolated\scripts\py-plugins\github_api.py"
+
+# Step 2: 对指定目录执行 lint→amend→lint 闭环（workflow → py_lib → lint_encoding）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-lint-amend-lint.py" --devroot "${devroot}" --dir "references\tasks\deploy-git-isolated"
+
+# Step 3: 重新验证
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint
+```
+
+**Profile 用法速查**：
+```python
+# 全量 lint（JSON + PS1 + Python + Encoding）
+registry = load_plugins(devroot="...", profile="lint")
+
+# 仅 JSON
+registry = load_plugins(devroot="...", profile="lint-json")
+
+# 仅编码/BOM
+registry = load_plugins(devroot="...", profile="lint-encoding")
+
+# 按标签自由组合
+registry = load_plugins(devroot="...", tags=["lint", "encoding"])
+```
+
+> 依赖：`py_lib.py` + `py-sort-rules.json` 拓扑排序加载。插件通过 `__plugin_registry__` 访问 devroot。
+> 与 schema/tool/ 通用 lint 的区别：task 本地 lint 插件集成在 py_lib 插件体系中，可按 profile 按需加载；schema/tool/ 下的 lint-json.py / lint-ps1.ps1 是全局通用工具，不依赖 py_lib。
+> 本 task 新建脚本交付前，**优先使用 task 本地 lint 插件**（通过 run-lint.py 或 py_lib），保持与现有插件体系对齐。
 
 ### 1.4 通用包装器
 
@@ -72,7 +140,8 @@ date: 2026-06-16
 ```
 
 > 插件架构详情见：`docs/PLUGIN-ARCHITECTURE.md`
-> 新增插件：`github-api.ps1`（GitHub REST API 封装，自动 UTF-8 encoding）
+> PS 插件：`github-api.ps1`（GitHub REST API 封装，自动 UTF-8 encoding）
+> Python 插件：`github_api.py`（GitHub REST API 封装，urllib 实现，与 PS 版功能对等）
 
 
 ## 2. 外部通用工具引用（runtime / schema/tool）
@@ -97,9 +166,10 @@ date: 2026-06-16
 
 | 需求 | 首选工具 | 次选/备选 | 禁止行为 |
 |------|---------|----------|---------|
-| 验证 JSON 语法 | `lint-json.py`（通用） | — | 禁止用 `python -c` 内嵌验证 |
-| 验证 PS 语法 | `lint-ps1.ps1`（通用） | — | 禁止不验证直接交付 `.ps1` |
-| 检查文件编码 | `check-file-encoding.ps1`（通用） | — | 禁止现写编码检查命令 |
+| 验证 JSON 语法 | `lint_json.py`（本地，py_lib 插件） | `schema/tool/lint-json.py`（通用） | 禁止用 `python -c` 内嵌验证 |
+| 验证 PS 语法 | `lint_ps1.py`（本地，py_lib 插件） | `schema/tool/lint-ps1.ps1`（通用） | 禁止不验证直接交付 `.ps1` |
+| 验证 Python 语法 | `lint_python.py`（本地，py_lib 插件） | — | 禁止不验证直接交付 `.py` |
+| 检查文件编码 | `lint_encoding.py`（本地，py_lib 插件） | `schema/tool/check-file-encoding.ps1`（通用） | 禁止现写编码检查命令 |
 | 写入含中文 `.ps1` | `file-write-helper.py`（通用） | — | 禁止 Shell 重定向写 `.ps1` |
 | 生成时间戳文件名 | `get-timestamp.ps1`（通用） | — | 禁止内嵌 `Get-Date` 拼文件名 |
 | git init / push | `github-step-01/07.ps1`（本地） | — | 禁止裸命令操作 Git |
@@ -108,6 +178,7 @@ date: 2026-06-16
 | 真源扫描 | `verify-runtime.ps1`（通用） | — | 禁止自行实现文件存在性扫描 |
 | 下载 MinGit | `download-runtime-tool.ps1`（通用） | — | 禁止自行写 `curl`/`Invoke-WebRequest` 下载 |
 | Issue 同步（create/update/comment） | `github-sync-issue.ps1`（本地） | — | 禁止裸 API 调用，禁止重复造轮子 |
+| Issue 内容查看（body + 评论） | `fetch_issue.py`（本地，py_lib 插件） | `github-sync-issue.ps1 -Mode get-issue/list-comments` | 禁止裸 API 调用 |
 | 插件筛选加载 | `github-lib.ps1` -Profile（本地） | — | 禁止全量加载冗余插件 |
 
 
@@ -127,6 +198,9 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 
 # Issue 同步（示例：追加评论记录 commit）
 powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-sync-issue.ps1" -Mode comment -IssueNumber 1 -Body "commit abc123: 新增 GOAL.md"
+
+# 获取 Issue 完整内容（Python 版，含评论）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\fetch_issue.py" --issue-number 1
 ```
 
 > 完整命令见：`scripts/EXEC-CHEATSHEET.md`
@@ -135,11 +209,23 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 ### 4.2 外部通用工具调用
 
 ```powershell
+# 全量 lint（交付前必执行，推荐）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}"
+
+# 按需 lint
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-json
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-ps1
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-python
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-encoding
+
 # JSON lint（修改 task-scenario-triggers.json / ENTRY.json 后必执行）
 "${devroot}\venv\py\python.exe" "${devroot}\schema\tool\lint-json.py" -v "${devroot}\references\tasks\deploy-git-isolated\task-scenario-triggers.json"
 
 # PS lint（修改 .ps1 后必执行）
 powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\lint-ps1.ps1" -Path "${devroot}\references\tasks\deploy-git-isolated\scripts\github-step-01-init.ps1"
+
+# lint→amend→lint 工作流（workflow → py_lib → lint_encoding）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-lint-amend-lint.py" --devroot "${devroot}" --dir "references\tasks\deploy-git-isolated"
 
 # 编码检查（落盘后必执行）
 powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-encoding.ps1" -Path "${devroot}\references\tasks\deploy-git-isolated\scripts\github-step-01-init.ps1"
@@ -158,10 +244,18 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 | `task-scenario-triggers.json` | 触发条件真源（5 场景 trigger 映射） |
 | `SOP.md` | 标准流程（Step 契约 + Ralph Loop） |
 | `scripts/EXEC-CHEATSHEET.md` | 执行速查（命令+配置+参数） |
+| `scripts/py-tools/run-lint.py` | 统一 lint CLI 入口（JSON/PS1/Python/Encoding，支持 `--files` 单文件列表） |
+| `scripts/py-tools/fetch_issue.py` | 获取 GitHub Issue 完整内容（含评论） |
+| `scripts/py-plugins/lint_*.py` | Lint 插件（json/ps1/python/encoding） |
+| `scripts/py-plugins/github_api.py` | GitHub REST API 封装（Python 插件） |
+| `schema/json/plugin-result-schema.json` | 插件返回格式 JSON Schema 真源（v1.0.0） |
+| `schema/docs/plugin-result-schema.md` | 插件返回格式规范文档（人类可读） |
+| `schema/py/models.py` | Pydantic / Dataclass 备选 Model 实现 |
 | `docs/PLUGIN-ARCHITECTURE.md` | 插件化架构设计文档 |
 | `DESIGN.md` | 设计决策与踩坑记录 |
 
 
-*速查表版本: v1.0*  
+*速查表版本: v1.1*  
 *创建时间: 2026-06-16*  
+*更新时间: 2026-06-20*  
 *关联全局索引: `references/runtime/verified-task-index.json`*

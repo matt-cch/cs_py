@@ -2,6 +2,7 @@
 title: deploy-git-isolated/archive 目录说明
 description: 本 task 已归档/冻结的历史版本存放地。保留历史真源，供追溯与审计。
 date: 2026-06-16
+meta: {}
 ---
 
 # `deploy-git-isolated/archive/` 目录说明

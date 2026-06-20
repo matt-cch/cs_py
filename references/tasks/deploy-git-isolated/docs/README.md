@@ -1,6 +1,8 @@
 ---
 title: deploy-git-isolated/docs — 文档分类导航
-description: 本 task 的文档子分类：patterns（设计模式）、harness（交付流程）、playbooks（操作手册）、research（深度研究）。date: 2026-06-18
+description: 本 task 的文档子分类：patterns（设计模式）、harness（交付流程）、playbooks（操作手册）、research（深度研究）。
+date: 2026-06-18
+meta: {}
 ---
 
 # deploy-git-isolated/docs — 文档分类导航
@@ -27,8 +29,10 @@ description: 本 task 的文档子分类：patterns（设计模式）、harness�
 | [harness/delivery-checklist.md](harness/delivery-checklist.md) | harness | 四步交付流程检查清单 |
 | [playbooks/github-publish-playbook.md](playbooks/github-publish-playbook.md) | playbooks | GitHub 发布操作实录 |
 | [research/scripts-directory-taxonomy-research.md](research/scripts-directory-taxonomy-research.md) | research | scripts/ 目录子分类重构深度研究 |
-| [research/task-dependency-graph.md](research/task-dependency-graph.md) | research | Task 依赖图与修订联动路径：PS 点源/Python import/文档引用/配置索引的全量依赖关系
+| [research/task-dependency-graph.md](research/task-dependency-graph.md) | research | Task 依赖图与修订联动路径：PS 点源/Python import/文档引用/配置索引的全量依赖关系 |
+| [research/workflow-entry-plugins-architecture-research.md](research/workflow-entry-plugins-architecture-research.md) | research | workflow→entry→plugins 三层架构选型演进与反例分析（lint 体系建设 session 共识沉淀） |
+| [research/task-agent-self-explanation-validation.md](research/task-agent-self-explanation-validation.md) | research | Task Agent 自说明能力验证实验 — 从零上下文到自主执行的探索，含知行 gap 分析与改进建议 |
 
 
-*导航版本: v1.0*  
-*创建时间: 2026-06-17*
+*导航版本: v1.1*  
+*更新时间: 2026-06-19*

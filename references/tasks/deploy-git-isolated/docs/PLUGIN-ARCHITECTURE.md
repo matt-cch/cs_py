@@ -2,6 +2,7 @@
 title: 插件化点源架构 — 设计决策与操作规范
 description: 记录 github-lib.ps1 + lib-sort-rules.json + lib-plugins/ 三层架构的设计理由、实现逻辑与扩展操作要求。
 date: 2026-06-16
+meta: {}
 ---
 
 # 插件化点源架构 — 设计决策与操作规范

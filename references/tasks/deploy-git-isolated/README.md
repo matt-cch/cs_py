@@ -1,7 +1,8 @@
 ---
 title: deploy-git-isolated — 隔离 Git 部署任务
 description: 在 devroot 内部署隔离版 Git CLI，实现配置隔离与多身份管理。Agent 速查入口，场景化决策路径。
-date: 2026-06-16
+date: 2026-06-19
+meta: {}
 ---
 
 # deploy-git-isolated — 隔离 Git 部署任务
@@ -136,6 +137,40 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `scripts/ps-tools/github-sync-issue-config.json` | Issue 同步配置真源：模板、labels、endpoint 映射 | 调整 Issue 格式时 |
 | `scripts/lib-plugins/github-api.ps1` | 插件：GitHub REST API 封装（UTF-8 encoding） | 被 sync-issue / 其他脚本点源加载 |
 | `scripts/ps-tools/git-isolated.ps1` | 通用包装器：日常 git 子命令 | 日常操作 |
+| `scripts/py-tools/run-lint.py` | **Workflow：全量 lint**。通过 py_lib 聚合全部 lint 插件 | 脚本交付前必执行 |
+| `scripts/py-tools/workflow-lint-amend-lint.py` | **Workflow：编码修复闭环**。通过 py_lib 调用 lint_encoding | 编码问题发现后修复 |
+| `scripts/py_lib.py` | **统一入口**。所有 workflow 必须通过它获取插件能力 | 禁止越级直接 import plugin |
+| `scripts/py-plugins/lint_json.py` | **底座：JSON 语法验证** | 被 py_lib 加载，不直接调用 |
+| `scripts/py-plugins/lint_ps1.py` | **底座：PowerShell 语法验证** | 被 py_lib 加载，不直接调用 |
+| `scripts/py-plugins/lint_python.py` | **底座：Python 语法验证** | 被 py_lib 加载，不直接调用 |
+| `scripts/py-plugins/lint_encoding.py` | **底座：编码/BOM/行尾符检测+修复** | 被 py_lib 加载，不直接调用 |
+
+
+## Python 插件体系架构（三层）
+
+```
+┌──────────────────────────────────────────────┐
+│  Layer 3: Workflow（py-tools/）               │
+│  run-lint.py              → 全量 lint 聚合    │
+│  workflow-lint-amend-lint.py → 编码修复闭环   │
+│  （禁止直接 import plugin）                    │
+└──────────────────────────────────────────────┘
+                    ↓ py_lib.load_plugins()
+┌──────────────────────────────────────────────┐
+│  Layer 2: 统一入口（scripts/py_lib.py）        │
+│  拓扑排序 · 依赖补齐 · registry 注入 · profile  │
+│  （所有 workflow 的统一网关）                  │
+└──────────────────────────────────────────────┘
+                    ↓ 动态加载
+┌──────────────────────────────────────────────┐
+│  Layer 1: 底座插件（py-plugins/）              │
+│  lint_json.py · lint_ps1.py · lint_python.py  │
+│  lint_encoding.py · md_lint.py · link_checker │
+│  （单一职责，暴露 validate() 接口）            │
+└──────────────────────────────────────────────┘
+```
+
+> **铁律**：Layer 3 Workflow 禁止直接 `import` Layer 1 Plugin。必须通过 `py_lib.load_plugins()` 获取 registry，再访问插件能力。
 
 
 ## 当前状态
@@ -148,6 +183,7 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | 安全检查脚本 | ✅ | `github-safety-check.ps1` 可用 |
 | 通用包装器 | ✅ | `git-isolated.ps1` 可用 |
 | 插件架构 | ✅ | 拓扑排序自动加载，6 个插件就绪 |
+| **Lint 插件体系** | ✅ | 三层架构：workflow → py_lib → plugins，禁止越级 |
 | `verified-runtime-index.json` | ✅ | Git 工具链已登记 |
 | 标准流程 | ✅ | SOP.md v1.0（Step 契约 + Ralph Loop） |
 | 执行速查 | ✅ | EXEC-CHEATSHEET.md v1.0（命令+配置+参数） |

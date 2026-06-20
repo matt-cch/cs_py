@@ -2,6 +2,7 @@
 title: deploy-git-isolated — SOP 重构 + Ralph Loop 自闭环框架落地
 description: SOP 语义回归：scripts/SOP-CHEATSHEET.md 拆分为根目录 SOP.md（标准流程）+ scripts/EXEC-CHEATSHEET.md（执行速查）；新增 Step Manifest 结构与 Ralph Loop 自闭环框架；顶层原则声明置顶。
 date: 2026-06-18
+meta: {}
 ---
 
 # deploy-git-isolated — SOP 重构 + Ralph Loop 自闭环框架落地

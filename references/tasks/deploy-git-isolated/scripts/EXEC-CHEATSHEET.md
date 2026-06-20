@@ -1,7 +1,8 @@
 ---
 title: deploy-git-isolated — 执行速查表
 description: Agent 执行参考与用户终端速查，涵盖命令、配置、参数等所有可执行/可操作内容，不限定于命令行格式。
-date: 2026-06-18
+date: 2026-06-19
+meta: {}
 ---
 
 # deploy-git-isolated — 执行速查表（EXEC-CHEATSHEET）
@@ -169,7 +170,94 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 ```
 
 
-## Stage S6: Issue 同步
+## Stage S6: Lint 检查（脚本交付前必执行）
+
+### 架构层级（禁止越级）
+
+```
+workflow-*          → 编排层（步骤逻辑、判断、报告）
+  ↓ 通过 py_lib 统一入口
+py_lib.load_plugins → 聚合层（拓扑排序、依赖补齐、registry 注入）
+  ↓ 加载
+py-plugins/*        → 底座层（具体检测/修复能力）
+```
+
+> **铁律**：workflow 禁止直接 `import` plugin。所有能力必须通过 `py_lib.load_plugins()` 获取。
+
+
+### Workflow A: 全量 lint（run-lint.py）
+
+通过 py_lib 加载全部 lint 插件，统一执行、统一报告。
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}"
+```
+
+**按需单类型（通过 profile 筛选）：**
+```powershell
+# 仅 JSON
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-json
+
+# 仅 PowerShell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-ps1
+
+# 仅 Python
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-python
+
+# 仅编码/BOM/CRLF
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-encoding
+```
+
+
+### Workflow B: lint→amend→lint 闭环（workflow-lint-amend-lint.py）
+
+通过 py_lib 加载 lint_encoding，完成"检测→修复→验证"闭环。
+
+```powershell
+# 对 task/ 目录执行完整闭环
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-lint-amend-lint.py" --devroot "${devroot}" --dir "references\tasks\deploy-git-isolated"
+```
+
+**输出示例：**
+```
+[workflow] 通过 py_lib 加载 lint_encoding 插件 ...
+[workflow] py_lib 已加载插件: ['encoding', 'core', 'lint_encoding', 'lint_json', ...]
+
+[Step 1] 首次 lint 检测（lint_encoding.validate）
+  扫描文件: 79 个
+  违规文件: 18 个
+  违规项: 18 处
+[Step 2] 执行 amend（lint_encoding.validate fix=True）
+  尝试修复: 18 个文件
+  实际修复: 18 个文件
+[Step 3] 重新 lint 验证（lint_encoding.validate）
+  扫描文件: 79 个
+  违规文件: 0 个
+  违规项: 0 处
+[Done] 巡检结论
+  ✅ lint→amend→lint 闭环完成，全部通过
+```
+
+
+### 新增 Workflow 的正确姿势
+
+```python
+# 1. 通过 py_lib 统一入口获取能力
+from py_lib import load_plugins
+registry = load_plugins(devroot=devroot, tags=["lint", "encoding"])
+
+# 2. 通过 registry 访问插件（禁止直接 import plugin）
+lint_encoding = registry.lint_encoding
+
+# 3. 编排 workflow 步骤
+result = lint_encoding.validate(dir_path=target)
+if result["violations_found"] > 0:
+    lint_encoding.validate(dir_path=target, fix=True)
+```
+
+
+## Stage S7: Issue 同步
 
 ### 追加评论（记录 commit）
 

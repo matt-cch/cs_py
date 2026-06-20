@@ -1,6 +1,8 @@
 ---
 title: deploy-git-isolated Task 依赖图与修订联动路径
-description: 以树状结构展示 task/ 根目录向下的全部文件依赖关系（PS 点源、Python import、文档引用、配置索引），作为目录重构后快速定位影响面的工具。date: 2026-06-18
+description: 以树状结构展示 task/ 根目录向下的全部文件依赖关系（PS 点源、Python import、文档引用、配置索引），作为目录重构后快速定位影响面的工具。
+date: 2026-06-18
+meta: {}
 ---
 
 # deploy-git-isolated Task 依赖图与修订联动路径
@@ -348,4 +350,3 @@ lib-plugins/ 移动
 1. **将本依赖图纳入交付 checklist**：每次涉及 scripts/ 目录的变更，必须更新本图对应章节
 2. **自动化检测**：在 `md_lint.py` 和 `link_checker.py` 之外，增加一个 `path_consistency_checker.py`，扫描 ENTRY.json 中的 path 是否与磁盘实际一致
 3. **版本控制**：本文件随目录结构变化同步更新，changelog 中登记 "依赖图已同步"
-

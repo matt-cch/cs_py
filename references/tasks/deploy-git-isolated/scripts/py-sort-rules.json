@@ -21,6 +21,13 @@
       "description": "编码处理：sys.stdout 重配置、UTF-8 切换与恢复"
     },
     {
+      "name": "process_runner",
+      "module": "process_runner",
+      "depends": ["encoding"],
+      "tags": ["core"],
+      "description": "进程执行器：封装 subprocess 流式输出能力，UTF-8 实时逐行输出"
+    },
+    {
       "name": "constants",
       "module": "constants",
       "depends": ["devroot"],
@@ -54,6 +61,69 @@
       "depends": [],
       "tags": ["md", "validation"],
       "description": "Markdown 格式 Linter：检测并修复 frontmatter 边界污染（正文 ---）"
+    },
+    {
+      "name": "browser_session",
+      "module": "browser_session",
+      "depends": [],
+      "tags": ["core"],
+      "description": "Browser Session 管理器：Chrome 持久化上下文管理（交互式登录 + session 复用截图）"
+    },
+    {
+      "name": "archive_config",
+      "module": "archive_config",
+      "depends": ["constants"],
+      "tags": ["archive", "core"],
+      "description": "归档配置：GROUPS 定义、7z 路径解析、输出目录（依赖 constants 提供 devroot）"
+    },
+    {
+      "name": "archive_scanner",
+      "module": "archive_scanner",
+      "depends": ["archive_config", "core"],
+      "tags": ["archive"],
+      "description": "归档扫描器：磁盘扫描、黑白名单过滤、空目录 .emptydir 占位、CSV/listfile 输出"
+    },
+    {
+      "name": "archive_compressor",
+      "module": "archive_compressor",
+      "depends": ["archive_config", "core"],
+      "tags": ["archive"],
+      "description": "归档压缩器：7z 压缩封装、心跳进度、stdout 统计解析、zip/7z 格式切换"
+    },
+    {
+      "name": "lint_json",
+      "module": "lint_json",
+      "depends": ["core"],
+      "tags": ["lint", "json"],
+      "description": "JSON 语法验证器：使用 json.load 验证 .json/.jsonc 文件语法"
+    },
+    {
+      "name": "lint_ps1",
+      "module": "lint_ps1",
+      "depends": ["core"],
+      "tags": ["lint", "ps1"],
+      "description": "PowerShell 脚本语法验证器：使用 PSParser::Tokenize 验证 .ps1 文件"
+    },
+    {
+      "name": "lint_python",
+      "module": "lint_python",
+      "depends": ["core"],
+      "tags": ["lint", "python"],
+      "description": "Python 脚本语法验证器：使用 py_compile 验证 .py 文件语法"
+    },
+    {
+      "name": "lint_encoding",
+      "module": "lint_encoding",
+      "depends": ["core"],
+      "tags": ["lint", "encoding"],
+      "description": "文件编码/BOM/行尾符检测器：检测 BOM、双 BOM、CRLF/LF（按 AGENTS.md 规范）"
+    },
+    {
+      "name": "github_api",
+      "module": "github_api",
+      "depends": ["env_config"],
+      "tags": ["github", "api"],
+      "description": "GitHub REST API 封装：认证读取、Issue/Comment 查询与创建、通用 API 调用"
     }
   ],
   "profiles": {
@@ -76,6 +146,36 @@
       "include_tags": [],
       "exclude_tags": [],
       "description": "最小功能集（占位）"
+    },
+    "archive": {
+      "include_tags": ["archive"],
+      "exclude_tags": [],
+      "description": "归档相关插件（含 core 依赖自动补齐）"
+    },
+    "lint": {
+      "include_tags": ["lint"],
+      "exclude_tags": [],
+      "description": "全量 lint（JSON + PS1 + Python + Encoding + Markdown）"
+    },
+    "lint-json": {
+      "include_tags": ["lint", "json"],
+      "exclude_tags": [],
+      "description": "仅 JSON lint"
+    },
+    "lint-ps1": {
+      "include_tags": ["lint", "ps1"],
+      "exclude_tags": [],
+      "description": "仅 PowerShell lint"
+    },
+    "lint-python": {
+      "include_tags": ["lint", "python"],
+      "exclude_tags": [],
+      "description": "仅 Python lint"
+    },
+    "lint-encoding": {
+      "include_tags": ["lint", "encoding"],
+      "exclude_tags": [],
+      "description": "仅编码/BOM/行尾符 lint"
     }
   }
 }

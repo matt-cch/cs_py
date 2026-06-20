@@ -2,6 +2,7 @@
 title: deploy-git-isolated — GOAL.md
 description: 本任务的完整目标-方案-执行-验收-闭环链条（Goal → Solution → SOP → Apply → Review → Ralph Loop）。
 date: 2026-06-17
+meta: {}
 ---
 
 # deploy-git-isolated — GOAL.md

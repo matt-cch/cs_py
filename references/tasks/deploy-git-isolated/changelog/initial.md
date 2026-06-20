@@ -2,6 +2,7 @@
 title: deploy-git-isolated 初始变更记录
 description: 任务骨架创建，设计文档定稿，待进入 Step 脚本填充阶段。
 date: 2026-06-16
+meta: {}
 ---
 
 # deploy-git-isolated 变更记录

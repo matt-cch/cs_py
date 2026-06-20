@@ -1,6 +1,8 @@
 ---
 title: Profile 筛选模式 — 稳定执行框架 + 配置元数据黑白名单
-description: 从 github-lib 插件架构演进中沉淀的设计模式：通过 Profile/Include/Exclude 三层筛选 + 依赖自动补齐，解决"全量加载冗余插件"问题。date: 2026-06-17
+description: 从 github-lib 插件架构演进中沉淀的设计模式：通过 Profile/Include/Exclude 三层筛选 + 依赖自动补齐，解决"全量加载冗余插件"问题。
+date: 2026-06-17
+meta: {}
 ---
 
 # Profile 筛选模式

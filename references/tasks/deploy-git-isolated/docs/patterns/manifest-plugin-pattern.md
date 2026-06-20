@@ -2,6 +2,7 @@
 title: Manifest + Plugins 扩展模式 — 高频速查表与可插拔架构
 description: 从 deploy-git-isolated task 的工具索引体系中沉淀的设计模式：通过 ENTRY.json（机器真源）+ TASK-TOOLS-INDEX.md（人读速查）+ lib-plugins/（可插拔代码）三层结构，实现"机器可读、人类可速查、代码可渐进扩展"。
 date: 2026-06-17
+meta: {}
 ---
 
 # Manifest + Plugins 扩展模式

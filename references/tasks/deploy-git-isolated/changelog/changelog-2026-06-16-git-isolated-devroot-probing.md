@@ -2,6 +2,7 @@
 title: deploy-git-isolated — git-isolated.ps1 devroot 探测逻辑变更
 description: git-isolated.ps1 从硬编码 devroot 路径改为从脚本位置向上回溯探测，同时暴露跨环境迁移的已知缺陷。
 date: 2026-06-16
+meta: {}
 ---
 
 # deploy-git-isolated — git-isolated.ps1 devroot 探测逻辑变更

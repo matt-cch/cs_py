@@ -2,6 +2,7 @@
 title: deploy-git-isolated — Task Canonical Baseline
 description: 本 task 的认知基线与真源契约。记录 Agent 与人类共同确认的事实标准、命名约定、执行路径，以及 SOP / EXEC-CHEATSHEET / TASK-TOOLS-INDEX 三者的语义区分。
 date: 2026-06-16
+meta: {}
 ---
 
 # deploy-git-isolated — Task Canonical Baseline
@@ -537,7 +538,244 @@ references/tasks/deploy-git-isolated/archive/deploy-git-isolated-vN/
 | 运行时真源检测 | `references/runtime/verify-runtime.ps1` | `verified-task-index.json` → `verify-runtime` |
 | 运行时工具下载 | `references/runtime/download-runtime-tool.ps1` | `verified-task-index.json` → `download-runtime-tool` |
 
-*规范版本: v1.1*  
+
+### 8.4 Python 插件体系三层架构（ workflow → entry → plugins ）
+
+> **来源**：用户与 Agent 在 2026-06-19 对话中共同确认。本节是本次 session 的核心共识沉淀，记录"禁止越级调用"的架构铁律。
+
+#### 8.4.1 问题背景
+
+本 task 的 Python 侧已建立 `py_lib.py` + `py-plugins/` + `py-tools/` 体系。但在开发 `workflow-lint-amend-lint.py` 过程中，Agent 曾错误地采用"直接 `import lint_encoding`"的实现方式，被用户判定为**架构越级**——workflow 层直接触碰 plugin 层，绕过了 `py_lib` 统一入口，破坏了入口统一性、审计追踪能力和插件生命周期管理。
+
+本节固化本次讨论后的**正确架构认知**。
+
+#### 8.4.2 三层定义
+
+```
+┌──────────────────────────────────────────────┐
+│  Layer 3: Workflow 编排层（py-tools/）         │
+│  ────────────────────────────────────────    │
+│  run-lint.py                    → 全量聚合    │
+│  workflow-lint-amend-lint.py    → 步骤闭环    │
+│  （只编排，不实现；禁止直接 import plugin）    │
+└──────────────────────────────────────────────┘
+                    ↓ 通过 py_lib.load_plugins()
+┌──────────────────────────────────────────────┐
+│  Layer 2: 统一入口层（scripts/py_lib.py）      │
+│  ────────────────────────────────────────    │
+│  职责：拓扑排序 · 依赖补齐 · registry 注入     │
+│  约束：所有上层调用的唯一网关                  │
+│  方式：registry = load_plugins(tags=[...])   │
+│        plugin = registry.lint_encoding       │
+└──────────────────────────────────────────────┘
+                    ↓ 动态加载
+┌──────────────────────────────────────────────┐
+│  Layer 1: 能力底座层（py-plugins/）            │
+│  ────────────────────────────────────────    │
+│  lint_encoding.py → BOM/CRLF/LF 检测+修复    │
+│  lint_json.py     → JSON 语法验证            │
+│  lint_ps1.py      → PowerShell 语法验证      │
+│  lint_python.py   → Python 语法验证          │
+│  md_lint.py       → frontmatter 污染检测     │
+│  ...                                          │
+│  （单一职责，暴露 validate() 接口）            │
+└──────────────────────────────────────────────┘
+```
+
+#### 8.4.3 各层职责边界
+
+| 层级 | 文件位置 | 职责 | 禁止行为 |
+|------|---------|------|---------|
+| **Workflow** | `py-tools/*.py` | 步骤编排、逻辑判断、报告输出 | ❌ 禁止直接 `import` plugin；❌ 禁止重新实现检测逻辑 |
+| **Entry** | `py_lib.py` | 统一入口、拓扑排序、依赖补齐、registry 注入 | ❌ 禁止混入业务逻辑；❌ 禁止被绕过 |
+| **Plugins** | `py-plugins/*.py` | 单一检测/修复能力、暴露标准化接口 | ❌ 禁止依赖 workflow 上下文；❌ 禁止直接读写配置文件 |
+
+#### 8.4.4 铁律：禁止越级调用
+
+> **一句话**：Workflow 禁止直接 `import` Plugin。所有能力必须通过 `py_lib.load_plugins()` 获取。
+
+**错误示范（已纠正）**：
+```python
+# ❌ 越级：workflow 直接 import plugin
+from lint_encoding import validate
+result = validate(dir_path=target)
+```
+
+**正确示范**：
+```python
+# ✅ 合规：workflow 通过 py_lib 统一入口获取能力
+from py_lib import load_plugins
+registry = load_plugins(devroot=devroot, tags=["lint", "encoding"])
+lint_encoding = registry.lint_encoding
+result = lint_encoding.validate(dir_path=target)
+```
+
+#### 8.4.5 铁律延伸：文档层面也不暴露插件文件名
+
+> **来源**：用户与 Agent 在 2026-06-20 对话中共同确认。本节是 8.4.4「禁止越级调用」的自然延伸。
+
+**问题**：即使代码层面禁止了 `import plugin`，如果人类速查表（如 `TASK-TOOLS-INDEX.md`）以静态表格形式列出每个插件的文件名、路径和职责，上层调用者（包括 Agent 和人类开发者）仍会**按图索骥**，直接 `import` 或引用具体插件文件，导致越级调用在文档的「诱导」下持续发生。
+
+**判定标准**：
+- ❌ 违规：在索引/速查表中直接列出 `lint_json.py`、`md_lint.py` 等具体插件文件名，形成「可用的插件清单」
+- ✅ 合规：只说明「有哪些能力类别」（如 JSON lint / Markdown frontmatter 校验 / 编码检测），插件发现通过入口 API 动态获取
+
+**正确示范（文档写法）**：
+```markdown
+**可用能力**（由 `py_lib` 插件体系动态提供）：
+
+lint 体系覆盖 JSON / PowerShell / Python / Encoding / Markdown / Link 等验证。
+具体有哪些插件可用、各自的标签与职责，**通过入口 API 动态发现**。
+
+```python
+# 发现全部可用插件（正规入口）
+from py_lib import list_plugins
+for p in list_plugins():
+    print(f"{p['name']}: {p['description']} (tags: {p['tags']})")
+```
+
+> **铁律**：插件清单的唯一真源是 `py-sort-rules.json`（机器可读）。人类速查表只说明「有哪些能力类别」，不列出具体插件文件名。
+```
+
+**错误示范（已纠正）**：
+```markdown
+| 插件 | 标签 | 职责 | 状态 |
+|------|------|------|------|
+| `lint_json.py` | `lint`, `json` | JSON 语法验证 | ready |
+| `md_lint.py` | `md`, `validation` | Markdown frontmatter 校验 | ready |
+```
+
+#### 8.4.6 案例讲解：workflow-lint-amend-lint.py 的正确实现
+
+**需求**：对指定目录执行"检测 → 修复 → 验证"闭环。
+
+**错误路径（第一次实现）**：
+1. workflow 直接 `import lint_encoding`
+2. 直接调用 `lint_encoding.validate()`
+3. 问题：绕过 `py_lib`，失去统一入口的审计、追踪、依赖管理
+
+**正确路径（修正后）**：
+1. workflow `from py_lib import load_plugins`
+2. `registry = load_plugins(devroot=..., tags=["lint", "encoding"])`
+3. `lint_encoding = registry.lint_encoding`
+4. Step 1: `lint_encoding.validate(dir_path=target)` → 检测
+5. Step 2: `lint_encoding.validate(dir_path=target, fix=True)` → 修复
+6. Step 3: `lint_encoding.validate(dir_path=target)` → 再验证
+7. 输出闭环报告
+
+**关键收益**：
+- `py_lib` 自动处理 `lint_encoding` 的依赖（如 `core` 插件）
+- `py_lib` 自动按 `py-sort-rules.json` 拓扑排序加载
+- `py_lib` 将 `devroot` 注入 registry，plugin 可通过 `__plugin_registry__` 访问
+- 新增 plugin 只需登记 `py-sort-rules.json`，workflow 无需改代码
+
+#### 8.4.6 扩展新 workflow 的标准模板
+
+```python
+#!/usr/bin/env python3
+"""
+workflow-<name>.py — <描述>
+标签：py-tools
+
+职责：通过 py_lib 统一入口加载所需插件，完成 <workflow 目标>。
+"""
+import sys
+from pathlib import Path
+
+sys.stdout.reconfigure(encoding="utf-8")
+
+_SCRIPTS_DIR = Path(__file__).parent.parent.resolve()
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from py_lib import load_plugins
+
+
+def main():
+    # 1. 通过 py_lib 获取能力（禁止直接 import plugin）
+    registry = load_plugins(devroot=devroot, tags=["<tag1>", "<tag2>"])
+    plugin = registry.<plugin_name>
+
+    # 2. 编排 workflow 步骤
+    # ...
+
+
+if __name__ == "__main__":
+    main()
+```
+
+#### 8.4.7 修订联动
+
+新增/修改 workflow 时，必须同步更新：
+
+| 联动文件 | 更新内容 |
+|---------|---------|
+| `EXEC-CHEATSHEET.md` | 新增 workflow 调用命令示例 |
+| `TASK-TOOLS-INDEX.md` | 在 CLI 入口表登记新 workflow |
+| `README.md` | 文件导航表和当前状态表追加 |
+| `py-sort-rules.json` | 如需新增 plugin，登记插件定义和 profile |
+
+### 8.5 标准文档与实现代码的真源对齐原则
+
+> **来源**：用户与 Agent 在 2026-06-20 对话中共同确认。本节解决「标准文档 vs 实现代码不一致时以谁为准」的裁决问题。
+
+#### 8.5.1 问题背景
+
+本 task 存在多组「标准文档 + 实现代码」的配对关系：
+
+| 标准文档（What：规则是什么） | 实现代码（How：如何检测/执行） |
+|---------------------------|------------------------------|
+| `.cursor/rules/markdown-docs-format.mdc` | `md_lint.py` |
+
+此前未明确两者的主从关系，导致 Agent 在修改时可能：
+- 只改实现代码，不同步标准文档 → 标准过期
+- 只改标准文档，不同步实现代码 → 实现与标准脱节
+- 实现代码自行扩展规则 → 标准文档失去唯一真源地位
+
+#### 8.5.2 铁律：标准文档是唯一真源
+
+**层级定义**：
+- **标准文档**（如 `.mdc` 规则文件）：人类可读的真源标准，定义「应该是什么」
+- **实现代码**（如 `.py` 插件）：标准文档的**忠实实现**，定义「如何检测/执行」
+
+**裁决规则**：
+1. **标准 vs 实现不一致 → 以标准文档为准，修正实现代码**
+2. **实现代码发现标准文档未覆盖的边界 → 先修订标准文档，再同步实现**
+3. **禁止实现代码自行扩展规则而不更新标准文档**
+
+**错误示范（已纠正）**：
+```python
+# md_lint.py 自行增加 frontmatter 字段检测
+# 但 markdown-docs-format.mdc 中未定义该字段
+# → 实现超前于标准，形成双轨制
+```
+
+**正确示范**：
+```markdown
+# Step 1: 修订标准文档（markdown-docs-format.mdc）
+# 新增 meta 必填字段、description/date 拼接禁忌
+
+# Step 2: 同步实现代码（md_lint.py）
+# 按 mdc 新增的规则实现对应检测逻辑
+
+# Step 3: 双向验证
+# mdc 描述的规则 ↔ md_lint 实现的校验 ↔ 实际扫描结果 三者一致
+```
+
+#### 8.5.3 应用到本 task
+
+| 标准文档 | 实现代码 | 同步检查清单 |
+|---------|---------|------------|
+| `.cursor/rules/markdown-docs-format.mdc` | `md_lint.py` | mdc 中每条规定是否有对应的检测逻辑？md_lint 的每个检测项是否在 mdc 中有出处？ |
+
+**修订联动触发条件**：
+- 修改 `markdown-docs-format.mdc` → **必须**检查 `md_lint.py` 是否需要同步更新
+- 增强 `md_lint.py` 检测能力 → **必须**检查 `markdown-docs-format.mdc` 是否需要补充规则定义
+- 两者任一改版 → 在 `md_lint.py` 的 docstring 中更新版本号，并注明「与 mdc X.X 对齐」
+
+
+*规范版本: v1.3*  
 *模板来源: schema/task-template/task-canonical-baseline.md*  
 *创建时间: 2026-06-16*  
-*本 task 定制内容: 第 3.2/3.3 节（SOP vs TOOLS-INDEX 区分）、第 6.2 节（TASK-TOOLS-INDEX 位置约定）、第 8 节（本 task 特殊约定）*
+*本 task 定制内容: 第 3.2/3.3 节（SOP vs TOOLS-INDEX 区分）、第 6.2 节（TASK-TOOLS-INDEX 位置约定）、第 8 节（本 task 特殊约定）*  
+*本次修订: 2026-06-20，新增第 8.4.5 节（文档不暴露插件文件名）、第 8.5 节（标准文档与实现代码真源对齐）*

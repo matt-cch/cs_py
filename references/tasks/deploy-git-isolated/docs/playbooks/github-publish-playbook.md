@@ -2,6 +2,7 @@
 title: GitHub 发布操作手册 — deploy-git-isolated task 发布实录
 description: 记录将 deploy-git-isolated task 发布到 GitHub 仓库的完整过程，包括三篇文章的原理启发、实施步骤、形成的脚本与踩坑记录。
 date: 2026-06-17
+meta: {}
 ---
 
 # GitHub 发布操作手册 — deploy-git-isolated task 发布实录

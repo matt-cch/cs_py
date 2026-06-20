@@ -2,6 +2,7 @@
 title: deploy-git-isolated — Task Canonical Baseline 落地指南
 description: 本 task 如何遵循 task-canonical-baseline.md 定义的语义、真源、命名与认知契约。
 date: 2026-06-16
+meta: {}
 ---
 
 # deploy-git-isolated — Task Canonical Baseline 落地指南

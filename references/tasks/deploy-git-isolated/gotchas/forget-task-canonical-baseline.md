@@ -2,6 +2,7 @@
 title: Agent 遗忘 task-canonical-baseline.md 踩坑记录
 description: Agent 在长对话中遗忘了本 task 已定义的规范基线文件，导致重复推理和语义混淆。
 date: 2026-06-16
+meta: {}
 ---
 
 # Agent 遗忘 task-canonical-baseline.md 踩坑记录

@@ -1,7 +1,7 @@
 {
   "meta": {
     "description": "deploy-git-isolated 机器可读真源索引",
-    "version": "0.8.0",
+"version": "0.15.0",
     "version_history": [
       {"version": "0.1.0", "date": "2026-06-16", "note": "骨架创建，设计冻结，ENTRY/DESIGN/CONFIG/README 定稿"},
       {"version": "0.2.0", "date": "2026-06-16", "note": "Step 1-8 执行通过，MinGit 2.54.0 部署成功，插件架构就绪，verified-runtime-index 已登记"},
@@ -10,9 +10,16 @@
       {"version": "0.5.0", "date": "2026-06-16", "note": "新增 task-canonical-baseline.md 规范基线，记录 Agent 遗忘踩坑到 gotchas/，README 顶部增加自检提示"},
       {"version": "0.6.0", "date": "2026-06-17", "note": "新增 github-sync-issue 体系：github-api.ps1 插件 + github-sync-issue.ps1 入口 + github-sync-issue-config.json 配置真源，支持 create/update/comment/list-comments/get-issue 五种模式，实现 commit → Issue 同步闭环"},
       {"version": "0.7.0", "date": "2026-06-17", "note": "github-lib 支持 Profile/Include/Exclude 三层筛选机制，lib-sort-rules.json 新增 profiles 节，依赖自动补齐，向后兼容"},
-      {"version": "0.8.0", "date": "2026-06-18", "note": "SOP 重构：scripts/SOP-CHEATSHEET.md → 根目录 SOP.md（标准流程）+ scripts/EXEC-CHEATSHEET.md（执行速查）；新增 Step Manifest 结构（Input→Process→Output→Validation→Audit Trail→Rollback）；Ralph Loop 自闭环框架落地"}
+      {"version": "0.8.0", "date": "2026-06-18", "note": "SOP 重构：scripts/SOP-CHEATSHEET.md → 根目录 SOP.md（标准流程）+ scripts/EXEC-CHEATSHEET.md（执行速查）；新增 Step Manifest 结构（Input→Process→Output→Validation→Audit Trail→Rollback）；Ralph Loop 自闭环框架落地"},
+      {"version": "0.9.0", "date": "2026-06-20", "note": "Python 版 GitHub API 体系：github_api.py 插件（py-plugins/）+ fetch_issue.py CLI（py-tools/）；run-lint.py 新增 --files 单文件列表模式，支持混合类型自动路由；各 lint 插件新增 validate_file() 单文件验证接口"},
+      {"version": "0.10.0", "date": "2026-06-20", "note": "Plugin Result Schema 统一契约：schema/plugin-result-schema.json（机器真源）+ schema/plugin-result-schema.md（人类文档）+ schema/models.py（Pydantic 备选）；5 个 lint 插件返回格式对齐统一 schema（success/schema_version/plugin/metadata/violations.context）；run-lint.py 上层调用移除 error/context 分支"},
+      {"version": "0.11.0", "date": "2026-06-20", "note": "md_lint v1.1.1：frontmatter 字段校验新增例外文件机制（SKILL.md / AGENTS.md 跳过必填字段检查，但仍检查 --- 污染），与 markdown-docs-format.mdc 第 7 行例外条款对齐"},
+      {"version": "0.12.0", "date": "2026-06-20", "note": "py_lib v1.1.0：新增 list_plugins() API，支持动态发现可用插件（不加载，只返回元数据）；TASK-TOOLS-INDEX.md 移除静态插件层表格，改为通过入口 API 动态发现，对齐禁止越级暴露原则"},
+      {"version": "0.13.0", "date": "2026-06-20", "note": "task-canonical-baseline.md 新增 8.4.5：文档层面也不暴露插件文件名——禁止在索引/速查表中硬编码插件清单，能力类别由入口 API 动态发现"},
+      {"version": "0.14.0", "date": "2026-06-20", "note": "task-canonical-baseline.md 新增 8.5：标准文档与实现代码的真源对齐原则——标准文档（如 .mdc）是唯一真源，实现代码（如 md_lint.py）是忠实实现；冲突时以标准为准，禁止实现自行扩展规则"},
+      {"version": "0.15.0", "date": "2026-06-20", "note": "md_lint v1.2.0：docstring 与 mdc 逐条对齐（实现状态矩阵）；新增 frontmatter 必须从第 1 行开始检测；新增代码块内 --- 例外（通过 ``` 配对追踪）；功能测试 4 场景全部通过"}
     ],
-    "last_updated": "2026-06-18",
+    "last_updated": "2026-06-20",
     "source_of_truth": "README.md",
     "trigger_index": "references/tasks/deploy-git-isolated/task-scenario-triggers.json",
     "tools_index": "references/tasks/deploy-git-isolated/TASK-TOOLS-INDEX.md",
@@ -423,15 +430,57 @@
       "status": "ready"
     },
     {
+      "name": "github_api.py",
+      "role": "Python 插件：GitHub REST API 封装（get_credentials / invoke_api / get_issue / list_comments / create_issue / update_issue / create_comment），urllib 实现，自动 UTF-8",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/github_api.py",
+      "status": "ready"
+    },
+    {
+      "name": "fetch_issue.py",
+      "role": "Python CLI：获取 GitHub Issue 完整内容（含评论），通过 py_lib 加载 github_api 插件，输出与 PS 版对齐",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/fetch_issue.py",
+      "status": "ready"
+    },
+    {
+      "name": "plugin-result-schema.json",
+      "role": "插件返回格式 JSON Schema 真源（v1.0.0），机器可读",
+      "path": "references/tasks/deploy-git-isolated/schema/json/plugin-result-schema.json",
+      "status": "ready"
+    },
+    {
+      "name": "plugin-result-schema.md",
+      "role": "插件返回格式规范文档（人类可读），含默认 Dict + Pydantic 备选实现说明",
+      "path": "references/tasks/deploy-git-isolated/schema/docs/plugin-result-schema.md",
+      "status": "ready"
+    },
+    {
+      "name": "models.py",
+      "role": "Pydantic / Dataclass 备选 Model 实现，与 plugin-result-schema.json 共享同一契约",
+      "path": "references/tasks/deploy-git-isolated/schema/py/models.py",
+      "status": "ready"
+    },
+    {
       "name": "check-links.py",
       "role": "Python 工具：Markdown 内部链接验证（走 py_lib 入口的正规用法示范）",
       "path": "references/tasks/deploy-git-isolated/scripts/py-tools/check-links.py",
       "status": "ready"
     },
     {
-      "name": "md_lint.py",
-      "role": "Python 插件：Markdown 格式 Linter，检测并修复 frontmatter 边界污染（正文 ---）",
-      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/md_lint.py",
+      "name": "run-lint.py",
+      "role": "Workflow：全量 lint + 单文件列表 lint（--files 混合类型自动路由）。通过 py_lib 加载 lint 插件",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/run-lint.py",
+      "status": "ready"
+    },
+    {
+      "name": "browser_session.py",
+      "role": "Python 插件：Browser Session 管理器，Chrome 持久化上下文（交互式登录 + session 复用）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/browser_session.py",
+      "status": "ready"
+    },
+    {
+      "name": "screenshot_verifier.py",
+      "role": "Python 工具：URL 截图验证工具（使用已保存 Chrome session）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/screenshot_verifier.py",
       "status": "ready"
     },
     {
