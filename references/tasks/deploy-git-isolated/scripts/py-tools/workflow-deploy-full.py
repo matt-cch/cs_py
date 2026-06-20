@@ -2,7 +2,7 @@
 """
 workflow-deploy-full.py — deploy-git-isolated 全链条部署 workflow
 标签：py-tools
-版本：v1.1.1 (proxy 环境全链路验证)
+版本：v1.1.2 (纯 py 版全链路验证通过)
 
 职责：编排 Step 4-9，调用 Python step 脚本，分步输出并计时。
 与 PS1 版对齐：按顺序执行 add → commit → remote → push → upstream → issue sync，
