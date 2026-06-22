@@ -179,6 +179,10 @@ def chat(
         payload["max_tokens"] = max_tokens
     if tools is not None:
         payload["tools"] = tools
+    # 传递 thinking 参数（如 provider_cfg 中有）
+    thinking = cfg.get("thinking") if provider_cfg is not None else None
+    if thinking is not None:
+        payload["thinking"] = thinking
 
     url = f"{cfg['base_url']}/chat/completions"
     headers = {
