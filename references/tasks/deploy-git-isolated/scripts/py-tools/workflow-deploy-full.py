@@ -24,6 +24,86 @@ _PY_STEPS_DIR = Path(__file__).parent.parent / "py-steps"
 _PY_EXE = Path(__file__).parent.parent.parent.parent.parent.parent / "venv" / "py" / "python.exe"
 
 
+def _generate_meta(devroot: Path, message: str) -> Path:
+    """
+    Step 5 之后自动生成实时 comment meta。
+    读取 schema 模板，用 git diff 获取变更文件，按路径前缀自动分类，
+    写入 venv/tmp/workflow-meta-{timestamp}.json，返回路径供 Step 9 使用。
+    """
+    import json
+    from datetime import datetime, timezone
+
+    git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
+
+    # 1. 获取 commit hash
+    result = subprocess.run(
+        [str(git_exe), "-C", str(devroot), "rev-parse", "--short", "HEAD"],
+        capture_output=True, text=True, encoding="utf-8"
+    )
+    commit_hash = result.stdout.strip()
+
+    # 2. 获取变更文件列表
+    result = subprocess.run(
+        [str(git_exe), "-C", str(devroot), "diff", "--name-status", "HEAD~1..HEAD"],
+        capture_output=True, text=True, encoding="utf-8"
+    )
+    changes = {"A": [], "M": [], "D": [], "R": []}
+    for line in result.stdout.strip().splitlines():
+        if not line:
+            continue
+        parts = line.split("\t")
+        status = parts[0][0]
+        path = parts[-1]
+        if status in changes:
+            changes[status].append(path)
+        else:
+            changes["M"].append(path)
+
+    # 3. 自动分类
+    cats = {
+        "脚本改造": [],
+        "规范与模板": [],
+        "文档更新": [],
+        "其他": [],
+    }
+    for status, paths in changes.items():
+        for p in paths:
+            if "scripts/" in p or "py-steps/" in p or "py-tools/" in p or "ps-steps/" in p or "ps-tools/" in p:
+                label = "新增" if status == "A" else ("删除" if status == "D" else "修改")
+                cats["脚本改造"].append(f"{label}: {p}")
+            elif "schema/" in p or "json/" in p:
+                label = "新增" if status == "A" else ("删除" if status == "D" else "修改")
+                cats["规范与模板"].append(f"{label}: {p}")
+            elif "docs/" in p or "README" in p or ".md" in p:
+                label = "新增" if status == "A" else ("删除" if status == "D" else "修改")
+                cats["文档更新"].append(f"{label}: {p}")
+            else:
+                label = "新增" if status == "A" else ("删除" if status == "D" else "修改")
+                cats["其他"].append(f"{label}: {p}")
+
+    categories = []
+    for name, items in cats.items():
+        if items:
+            categories.append({"name": name, "items": items})
+
+    # 4. 构造 meta
+    meta = {
+        "version": "1.0.0",
+        "commit_message": message,
+        "summary": message,
+        "categories": categories,
+    }
+
+    # 5. 写入 tmp
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    meta_path = devroot / "venv" / "tmp" / f"workflow-meta-{ts}.json"
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    print(f"[Meta] 已生成实时配置: {meta_path}")
+    print(f"[Meta] 变更文件: {sum(len(v) for v in changes.values())} 个, 分类: {len(categories)} 组")
+    return meta_path
+
+
 def _run_py_step(name: str, script_path: Path, extra_args: list = None) -> tuple[bool, float]:
     """
     执行 Python step 脚本，实时输出，返回 (成功?, 耗时秒)。
@@ -94,10 +174,14 @@ def main():
     print(f"{'#'*50}")
 
     steps = []
+    meta_path = None
     if args.step in ("4", "all"):
         steps.append(("Step 4: git add", _PY_STEPS_DIR / "step-04-github-deploy-add.py", ["--devroot", str(devroot)]))
     if args.step in ("5", "all"):
         steps.append(("Step 5: git commit", _PY_STEPS_DIR / "step-05-github-commit.py", ["--devroot", str(devroot), "--message", args.message]))
+    if args.step in ("9", "all"):
+        # Step 5 之后自动生成 meta，供 Step 9 使用
+        meta_path = _generate_meta(devroot, args.message)
     if args.step in ("6", "all"):
         steps.append(("Step 6: remote", _PY_STEPS_DIR / "step-06-github-remote.py", ["--devroot", str(devroot)]))
     if args.step in ("7", "all"):
@@ -105,7 +189,10 @@ def main():
     if args.step in ("8", "all"):
         steps.append(("Step 8: upstream", _PY_STEPS_DIR / "step-08-github-upstream.py", ["--devroot", str(devroot)]))
     if args.step in ("9", "all"):
-        steps.append(("Step 9: issue sync", _PY_STEPS_DIR / "step-09-github-sync-issue.py", ["--devroot", str(devroot), "--issue", str(args.issue)]))
+        issue_args = ["--devroot", str(devroot), "--issue", str(args.issue)]
+        if meta_path:
+            issue_args.extend(["--meta", str(meta_path)])
+        steps.append(("Step 9: issue sync", _PY_STEPS_DIR / "step-09-github-sync-issue.py", issue_args))
 
     all_ok = True
     for name, script, extra in steps:
