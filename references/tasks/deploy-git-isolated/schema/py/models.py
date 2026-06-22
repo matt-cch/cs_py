@@ -105,3 +105,65 @@ else:
                 ],
                 "metadata": self.metadata,
             }
+
+
+# =============================================================================
+# LLM Chat Schema Models（与 llm-chat-schema.json 对齐）
+# =============================================================================
+
+if HAS_PYDANTIC:
+
+    class ToolCall(BaseModel):
+        """工具调用请求（assistant 消息中）"""
+        id: str = Field(description="工具调用唯一标识")
+        type: str = Field(default="function", const=True)
+        function: Dict[str, str] = Field(description="{name, arguments}")
+
+    class Message(BaseModel):
+        """OpenAI 兼容消息格式"""
+        role: str = Field(description="system | user | assistant | tool")
+        content: Optional[str] = Field(default=None, description="消息正文")
+        tool_calls: Optional[List[ToolCall]] = Field(default=None, description="工具调用列表")
+        tool_call_id: Optional[str] = Field(default=None, description="tool 角色时对应的 tool_call id")
+
+    class LLMChatRequest(BaseModel):
+        """LLM Chat Completions 请求体"""
+        model: str = Field(description="模型 ID，如 kimi-k2.5")
+        messages: List[Message] = Field(description="对话消息列表")
+        temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+        max_tokens: Optional[int] = Field(default=None, ge=1)
+        tools: Optional[List[Dict[str, Any]]] = Field(default=None, description="工具定义列表")
+
+    class LLMChatResponse(BaseModel):
+        """LLM Chat Completions 响应体（简化，只取 choices[0]）"""
+        choices: List[Dict[str, Any]] = Field(description="choices 数组")
+        usage: Optional[Dict[str, int]] = Field(default=None, description="token 用量")
+
+else:
+    # 降级：无 pydantic 时提供兼容的纯 dataclass 实现
+
+    @dataclass
+    class ToolCall:
+        id: str
+        type: str = "function"
+        function: Dict[str, str] = field(default_factory=dict)
+
+    @dataclass
+    class Message:
+        role: str
+        content: Optional[str] = None
+        tool_calls: Optional[List[ToolCall]] = None
+        tool_call_id: Optional[str] = None
+
+    @dataclass
+    class LLMChatRequest:
+        model: str
+        messages: List[Message]
+        temperature: float = 0.7
+        max_tokens: Optional[int] = None
+        tools: Optional[List[Dict[str, Any]]] = None
+
+    @dataclass
+    class LLMChatResponse:
+        choices: List[Dict[str, Any]] = field(default_factory=list)
+        usage: Optional[Dict[str, int]] = None

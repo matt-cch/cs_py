@@ -24,11 +24,46 @@ _PY_STEPS_DIR = Path(__file__).parent.parent / "py-steps"
 _PY_EXE = Path(__file__).parent.parent.parent.parent.parent.parent / "venv" / "py" / "python.exe"
 
 
+def _generate_ai_summary(devroot: Path, message: str) -> str:
+    """
+    调用 generate-ai-summary.py 生成 AI 语义摘要。
+    返回摘要文本（失败时返回空字符串）。
+    """
+    script = Path(__file__).parent / "generate-ai-summary.py"
+    cmd = [str(_PY_EXE), str(script), "--devroot", str(devroot), "--message", message]
+
+    print("[AI Summary] 正在生成语义摘要...")
+    start = time.time()
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=300)
+        elapsed = time.time() - start
+        if result.returncode != 0:
+            print(f"[AI Summary] 生成失败 (耗时 {elapsed:.2f}s): {result.stderr}", file=sys.stderr)
+            return ""
+
+        # 从 stdout 提取落盘路径（最后一行 [Output] 已落盘: ...）
+        summary_text = ""
+        for line in result.stdout.splitlines():
+            if line.startswith("[Output] 已落盘:"):
+                output_path = Path(line.split("已落盘:", 1)[1].strip())
+                if output_path.exists():
+                    data = json.loads(output_path.read_text(encoding="utf-8"))
+                    summary_text = data.get("ai_summary", "")
+                break
+
+        print(f"[AI Summary] 生成完成 (耗时 {elapsed:.2f}s), 长度: {len(summary_text)} 字符")
+        return summary_text
+    except Exception as e:
+        elapsed = time.time() - start
+        print(f"[AI Summary] 异常 (耗时 {elapsed:.2f}s): {e}", file=sys.stderr)
+        return ""
+
+
 def _generate_meta(devroot: Path, message: str) -> Path:
     """
     Step 5 之后自动生成实时 comment meta。
     读取 schema 模板，用 git diff 获取变更文件，按路径前缀自动分类，
-    写入 venv/tmp/workflow-meta-{timestamp}.json，返回路径供 Step 9 使用。
+    同时调用 AI 生成语义摘要，写入 venv/tmp/workflow-meta-{timestamp}.json。
     """
     import json
     from datetime import datetime, timezone
@@ -86,15 +121,23 @@ def _generate_meta(devroot: Path, message: str) -> Path:
         if items:
             categories.append({"name": name, "items": items})
 
-    # 4. 构造 meta
+    # 4. 生成 AI 语义摘要（带 fallback：agent 异常时回退到默认全自动模式）
+    ai_summary = _generate_ai_summary(devroot, message)
+    if ai_summary:
+        print(f"[Mode] 🧠 AI 语义层就绪 — 将生成含语义摘要的 Issue comment")
+    else:
+        print(f"[Mode] ⚙️ 默认全自动模式 — Agent 摘要未生成或异常，Issue comment 仅含结构化摘要")
+
+    # 5. 构造 meta
     meta = {
-        "version": "1.0.0",
+        "version": "1.1.0",
         "commit_message": message,
         "summary": message,
         "categories": categories,
+        "ai_summary": ai_summary,
     }
 
-    # 5. 写入 tmp
+    # 6. 写入 tmp
     ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     meta_path = devroot / "venv" / "tmp" / f"workflow-meta-{ts}.json"
     meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")

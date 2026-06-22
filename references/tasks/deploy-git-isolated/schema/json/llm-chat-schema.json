@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "llm-chat-schema",
+  "title": "LLM Chat Request / Response Schema",
+  "description": "OpenAI 兼容格式的 Chat Completions API 请求与响应契约。供 llm_client.py 与下游 Agent 模块统一消费。",
+  "version": "1.0.0",
+  "definitions": {
+    "Message": {
+      "type": "object",
+      "required": ["role", "content"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["system", "user", "assistant", "tool"],
+          "description": "消息角色"
+        },
+        "content": {
+          "type": ["string", "null"],
+          "description": "消息正文。assistant 在 tool_calls 时可能为 null。"
+        },
+        "tool_calls": {
+          "type": "array",
+          "description": "assistant 消息中的工具调用请求列表",
+          "items": { "$ref": "#/definitions/ToolCall" }
+        },
+        "tool_call_id": {
+          "type": "string",
+          "description": "tool 角色消息中，对应 tool_call 的 id"
+        }
+      }
+    },
+    "ToolCall": {
+      "type": "object",
+      "required": ["id", "type", "function"],
+      "properties": {
+        "id": { "type": "string", "description": "工具调用唯一标识" },
+        "type": { "type": "string", "const": "function", "description": "固定为 function" },
+        "function": {
+          "type": "object",
+          "required": ["name", "arguments"],
+          "properties": {
+            "name": { "type": "string", "description": "工具名称" },
+            "arguments": { "type": "string", "description": "JSON 字符串格式的参数" }
+          }
+        }
+      }
+    },
+    "ToolSpec": {
+      "type": "object",
+      "required": ["type", "function"],
+      "properties": {
+        "type": { "type": "string", "const": "function" },
+        "function": {
+          "type": "object",
+          "required": ["name", "description", "parameters"],
+          "properties": {
+            "name": { "type": "string" },
+            "description": { "type": "string" },
+            "parameters": {
+              "type": "object",
+              "required": ["type", "properties"],
+              "properties": {
+                "type": { "type": "string", "const": "object" },
+                "properties": { "type": "object" },
+                "required": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "TokenUsage": {
+      "type": "object",
+      "properties": {
+        "prompt_tokens": { "type": "integer", "minimum": 0 },
+        "completion_tokens": { "type": "integer", "minimum": 0 },
+        "total_tokens": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "type": "object",
+  "oneOf": [
+    {
+      "title": "LLMChatRequest",
+      "required": ["model", "messages"],
+      "properties": {
+        "model": { "type": "string", "description": "模型 ID，如 kimi-k2.5" },
+        "messages": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Message" },
+          "description": "对话消息列表"
+        },
+        "temperature": { "type": "number", "minimum": 0, "maximum": 2, "default": 0.7 },
+        "max_tokens": { "type": "integer", "minimum": 1, "description": "最大生成 token 数" },
+        "tools": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ToolSpec" },
+          "description": "可选的工具定义列表"
+        }
+      }
+    },
+    {
+      "title": "LLMChatResponse",
+      "required": ["choices"],
+      "properties": {
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["index", "message", "finish_reason"],
+            "properties": {
+              "index": { "type": "integer" },
+              "message": { "$ref": "#/definitions/Message" },
+              "finish_reason": {
+                "type": ["string", "null"],
+                "enum": ["stop", "length", "tool_calls", "content_filter", null],
+                "description": "生成结束原因"
+              }
+            }
+          }
+        },
+        "usage": { "$ref": "#/definitions/TokenUsage" }
+      }
+    }
+  ]
+}

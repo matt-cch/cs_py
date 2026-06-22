@@ -185,6 +185,15 @@ def main():
             lines.append(sline)
         lines.append("")
 
+        # AI 语义摘要（来自 meta.ai_summary）
+        ai_summary = meta_data.get("ai_summary", "")
+        if ai_summary:
+            lines.append("### AI 语义摘要")
+            lines.append("")
+            for sline in ai_summary.splitlines():
+                lines.append(sline)
+            lines.append("")
+
         # 语义分类（来自 meta.categories）
         categories = meta_data.get("categories", [])
         if categories:

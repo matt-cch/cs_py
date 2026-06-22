@@ -138,6 +138,41 @@
       "depends": ["time_source"],
       "tags": ["core", "utility"],
       "description": "时间戳格式化器：接收 time_source 输出的 datetime，格式化为多种字符串（YYYY-MM-DD、ISO 8601、文件名安全格式）"
+    },
+    {
+      "name": "provider_config",
+      "module": "provider_config",
+      "depends": [],
+      "tags": ["core", "llm"],
+      "description": "Provider 配置真源：从 OpenCode config.json + .env + 环境变量读取统一 LLM 配置"
+    },
+    {
+      "name": "llm_client",
+      "module": "llm_client",
+      "depends": ["provider_config"],
+      "tags": ["core", "llm"],
+      "description": "LLM HTTP 客户端：封装 OpenAI 兼容格式 Chat Completions 调用，支持重试"
+    },
+    {
+      "name": "agent_tools",
+      "module": "agent_tools",
+      "depends": [],
+      "tags": ["agent", "core"],
+      "description": "Agent 工具注册框架：@tool 装饰器、execute_tool、get_tools_spec，内置 read_file/bash/write_file（write_file 仅限 tmp 目录）"
+    },
+    {
+      "name": "agent_context",
+      "module": "agent_context",
+      "depends": [],
+      "tags": ["agent", "core"],
+      "description": "Agent 上下文管理器：消息历史维护、上下文压缩（保留 system + 摘要 + 最近 N 条）"
+    },
+    {
+      "name": "agent_core",
+      "module": "agent_core",
+      "depends": ["llm_client", "agent_tools", "agent_context"],
+      "tags": ["agent"],
+      "description": "Agent 核心引擎：标准 ReAct 循环（LLM → tool_calls → 执行 → 再生成），支持上下文自动压缩"
     }
   ],
   "profiles": {
@@ -190,6 +225,11 @@
       "include_tags": ["lint", "encoding"],
       "exclude_tags": [],
       "description": "仅编码/BOM/行尾符 lint"
+    },
+    "agent": {
+      "include_tags": ["agent"],
+      "exclude_tags": [],
+      "description": "Agent 全量（llm_client + agent_tools + agent_context + agent_core，含 core 依赖自动补齐）"
     }
   }
 }
