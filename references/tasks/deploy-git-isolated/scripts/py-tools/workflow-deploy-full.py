@@ -174,14 +174,10 @@ def main():
     print(f"{'#'*50}")
 
     steps = []
-    meta_path = None
     if args.step in ("4", "all"):
         steps.append(("Step 4: git add", _PY_STEPS_DIR / "step-04-github-deploy-add.py", ["--devroot", str(devroot)]))
     if args.step in ("5", "all"):
         steps.append(("Step 5: git commit", _PY_STEPS_DIR / "step-05-github-commit.py", ["--devroot", str(devroot), "--message", args.message]))
-    if args.step in ("9", "all"):
-        # Step 5 之后自动生成 meta，供 Step 9 使用
-        meta_path = _generate_meta(devroot, args.message)
     if args.step in ("6", "all"):
         steps.append(("Step 6: remote", _PY_STEPS_DIR / "step-06-github-remote.py", ["--devroot", str(devroot)]))
     if args.step in ("7", "all"):
@@ -189,17 +185,27 @@ def main():
     if args.step in ("8", "all"):
         steps.append(("Step 8: upstream", _PY_STEPS_DIR / "step-08-github-upstream.py", ["--devroot", str(devroot)]))
     if args.step in ("9", "all"):
-        issue_args = ["--devroot", str(devroot), "--issue", str(args.issue)]
-        if meta_path:
-            issue_args.extend(["--meta", str(meta_path)])
-        steps.append(("Step 9: issue sync", _PY_STEPS_DIR / "step-09-github-sync-issue.py", issue_args))
+        steps.append(("Step 9: issue sync", _PY_STEPS_DIR / "step-09-github-sync-issue.py", ["--devroot", str(devroot), "--issue", str(args.issue)]))
 
     all_ok = True
-    for name, script, extra in steps:
+    meta_path = None
+    for idx, (name, script, extra) in enumerate(steps):
         ok, elapsed = _run_py_step(name, script, extra)
         if not ok:
             all_ok = False
             break
+        # Step 5 完成后生成 meta（必须在 commit 之后，供后续 Step 9 使用）
+        if name.startswith("Step 5:"):
+            has_step9 = any(s[0].startswith("Step 9:") for s in steps[idx+1:])
+            if has_step9:
+                meta_path = _generate_meta(devroot, args.message)
+                # 动态更新 Step 9 的参数
+                for j in range(idx+1, len(steps)):
+                    if steps[j][0].startswith("Step 9:"):
+                        new_extra = list(steps[j][2])
+                        new_extra.extend(["--meta", str(meta_path)])
+                        steps[j] = (steps[j][0], steps[j][1], new_extra)
+                        break
 
     total_elapsed = time.time() - total_start
     print(f"\n{'#'*50}")
