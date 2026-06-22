@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "description": "本次提交的语义化摘要配置，供 step-09 生成 Issue comment 时读取。变更摘要优先从此文件获取，文件清单仍由脚本自动生成。",
+  "commit_message": "feat(step-09): 增加变更摘要与外部 meta 配置支持",
+  "summary": "改造 step-09 Issue Sync 默认评论格式，解决之前'全英文+只有文件清单'的问题。\n1. 新增'变更摘要'区块，优先读取本 meta 文件中的中文语义描述\n2. 新增 --meta 参数，支持外部 JSON 配置实时注入\n3. 文件统计与分类清单仍由 git diff 自动生成，无需人工维护\n4. commit message 规范为中文，与变更内容对齐",
+  "categories": [
+    {
+      "name": "脚本改造",
+      "items": [
+        "step-09-github-sync-issue.py → 增加变更摘要区块、--meta 参数、外部配置读取",
+        "fetch_issue.py → 新增 --output 参数，Python 直接写 UTF-8 文件，修复落盘乱码"
+      ]
+    },
+    {
+      "name": "配置新增",
+      "items": [
+        "issue-comment-meta.json → step-09 外部语义摘要配置模板"
+      ]
+    }
+  ]
+}

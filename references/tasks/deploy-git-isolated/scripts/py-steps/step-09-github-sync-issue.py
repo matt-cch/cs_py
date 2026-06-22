@@ -54,7 +54,7 @@ def _read_env_config(devroot: Path) -> dict:
 
 
 def _get_commit_info(git_exe: Path, devroot: Path) -> dict:
-    """获取当前 commit 信息"""
+    """获取当前 commit 信息及变更文件列表"""
     result = subprocess.run(
         [str(git_exe), "-C", str(devroot), "rev-parse", "--short", "HEAD"],
         capture_output=True, text=True, encoding="utf-8"
@@ -73,14 +73,46 @@ def _get_commit_info(git_exe: Path, devroot: Path) -> dict:
     )
     branch = result.stdout.strip()
 
-    return {"hash": commit_hash, "msg": commit_msg, "branch": branch}
+    # 获取变更文件列表（--name-status 格式：A/M/D + 路径）
+    result = subprocess.run(
+        [str(git_exe), "-C", str(devroot), "diff", "--name-status", "HEAD~1..HEAD"],
+        capture_output=True, text=True, encoding="utf-8"
+    )
+    changes = {"A": [], "M": [], "D": [], "R": []}
+    for line in result.stdout.strip().splitlines():
+        if not line:
+            continue
+        parts = line.split("\t")
+        status = parts[0][0]  # 取第一个字符（A/M/D/R）
+        path = parts[-1]
+        if status in changes:
+            changes[status].append(path)
+        else:
+            changes["M"].append(path)  # fallback
+
+    # 获取统计数字
+    result = subprocess.run(
+        [str(git_exe), "-C", str(devroot), "diff", "--shortstat", "HEAD~1..HEAD"],
+        capture_output=True, text=True, encoding="utf-8"
+    )
+    stat = result.stdout.strip()
+
+    return {
+        "hash": commit_hash,
+        "msg": commit_msg,
+        "branch": branch,
+        "changes": changes,
+        "stat": stat,
+    }
 
 
 def main():
     parser = argparse.ArgumentParser(description="Step 9: Issue Sync")
     parser.add_argument("--devroot", default=None, help="Devroot 路径")
     parser.add_argument("--issue", type=int, default=1, help="Issue 编号 (默认 1)")
-    parser.add_argument("--body", default=None, help="自定义评论内容（默认自动生成）")
+    parser.add_argument("--body", default=None, help="自定义评论内容（覆盖全部自动生成）")
+    parser.add_argument("--summary", default=None, help="变更摘要（语义化描述，支持 \\n 换行）。如未传入，优先从 --meta 文件读取，最后 fallback 到 commit message")
+    parser.add_argument("--meta", default=None, help="外部 JSON 配置文件路径（默认使用 schema/json/issue-comment-meta-template.json）")
     args = parser.parse_args()
 
     registry = load_plugins(devroot=args.devroot, tags=["core"])
@@ -108,16 +140,103 @@ def main():
         sys.exit(1)
     owner, repo = m.group(1), m.group(2)
 
+    # 读取 meta 配置（模板 + 实时摘要）
+    meta_data = {"summary": "", "categories": []}
+    if args.meta:
+        meta_path = Path(args.meta)
+    else:
+        # 默认模板路径
+        meta_path = devroot / "references" / "tasks" / "deploy-git-isolated" / "schema" / "json" / "issue-comment-meta-template.json"
+
+    if meta_path.exists():
+        try:
+            with open(meta_path, "r", encoding="utf-8") as f:
+                meta_data = json.load(f)
+        except Exception as e:
+            print(f"[WARN] 读取 meta 文件失败: {e}")
+
     # 构造评论内容
     if args.body:
         body = args.body
     else:
+        from datetime import datetime, timezone
         info = _get_commit_info(git_exe, devroot)
-        body = f"commit {info['hash']}: {info['msg']} [{info['branch']}]"
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        lines = []
+        lines.append(f"## 变更记录 — {now}")
+        lines.append("")
+        lines.append("| Commit | Branch | Message | Date |")
+        lines.append("|--------|--------|---------|------|")
+        lines.append(f"| `{info['hash']}` | `{info['branch']}` | {info['msg']} | {now[:10]} |")
+        lines.append("")
+
+        # 变更摘要（优先级: --summary > meta.summary > commit message）
+        lines.append("### 变更摘要")
+        lines.append("")
+        summary_text = ""
+        if args.summary:
+            summary_text = args.summary.replace("\\n", "\n")
+        elif meta_data.get("summary"):
+            summary_text = meta_data.get("summary", "")
+        else:
+            summary_text = info['msg']
+
+        for sline in summary_text.splitlines():
+            lines.append(sline)
+        lines.append("")
+
+        # 语义分类（来自 meta.categories）
+        categories = meta_data.get("categories", [])
+        if categories:
+            for cat in categories:
+                cat_name = cat.get("name", "")
+                items = cat.get("items", [])
+                if cat_name and items:
+                    lines.append(f"**{cat_name}**:")
+                    for item in items:
+                        lines.append(f"- {item}")
+                    lines.append("")
+
+        if info["stat"]:
+            lines.append(f"**文件统计**: {info['stat']}")
+            lines.append("")
+
+        changes = info["changes"]
+        total = sum(len(v) for v in changes.values())
+        if total > 0:
+            lines.append(f"### 变更文件 ({total} 个)")
+            lines.append("")
+            if changes["A"]:
+                lines.append(f"**新增 ({len(changes['A'])}):**")
+                for p in changes["A"]:
+                    lines.append(f"- `{p}`")
+                lines.append("")
+            if changes["M"]:
+                lines.append(f"**修改 ({len(changes['M'])}):**")
+                for p in changes["M"]:
+                    lines.append(f"- `{p}`")
+                lines.append("")
+            if changes["D"]:
+                lines.append(f"**删除 ({len(changes['D'])}):**")
+                for p in changes["D"]:
+                    lines.append(f"- `{p}`")
+                lines.append("")
+            if changes["R"]:
+                lines.append(f"**重命名 ({len(changes['R'])}):**")
+                for p in changes["R"]:
+                    lines.append(f"- `{p}`")
+                lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append(f"> **关联**: #{args.issue}")
+        body = "\n".join(lines)
 
     print(f"[OK] 目标 Issue: #{args.issue}")
     print(f"[OK] 仓库: {owner}/{repo}")
-    print(f"[OK] 评论内容: {body}")
+    print(f"[OK] 评论内容预览 ({len(body)} 字符):")
+    preview = body.replace("\n", " ")[:120]
+    print(f"  {preview}...")
 
     # 走 py_lib 加载 github_api 插件（如果可用）
     try:

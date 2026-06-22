@@ -36,6 +36,10 @@ def main():
         default=1,
         help="Issue 编号（默认: 1）"
     )
+    parser.add_argument(
+        "--output",
+        help="输出文件路径（直接写入 UTF-8，避免 stdout 编码问题）"
+    )
     args = parser.parse_args()
 
     # 加载 github_api 插件
@@ -53,10 +57,11 @@ def main():
         pat=creds["pat"]
     )
 
-    print(f"========== ISSUE #{args.issue_number} BODY ==========")
-    print(issue.get("body", ""))
-    print()
-    print("========== COMMENTS ==========")
+    lines = []
+    lines.append(f"========== ISSUE #{args.issue_number} BODY ==========")
+    lines.append(issue.get("body", ""))
+    lines.append("")
+    lines.append("========== COMMENTS ==========")
 
     # 获取评论列表
     comments = api.list_comments(
@@ -70,9 +75,18 @@ def main():
         user = c.get("user", {}).get("login", "unknown")
         created = c.get("created_at", "")
         body = c.get("body", "")
-        print(f"----- Comment #{i} by {user} at {created} -----")
-        print(body)
-        print()
+        lines.append(f"----- Comment #{i} by {user} at {created} -----")
+        lines.append(body)
+        lines.append("")
+
+    text = "\n".join(lines)
+
+    if args.output:
+        out_path = Path(args.output)
+        out_path.write_text(text, encoding="utf-8")
+        print(f"[OK] 已写入 {out_path} ({len(text)} 字符)")
+    else:
+        print(text)
 
 
 if __name__ == "__main__":
