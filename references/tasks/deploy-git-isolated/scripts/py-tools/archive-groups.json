@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "description": "归档分组配置。与 archive_config.py 分离，改配置无需动插件代码。",
+    "version": "1.1.0",
+    "updated": "2026-06-20"
+  },
+  "groups": {
+    "cs_py": {
+      "arcname": "cs_py",
+      "whitelist": [],
+      "blacklist": ["venv/", "/*.zip", "/*.7z"],
+      "cwd_parent_level": 1,
+      "zip_name": "cs_py"
+    },
+    "venv": {
+      "arcname": "venv",
+      "whitelist": [".opencode/", "data-opencode/", "data-git/", "version/"],
+      "blacklist": [
+        "data-opencode/opencode/log/*",
+        "data-opencode/opencode/opencode.db",
+        "data-opencode/opencode/opencode.db-shm",
+        "data-opencode/opencode/opencode.db-wal"
+      ],
+      "cwd_parent_level": 0,
+      "zip_name": "venv"
+    }
+  }
+}

@@ -79,27 +79,16 @@ def compress_group(cfg: dict, seven_zip: Path, fmt: str = "zip", force: bool = F
     alt_suffix = ".zip" if fmt == "7z" else ".7z"
     alt_path = zip_path.with_suffix(alt_suffix)
 
-    # 跳过已存在（当前格式）
-    if zip_path.exists() and not force:
-        size_mb = zip_path.stat().st_size / 1024 / 1024
-        print(f"[compress] 目标文件已存在，跳过: {zip_path} ({size_mb:.1f} MB)")
-        return {
-            "zip": zip_path,
-            "format": fmt,
-            "returncode": 0,
-            "zip_size_mb": size_mb,
-            "elapsed": 0.0,
-            "stats": {"skipped": True},
-        }
-
     # 删除旧包（当前格式 + 另一种格式）
-    if force:
-        if zip_path.exists():
-            os.remove(zip_path)
-            print(f"[compress] 删除旧包: {zip_path}")
-        if alt_path.exists():
-            os.remove(alt_path)
-            print(f"[compress] 删除旧包: {alt_path}")
+    # 原因：黑名单已排除 *.zip / *.7z，输出文件不在压缩范围内；
+    #       旧包是基于上一次 scan 的结果，和当前文件系统可能不一致，
+    #       必须删除后重新压缩，不能跳过。
+    if zip_path.exists():
+        os.remove(zip_path)
+        print(f"[compress] 删除旧包: {zip_path}")
+    if alt_path.exists():
+        os.remove(alt_path)
+        print(f"[compress] 删除旧包: {alt_path}")
 
     # 读取文件数
     file_count = 0
@@ -160,6 +149,33 @@ def compress_group(cfg: dict, seven_zip: Path, fmt: str = "zip", force: bool = F
     if zip_path.exists():
         size_mb = zip_path.stat().st_size / 1024 / 1024
         print(f"[compress] 输出大小: {size_mb:.1f} MB")
+
+    # 审计：listfile - 0字节文件 = 7z_files_read
+    # 注意：0字节文件包含原始0字节 + .emptydir（scan阶段先填充再检测）
+    listfile_count = 0
+    if listfile_path.exists():
+        with open(listfile_path, "r", encoding="utf-8") as f:
+            listfile_count = sum(1 for _ in f if _.strip())
+
+    zero_byte_count = 0
+    zero_byte_path = listfile_path.parent / f"zero-byte-files-{cfg.get('name', 'unknown')}.txt"
+    if zero_byte_path.exists():
+        with open(zero_byte_path, "r", encoding="utf-8") as f:
+            zero_byte_count = sum(1 for _ in f if _.strip())
+
+    files_read = 0
+    for line in result.stdout.splitlines():
+        m = __import__("re").search(r"Files read from disk:\s+(\d+)", line)
+        if m:
+            files_read = int(m.group(1))
+            break
+
+    expected = listfile_count - zero_byte_count
+    print(f"[compress] 审计: listfile={listfile_count}, 0字节={zero_byte_count}, 预期={expected}, 实际={files_read}")
+    if expected == files_read:
+        print("[compress] 审计: PASS")
+    else:
+        print(f"[compress] 审计: FAIL (差异: {files_read - expected})")
 
     print(f"[compress] 耗时: {elapsed:.2f}s")
 

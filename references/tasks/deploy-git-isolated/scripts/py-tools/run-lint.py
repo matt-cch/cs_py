@@ -39,6 +39,7 @@ EXT_TO_PLUGIN = {
     ".json": "lint_json",
     ".jsonc": "lint_json",
     ".md": "md_lint",
+    ".mdc": "md_lint",
 }
 
 # 默认走编码检测的其他文本扩展名

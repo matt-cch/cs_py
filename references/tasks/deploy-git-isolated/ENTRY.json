@@ -1,9 +1,9 @@
 {
   "meta": {
     "description": "deploy-git-isolated 机器可读真源索引",
-"version": "0.15.0",
-    "version_history": [
-      {"version": "0.1.0", "date": "2026-06-16", "note": "骨架创建，设计冻结，ENTRY/DESIGN/CONFIG/README 定稿"},
+      "version": "0.16.0",
+     "version_history": [
+       {"version": "0.1.0", "date": "2026-06-16", "note": "骨架创建，设计冻结，ENTRY/DESIGN/CONFIG/README 定稿"},
       {"version": "0.2.0", "date": "2026-06-16", "note": "Step 1-8 执行通过，MinGit 2.54.0 部署成功，插件架构就绪，verified-runtime-index 已登记"},
       {"version": "0.3.0", "date": "2026-06-16", "note": "新增 task-scenario-triggers.json 触发条件真源，$schema 自描述，全局 verified-trigger-index 已登记 task-deploy-git"},
       {"version": "0.4.0", "date": "2026-06-16", "note": "拆分 TASK-TOOLS-INDEX.md，SOP-CHEATSHEET 精简为纯命令速查，修订联动 ENTRY/README"},
@@ -17,9 +17,10 @@
       {"version": "0.12.0", "date": "2026-06-20", "note": "py_lib v1.1.0：新增 list_plugins() API，支持动态发现可用插件（不加载，只返回元数据）；TASK-TOOLS-INDEX.md 移除静态插件层表格，改为通过入口 API 动态发现，对齐禁止越级暴露原则"},
       {"version": "0.13.0", "date": "2026-06-20", "note": "task-canonical-baseline.md 新增 8.4.5：文档层面也不暴露插件文件名——禁止在索引/速查表中硬编码插件清单，能力类别由入口 API 动态发现"},
       {"version": "0.14.0", "date": "2026-06-20", "note": "task-canonical-baseline.md 新增 8.5：标准文档与实现代码的真源对齐原则——标准文档（如 .mdc）是唯一真源，实现代码（如 md_lint.py）是忠实实现；冲突时以标准为准，禁止实现自行扩展规则"},
-      {"version": "0.15.0", "date": "2026-06-20", "note": "md_lint v1.2.0：docstring 与 mdc 逐条对齐（实现状态矩阵）；新增 frontmatter 必须从第 1 行开始检测；新增代码块内 --- 例外（通过 ``` 配对追踪）；功能测试 4 场景全部通过"}
+      {"version": "0.15.0", "date": "2026-06-20", "note": "md_lint v1.2.0：docstring 与 mdc 逐条对齐（实现状态矩阵）；新增 frontmatter 必须从第 1 行开始检测；新增代码块内 --- 例外（通过 ``` 配对追踪）；功能测试 4 场景全部通过"},
+      {"version": "0.16.0", "date": "2026-06-22", "note": "新增 update-version.py（py-tools Workflow）：自动发现 venv/version/ 工具、实测本地版本、对比记录版本、更新 .md + 追加 history。依赖 runtime_version 插件（py-plugins/，不暴露）。替代 5 个独立 get-*-version.ps1 脚本。"}
     ],
-    "last_updated": "2026-06-20",
+    "last_updated": "2026-06-22",
     "source_of_truth": "README.md",
     "trigger_index": "references/tasks/deploy-git-isolated/task-scenario-triggers.json",
     "tools_index": "references/tasks/deploy-git-isolated/TASK-TOOLS-INDEX.md",
@@ -463,6 +464,12 @@
       "name": "check-links.py",
       "role": "Python 工具：Markdown 内部链接验证（走 py_lib 入口的正规用法示范）",
       "path": "references/tasks/deploy-git-isolated/scripts/py-tools/check-links.py",
+      "status": "ready"
+    },
+    {
+      "name": "update-version.py",
+      "role": "Workflow：版本记录更新。自动发现 venv/version/ 工具 → 实测本地版本 → 对比 → 更新 .md + 追加 history。通过 py_lib 加载 runtime_version 插件",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/update-version.py",
       "status": "ready"
     },
     {

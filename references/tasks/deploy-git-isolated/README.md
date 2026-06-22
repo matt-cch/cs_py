@@ -139,35 +139,59 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `scripts/ps-tools/git-isolated.ps1` | 通用包装器：日常 git 子命令 | 日常操作 |
 | `scripts/py-tools/run-lint.py` | **Workflow：全量 lint**。通过 py_lib 聚合全部 lint 插件 | 脚本交付前必执行 |
 | `scripts/py-tools/workflow-lint-amend-lint.py` | **Workflow：编码修复闭环**。通过 py_lib 调用 lint_encoding | 编码问题发现后修复 |
+| `scripts/py-tools/update-version.py` | **Workflow：版本记录更新**。自动发现 → 实测 → 对比 → 更新 .md + history | 记一版 version |
+| `scripts/py-tools/archive_project.py` | **Workflow：项目归档**。scan → compress → verify 三阶段闭环 | 项目归档（cs_py / venv） |
+| `scripts/py-tools/archive_cs_py.py` | 快捷入口：归档 cs_py 分组 | 调用 archive_project.py --group cs_py |
+| `scripts/py-tools/archive_venv.py` | 快捷入口：归档 venv 分组 | 调用 archive_project.py --group venv |
 | `scripts/py_lib.py` | **统一入口**。所有 workflow 必须通过它获取插件能力 | 禁止越级直接 import plugin |
 | `scripts/py-plugins/lint_json.py` | **底座：JSON 语法验证** | 被 py_lib 加载，不直接调用 |
 | `scripts/py-plugins/lint_ps1.py` | **底座：PowerShell 语法验证** | 被 py_lib 加载，不直接调用 |
 | `scripts/py-plugins/lint_python.py` | **底座：Python 语法验证** | 被 py_lib 加载，不直接调用 |
 | `scripts/py-plugins/lint_encoding.py` | **底座：编码/BOM/行尾符检测+修复** | 被 py_lib 加载，不直接调用 |
+| `scripts/py-plugins/archive_config.py` | **底座：归档配置**。分组定义、7z 路径、输出目录 | 被 py_lib 加载，不直接调用 |
+| `scripts/py-plugins/archive_scanner.py` | **底座：归档扫描**。磁盘扫描、黑白名单、空目录占位 | 被 py_lib 加载，不直接调用 |
+| `scripts/py-plugins/archive_compressor.py` | **底座：归档压缩**。7z 压缩、心跳进度、统计解析 | 被 py_lib 加载，不直接调用 |
 
 
-## Python 插件体系架构（三层）
+## Python 插件体系架构（三层 + 配置契约）
+
+> **核心认知**：本架构是**三层主体 + 配置契约**。Config（*.json）不是独立"层"，而是 Entry 和 Plugins 的输入契约。
+> - **Workflow** 编排步骤，检查配置有效性，按速查表设计入参，调用 Entry
+> - **Entry** 读取 py-sort-rules.json（插件注册表），拓扑排序加载 Plugins
+> - **Plugins** 消费业务 Config（如 archive-groups.json）执行能力
+> - **Config 来源**：开发时静态编写 / 异步事件登记（新增 plugin）/ Workflow 前置检查
 
 ```
-┌──────────────────────────────────────────────┐
-│  Layer 3: Workflow（py-tools/）               │
-│  run-lint.py              → 全量 lint 聚合    │
-│  workflow-lint-amend-lint.py → 编码修复闭环   │
-│  （禁止直接 import plugin）                    │
-└──────────────────────────────────────────────┘
-                    ↓ py_lib.load_plugins()
-┌──────────────────────────────────────────────┐
-│  Layer 2: 统一入口（scripts/py_lib.py）        │
-│  拓扑排序 · 依赖补齐 · registry 注入 · profile  │
-│  （所有 workflow 的统一网关）                  │
-└──────────────────────────────────────────────┘
-                    ↓ 动态加载
-┌──────────────────────────────────────────────┐
-│  Layer 1: 底座插件（py-plugins/）              │
-│  lint_json.py · lint_ps1.py · lint_python.py  │
-│  lint_encoding.py · md_lint.py · link_checker │
-│  （单一职责，暴露 validate() 接口）            │
-└──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Layer 3: Workflow（py-tools/ + EXEC-CHEATSHEET）            │
+│  run-lint.py                 → 全量 lint 聚合               │
+│  workflow-lint-amend-lint.py → 编码修复闭环                 │
+│  archive_project.py          → scan → compress → verify     │
+│  EXEC-CHEATSHEET.md          → 命令速查真源               │
+│  （编排：检查配置 → 设计入参 → 调用 Entry；禁止 import plugin）│
+└──────────────────────────────────────────────────────────────┘
+                    ↓ 调用 py_lib.load_plugins(profile=...)
+┌──────────────────────────────────────────────────────────────┐
+│  Layer 2: 统一入口（scripts/py_lib.py）                      │
+│  读取 py-sort-rules.json → 拓扑排序 → 依赖补齐 → 注入 registry│
+│  （所有调用的唯一网关；禁止被绕过）                          │
+└──────────────────────────────────────────────────────────────┘
+                    ↓ 动态加载 + 传递 Config
+┌──────────────────────────────────────────────────────────────┐
+│  Layer 1: 底座插件（py-plugins/）                            │
+│  lint_json.py · lint_ps1.py · lint_python.py · lint_encoding │
+│  md_lint.py · link_checker · browser_session · github_api    │
+│  archive_config · archive_scanner · archive_compressor       │
+│  （单一职责，暴露标准化接口；消费 archive-groups.json 等）   │
+└──────────────────────────────────────────────────────────────┘
+
+     ╔══════════════════════════════════════════════════════════╗
+     ║  Config 契约（*.json）— Entry 与 Plugins 的输入           ║
+     ║  py-sort-rules.json  → 插件注册、依赖图、profile         ║
+     ║  archive-groups.json → 分组策略、黑白名单                ║
+     ║  task-config.json    → 任务参数、路径、场景映射          ║
+     ║  （配置与代码分离；开发编写 / 异步登记 / WF 检查）        ║
+     ╚══════════════════════════════════════════════════════════╝
 ```
 
 > **铁律**：Layer 3 Workflow 禁止直接 `import` Layer 1 Plugin。必须通过 `py_lib.load_plugins()` 获取 registry，再访问插件能力。
@@ -183,12 +207,14 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | 安全检查脚本 | ✅ | `github-safety-check.ps1` 可用 |
 | 通用包装器 | ✅ | `git-isolated.ps1` 可用 |
 | 插件架构 | ✅ | 拓扑排序自动加载，6 个插件就绪 |
-| **Lint 插件体系** | ✅ | 三层架构：workflow → py_lib → plugins，禁止越级 |
+| **Lint 插件体系** | ✅ | 四层架构：workflow → py_lib → config → plugins，禁止越级 |
+| **Archive 插件体系** | ✅ | archive_project.py 已迁入四层模型（原直接 import 已纠正） |
 | `verified-runtime-index.json` | ✅ | Git 工具链已登记 |
 | 标准流程 | ✅ | SOP.md v1.0（Step 契约 + Ralph Loop） |
 | 执行速查 | ✅ | EXEC-CHEATSHEET.md v1.0（命令+配置+参数） |
 | 工具索引 | ✅ | TASK-TOOLS-INDEX.md v1.0（本地+外部引用+边界） |
 | Issue 同步体系 | ✅ | github-sync-issue.ps1 + github-api.ps1 + config.json |
+| **版本记录更新** | ✅ | update-version.py（自动发现 → 实测 → 更新 .md + history） |
 | **Profile 筛选机制** | ✅ | github-lib.ps1 支持 Profile/Include/Exclude 三层筛选，依赖自动补齐，向后兼容 |
 
 

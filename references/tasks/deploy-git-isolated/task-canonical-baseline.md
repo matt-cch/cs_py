@@ -38,8 +38,8 @@ meta: {}
 **铁律**：
 - 任何需求先查 `verified-task-index.json` → `available_scripts_and_tools`
 - 任何 long-content 处理先走 `file-write-helper.py` 三步流程，禁止 `python -c` / `powershell -Command`
-- 任何下载需求先走 `download-runtime-tool.ps1`，禁止自行拼接 `curl`/`Invoke-WebRequest`
-- 任何 lint/编码检查先走 `schema/tool/` 下已登记工具
+- 任何下载需求先走 `download-runtime-tool.py`，禁止自行拼接 `curl`/`Invoke-WebRequest`
+- 任何 lint/编码检查先查 **已登记/注册的命令速查表**（`verified-task-index.json` → `available_scripts_and_tools`，或本 task `TASK-TOOLS-INDEX.md`），按索引指向的路径执行，禁止凭记忆或目录扫描直接调用
 
 ### 0.2 优先复用现成工具（Tool-First）
 
@@ -146,53 +146,80 @@ Task 是**将一次可复用的工程操作固化为标准化骨架**的单元�
 ```
 references/tasks/deploy-git-isolated/
 ├── README.md                   # 人类入口：任务总览、当前状态、待办、版本
-├── GOAL.md                     # 目标闭环：Goal → Solution → Stage → Apply → Review → Ralph Loop
-├── SOP.md                      # 标准操作流程：Step 节点契约（Input→Process→Output→Validation）
-├── DESIGN.md                   # 设计文档：决策记录、踩坑
-├── ENTRY.json                  # 机器入口：真源索引、脚本清单、Step Manifest、版本演进
-├── task-config.json            # 任务配置：路径、工具链、分组、参数
-├── task-scenario-triggers.json # 触发条件真源：5 场景 trigger 映射
-├── TASK-TOOLS-INDEX.md         # 工具索引：本地脚本 + 外部通用工具引用 + 边界矩阵
-├── task-canonical-baseline.md  # 规范基线：命名约定、文件组织、修订联动规则
-├── scripts/                    # 独立调用脚本（.ps1 / .py / .sh）
-│   ├── github-lib.ps1          # 共享库聚合入口（拓扑排序加载插件）
-│   ├── lib-sort-rules.json     # 插件排序真源
-│   ├── lib-plugins/            # 共享函数插件
-│   ├── github-step-01-init.ps1 # Step 1-8: 部署流水线
-│   ├── ...                     # ...
-│   ├── github-safety-check.ps1 # 安全检查
-│   ├── git-isolated.ps1        # 通用包装器
-│   ├── EXEC-CHEATSHEET.md      # 执行速查：命令、配置、参数（Agent + 人类）
-│   └── ...
+├── GOAL.md                     # 目标闭环
+├── SOP.md                      # 标准操作流程
+├── DESIGN.md                   # 设计文档
+├── ENTRY.json                  # 机器入口：真源索引、脚本清单、Step Manifest
+├── task-config.json            # 配置契约：任务级参数、路径、工具链、场景映射
+├── task-scenario-triggers.json # 配置契约：触发条件真源
+├── TASK-TOOLS-INDEX.md         # 工具索引
+├── task-canonical-baseline.md  # 规范基线
+│
+├── scripts/                    # Python 插件体系三层 + 执行速查
+│   │
+│   ├── py_lib.py               # Layer 2: Entry（统一入口）
+│   │                             拓扑排序 · 依赖补齐 · registry 注入 · profile 筛选
+│   │                             所有 workflow 调用的唯一网关
+│   │
+│   ├── py-plugins/             # Layer 1: Plugins（能力底座）
+│   │   ├── archive_config.py       # 归档配置解析（消费 archive-groups.json）
+│   │   ├── archive_scanner.py      # 磁盘扫描、黑白名单过滤
+│   │   ├── archive_compressor.py   # 7z 压缩、心跳进度
+│   │   ├── lint_encoding.py        # BOM/CRLF/LF 检测+修复
+│   │   ├── lint_json.py            # JSON 语法验证
+│   │   ├── lint_ps1.py             # PS 语法验证
+│   │   ├── lint_python.py          # Python 语法验证
+│   │   └── ...                     # 单一职责，暴露标准化接口
+│   │
+│   ├── py-sort-rules.json      # Config 契约：插件注册、依赖图、标签、profile
+│   ├── archive-groups.json     # Config 契约：归档分组策略、黑白名单、输出格式
+│   │                             （Entry 读取插件注册表；Plugins 消费业务参数）
+│   │
+│   ├── py-tools/               # Layer 3: Workflow（编排层）
+│   │   ├── run-lint.py             # 全量 lint 聚合 workflow
+│   │   ├── workflow-lint-amend-lint.py  # lint→amend→lint 闭环 workflow
+│   │   ├── archive_project.py      # scan→compress→verify 归档 workflow
+│   │   ├── archive_cs_py.py        # 快捷入口：归档 cs_py 分组
+│   │   └── archive_venv.py         # 快捷入口：归档 venv 分组
+│   │                             职责：编排、env 管理、检查配置、调用 Entry
+│   │                             禁止：直接 import plugin；重新实现底层逻辑
+│   │
+│   ├── EXEC-CHEATSHEET.md      # Workflow 编排的命令真源（Layer 3 组成部件）
+│   │                             Agent/人类共享的可执行命令速查
+│   │
+│   └── ...                     # PS 侧脚本（部署流水线、安全检查等）
+│
 ├── docs/                       # 补充文档
-│   └── PLUGIN-ARCHITECTURE.md  # 插件化点源架构设计文档
-├── skeleton/                   # 骨架脚本（Python）
-│   ├── step-00-precheck.py
-│   └── ...
-├── changelog/                  # 变更记录（迭代历史）
-├── gotchas/                    # 踩坑记录（反面教材）
+├── changelog/                  # 变更记录
+├── gotchas/                    # 踩坑记录
 └── archive/                    # 归档目录
 ```
 
 ### 2.1 强制文件
 
-| 文件 | 职责 | 是否强制 |
-|------|------|---------|
-| `README.md` | 任务总览、状态、待办 | ✅ |
-| `GOAL.md` | 目标闭环、Stage 路线图、成功标准 | ✅ |
-| `SOP.md` | **标准流程**（Step 契约 + Ralph Loop） | ✅ |
-| `DESIGN.md` | 设计决策、踩坑 | ✅ |
-| `ENTRY.json` | 机器可读真源索引（含 Step Manifest） | ✅ |
-| `task-config.json` | 配置（路径、工具链、分组） | ✅ |
-| `TASK-TOOLS-INDEX.md` | **工具索引**（本地 + 外部引用 + 边界） | ✅ |
-| `task-canonical-baseline.md` | 规范基线、命名约定、修订联动 | ✅ |
+| 文件 | 层级 | 职责 | 是否强制 |
+|------|------|------|---------|
+| `README.md` | — | 任务总览、状态、待办 | ✅ |
+| `GOAL.md` | — | 目标闭环、Stage 路线图、成功标准 | ✅ |
+| `SOP.md` | — | **标准流程**（Step 契约 + Ralph Loop） | ✅ |
+| `DESIGN.md` | — | 设计决策、踩坑 | ✅ |
+| `ENTRY.json` | — | 机器可读真源索引（含 Step Manifest） | ✅ |
+| `task-config.json` | **Config 契约** | 任务级参数、路径、工具链、场景映射 | ✅ |
+| `py-sort-rules.json` | **Config 契约** | 插件注册表：依赖图、标签、profile 定义 | ✅ |
+| `py_lib.py` | **Layer 2: Entry** | 统一入口、拓扑排序、registry 注入 | ✅ |
+| `py-plugins/` | **Layer 1: Plugins** | 能力底座（lint、archive、api 等） | ✅ |
+| `py-tools/` | **Layer 3: Workflow** | 编排脚本（lint、archive 等 workflow） | ✅ |
+| `EXEC-CHEATSHEET.md` | **Layer 3 部件** | Workflow 编排的命令真源 | ✅ |
+| `TASK-TOOLS-INDEX.md` | — | **工具索引**（本地 + 外部引用 + 边界） | ✅ |
+| `task-canonical-baseline.md` | — | 规范基线、命名约定、修订联动 | ✅ |
 
-### 2.2 可选文件
+### 2.2 可选文件（Config 契约扩展）
 
-| 文件 | 职责 | 何时需要 |
-|------|------|---------|
-| `task-scenario-triggers.json` | 触发条件真源（带 `$schema` 自描述） | task 有触发词映射需求时 |
-| `docs/PLUGIN-ARCHITECTURE.md` | 架构设计说明（本 task 有插件化体系） | 有复杂共享库架构时 |
+| 文件 | 层级 | 职责 | 何时需要 |
+|------|------|------|---------|
+| `task-scenario-triggers.json` | Config 契约 | 触发条件真源（带 `$schema` 自描述） | task 有触发词映射需求时 |
+| `archive-groups.json` | Config 契约 | 归档分组策略、黑白名单、输出格式 | 有 archive workflow 时 |
+| `docs/PLUGIN-ARCHITECTURE.md` | — | 架构设计说明 | 有复杂共享库架构时 |
 
 
 ## 3. 文件格式规范
@@ -536,7 +563,7 @@ references/tasks/deploy-git-isolated/archive/deploy-git-isolated-vN/
 | 文件写入 helper | `schema/tool/file-write-helper.py` | `verified-task-index.json` → `file-write-helper` |
 | 时间戳生成 | `schema/tool/get-timestamp.ps1` | `verified-task-index.json` → `get-timestamp` |
 | 运行时真源检测 | `references/runtime/verify-runtime.ps1` | `verified-task-index.json` → `verify-runtime` |
-| 运行时工具下载 | `references/runtime/download-runtime-tool.ps1` | `verified-task-index.json` → `download-runtime-tool` |
+| 运行时工具下载 | `references/runtime/download-runtime-tool.py` | `verified-task-index.json` → `download-runtime-tool` |
 
 
 ### 8.4 Python 插件体系三层架构（ workflow → entry → plugins ）
@@ -549,48 +576,89 @@ references/tasks/deploy-git-isolated/archive/deploy-git-isolated-vN/
 
 本节固化本次讨论后的**正确架构认知**。
 
-#### 8.4.2 三层定义
+#### 8.4.2 三层 + 配置契约
+
+> **核心认知**：本架构是**三层主体 + 配置契约**。
+> - **Workflow** 负责编排，调用 Entry 前检查配置有效性
+> - **Entry** 读取 Config（插件注册表），拓扑排序后加载 Plugins
+> - **Plugins** 消费 Config（业务参数）执行具体能力
+> - **Config** 不是独立"层"，而是 Entry 和 Plugins 的**输入契约**；其更新来源包括开发时静态编写、异步事件登记、Workflow 前置检查
+> - **EXEC-CHEATSHEET** 是 Workflow 编排的命令真源，属于 Layer 3 的组成部件
 
 ```
-┌──────────────────────────────────────────────┐
-│  Layer 3: Workflow 编排层（py-tools/）         │
-│  ────────────────────────────────────────    │
-│  run-lint.py                    → 全量聚合    │
-│  workflow-lint-amend-lint.py    → 步骤闭环    │
-│  （只编排，不实现；禁止直接 import plugin）    │
-└──────────────────────────────────────────────┘
-                    ↓ 通过 py_lib.load_plugins()
-┌──────────────────────────────────────────────┐
-│  Layer 2: 统一入口层（scripts/py_lib.py）      │
-│  ────────────────────────────────────────    │
-│  职责：拓扑排序 · 依赖补齐 · registry 注入     │
-│  约束：所有上层调用的唯一网关                  │
-│  方式：registry = load_plugins(tags=[...])   │
-│        plugin = registry.lint_encoding       │
-└──────────────────────────────────────────────┘
-                    ↓ 动态加载
-┌──────────────────────────────────────────────┐
-│  Layer 1: 能力底座层（py-plugins/）            │
-│  ────────────────────────────────────────    │
-│  lint_encoding.py → BOM/CRLF/LF 检测+修复    │
-│  lint_json.py     → JSON 语法验证            │
-│  lint_ps1.py      → PowerShell 语法验证      │
-│  lint_python.py   → Python 语法验证          │
-│  md_lint.py       → frontmatter 污染检测     │
-│  ...                                          │
-│  （单一职责，暴露 validate() 接口）            │
-└──────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│  Layer 3: Workflow 编排层（py-tools/ + EXEC-CHEATSHEET）      │
+│  ──────────────────────────────────────────────────────────   │
+│  run-lint.py                    → 全量 lint 聚合             │
+│  workflow-lint-amend-lint.py    → 步骤闭环                   │
+│  archive_project.py             → scan → compress → verify   │
+│  EXEC-CHEATSHEET.md             → 命令速查真源               │
+│  （编排：检查配置 → 设计入参 → 调用 Entry；禁止 import plugin）│
+└───────────────────────────────────────────────────────────────┘
+                    ↓ 调用 py_lib.load_plugins(profile=...)
+┌───────────────────────────────────────────────────────────────┐
+│  Layer 2: 统一入口层（scripts/py_lib.py）                     │
+│  ──────────────────────────────────────────────────────────   │
+│  读取 py-sort-rules.json → 拓扑排序 → 依赖补齐 → 注入 registry │
+│  （所有调用的唯一网关；禁止被绕过）                           │
+└───────────────────────────────────────────────────────────────┘
+                    ↓ 动态加载 + 传递 Config
+┌───────────────────────────────────────────────────────────────┐
+│  Layer 1: 能力底座层（py-plugins/）                           │
+│  ──────────────────────────────────────────────────────────   │
+│  lint_encoding.py · lint_json.py · lint_ps1.py               │
+│  archive_config.py · archive_scanner.py · archive_compressor │
+│  （单一职责，暴露标准化接口；消费 archive-groups.json 等）    │
+└───────────────────────────────────────────────────────────────┘
+
+         ╔═══════════════════════════════════════════════════════╗
+         ║  Config 契约（*.json）— Entry 与 Plugins 的输入       ║
+         ║  py-sort-rules.json  → 插件注册、依赖图、profile      ║
+         ║  archive-groups.json → 分组策略、黑白名单             ║
+         ║  task-config.json    → 任务参数、路径、场景映射       ║
+         ║  （配置与代码分离；来源：开发编写 / 异步登记 / WF 检查）║
+         ╚═══════════════════════════════════════════════════════╝
 ```
 
 #### 8.4.3 各层职责边界
 
 | 层级 | 文件位置 | 职责 | 禁止行为 |
 |------|---------|------|---------|
-| **Workflow** | `py-tools/*.py` | 步骤编排、逻辑判断、报告输出 | ❌ 禁止直接 `import` plugin；❌ 禁止重新实现检测逻辑 |
-| **Entry** | `py_lib.py` | 统一入口、拓扑排序、依赖补齐、registry 注入 | ❌ 禁止混入业务逻辑；❌ 禁止被绕过 |
-| **Plugins** | `py-plugins/*.py` | 单一检测/修复能力、暴露标准化接口 | ❌ 禁止依赖 workflow 上下文；❌ 禁止直接读写配置文件 |
+| **Workflow** | `py-tools/*.py` + `EXEC-CHEATSHEET.md` | 步骤编排、env 管理、报告输出；**检查配置有效性**；按速查表/schema 设计入参；调用 Entry | ❌ 禁止直接 `import` plugin；❌ 禁止重新实现检测逻辑 |
+| **Entry** | `py_lib.py` | 读取 py-sort-rules.json（插件注册表）、拓扑排序、依赖补齐、registry 注入、profile 筛选、动态加载 Plugins | ❌ 禁止混入业务逻辑；❌ 禁止被绕过 |
+| **Plugins** | `py-plugins/*.py` | 单一检测/修复/压缩/扫描能力、暴露标准化接口；消费业务 Config（如 archive-groups.json） | ❌ 禁止依赖 workflow 上下文；❌ 禁止直接读写配置文件 |
+| **Config** | `*.json` | 插件注册契约、分组策略、任务参数 | ❌ 禁止嵌入可执行逻辑；不是独立"层"，是 Entry 和 Plugins 的输入 |
 
-#### 8.4.4 铁律：禁止越级调用
+#### 8.4.4 架构验证案例：archive_project.py 改造
+
+> **来源**：用户与 Agent 在 2026-06-21 对话中确认。本节是 8.4.3 四层架构的**实证检验**，证明已有 workflow 必须回迁入四层模型。
+
+**问题**：`archive_project.py` 原实现采用"直接 import plugin"的越级模式：
+```python
+# ❌ 违规：Layer 4 直接触碰 Layer 1，绕过 Layer 3 + Layer 2
+sys.path.insert(0, str(_plugins_dir))
+from archive_config import get_group_config, find_7z_exe
+from archive_scanner import scan_group
+from archive_compressor import compress_group
+```
+
+**改造后（合规）**：
+```python
+# ✅ 合规：Layer 4 只通过 Layer 3 (py_lib) 获取能力
+from py_lib import load_plugins
+registry = load_plugins(devroot=str(devroot), profile="archive")
+
+cfg = registry.archive_config.get_group_config(group_name, devroot)
+scan_result = registry.archive_scanner.scan_group(cfg)
+compress_result = registry.archive_compressor.compress_group(cfg, seven_zip, fmt, force)
+```
+
+**关键收益**：
+- `py_lib` 按 `py-sort-rules.json` 自动加载 `archive_config` → `archive_scanner` / `archive_compressor` 的依赖链
+- `archive_config` 读取 `archive-groups.json` 获取黑白名单配置（配置与代码分离）
+- workflow 只编排 scan → compress → verify 三阶段，不触碰任何底层实现
+
+#### 8.4.5 铁律：禁止越级调用
 
 > **一句话**：Workflow 禁止直接 `import` Plugin。所有能力必须通过 `py_lib.load_plugins()` 获取。
 
@@ -610,9 +678,9 @@ lint_encoding = registry.lint_encoding
 result = lint_encoding.validate(dir_path=target)
 ```
 
-#### 8.4.5 铁律延伸：文档层面也不暴露插件文件名
+#### 8.4.6 铁律延伸：文档层面也不暴露插件文件名
 
-> **来源**：用户与 Agent 在 2026-06-20 对话中共同确认。本节是 8.4.4「禁止越级调用」的自然延伸。
+> **来源**：用户与 Agent 在 2026-06-20 对话中共同确认。本节是 8.4.5「禁止越级调用」的自然延伸。
 
 **问题**：即使代码层面禁止了 `import plugin`，如果人类速查表（如 `TASK-TOOLS-INDEX.md`）以静态表格形式列出每个插件的文件名、路径和职责，上层调用者（包括 Agent 和人类开发者）仍会**按图索骥**，直接 `import` 或引用具体插件文件，导致越级调用在文档的「诱导」下持续发生。
 
@@ -704,7 +772,51 @@ if __name__ == "__main__":
     main()
 ```
 
-#### 8.4.7 修订联动
+#### 8.4.7 插件间通信规则：同层插件允许直接 import
+
+> **来源**：用户与 Agent 在 2026-06-21 对话中共同确认。本节是 8.4.5「禁止越级调用」的边界补充，明确"禁止越级"不等于"禁止插件间协作"。
+
+**核心规则**：
+
+| 通信方向 | 是否允许 | 理由 |
+|---------|---------|------|
+| Workflow → Plugin | ❌ 禁止 | 必须经 py_lib 统一入口，保持入口唯一性 |
+| Plugin → Plugin（同层） | ✅ 允许 | 不暴露给 Workflow，属于底座层内部通信 |
+| Plugin → Workflow | ❌ 禁止 | 插件禁止反向依赖上层 |
+
+**判定标准**：
+- **是否暴露给 Workflow**：如果 Plugin A 直接 import Plugin B，而 Workflow 完全不知道这个调用关系，则属于同层通信，许可。
+- **是否破坏入口统一性**：同层 import 不涉及 py_lib 入口，不破坏 workflow → entry → plugin 的单向调用链。
+
+**正确示范**：
+```python
+# archive_scanner.py (Plugin) 直接 import archive_empty_handler.py (Plugin)
+# ✅ 合规：同层通信，不暴露给 workflow
+from archive_empty_handler import (
+    cleanup_emptydirs,
+    detect_empty_dirs,
+    detect_zero_byte_files,
+    fill_emptydirs,
+    write_detail_list,
+)
+
+def scan_group(cfg):
+    # ... 扫描逻辑 ...
+    empty_dirs = detect_empty_dirs(entries)  # 调用同层插件能力
+    fill_emptydirs(empty_dirs, src, arcname)  # 调用同层插件能力
+```
+
+**错误示范**：
+```python
+# ❌ 违规：workflow 直接 import plugin（越级）
+from archive_empty_handler import detect_empty_dirs
+```
+
+**边界说明**：
+- 同层 import 必须是"按需、最小化"的：Plugin A 只 import Plugin B 中它需要的函数，不 import 整个模块。
+- 如果同层通信涉及多个插件的复杂编排，应评估是否需要将逻辑上提到 Entry 层或拆分为新的独立插件。
+
+#### 8.4.8 修订联动
 
 新增/修改 workflow 时，必须同步更新：
 
@@ -714,6 +826,28 @@ if __name__ == "__main__":
 | `TASK-TOOLS-INDEX.md` | 在 CLI 入口表登记新 workflow |
 | `README.md` | 文件导航表和当前状态表追加 |
 | `py-sort-rules.json` | 如需新增 plugin，登记插件定义和 profile |
+
+#### 8.4.9 Layer 3 内部细分：原子型 vs 编排型
+
+> **来源**：用户与 Agent 在 2026-06-21 对话中共同确认。本节是 8.4 节「三层架构」的边界补充，明确 Layer 3（py-tools/）内部的两档形态差异。
+
+**核心认知**：py-tools/ 下的脚本**全部属于 Layer 3**，但形态和引用方式截然不同，必须区分：
+
+| 维度 | 原子型 Workflow（Atomic Tool） | 编排型 Workflow（Orchestration Script） |
+|------|------------------------------|----------------------------------------|
+| **定位** | 封装单一原子操作，可被上层引用 | 串联多步骤的完整剧本，顶层入口 |
+| **职责** | 只做一件事，输出标准化 | 完成一个完整目标，含步骤编排 |
+| **被引用** | ✅ 可被其他 Workflow 通过 subprocess 调用 | ❌ 禁止被引用，避免流程嵌套 |
+| **副作用** | 无或可控 | 通常有不可逆副作用（push、压缩） |
+| **JSON 配置** | 通常 **不配**（参数驱动） | 步骤可能变动时 **必须外化** |
+| **范例** | `get-timestamp.py`、`run-lint.py`、`fetch_issue.py` | `workflow-deploy-full.py`、`archive_project.py` |
+
+**铁律**：
+1. 编排型 Workflow 禁止被其他 Workflow 引用。
+2. 原子型 Workflow 通过 subprocess 调用，禁止 import，保持层间隔离。
+3. JSON 配置只给"数据会变、代码不想变"的场景配。
+
+> 详细决策逻辑与范例见：`docs/patterns/atomic-vs-orchestration-workflow.md`
 
 ### 8.5 标准文档与实现代码的真源对齐原则
 

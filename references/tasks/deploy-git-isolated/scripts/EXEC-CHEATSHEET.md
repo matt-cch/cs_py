@@ -170,6 +170,36 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 ```
 
 
+## Stage S5.5: 版本记录更新
+
+### 全量自动检测与更新
+
+**Agent:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\update-version.py" --devroot "${devroot}"
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\update-version.py" --devroot "${devroot}"
+```
+
+### 仅检测指定工具
+
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\update-version.py" --devroot "${devroot}" --tool node
+```
+
+### 仅检测对比，不写入文件（dry-run）
+
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\update-version.py" --devroot "${devroot}" --dry-run
+```
+
+> **覆盖工具**：自动扫描 `venv/version/*.md` 发现，当前为 python / node / opencode / cursor / chromium
+> **历史记录**：变更自动追加到对应 `*-history.md`
+
+
 ## Stage S6: Lint 检查（脚本交付前必执行）
 
 ### 架构层级（禁止越级）

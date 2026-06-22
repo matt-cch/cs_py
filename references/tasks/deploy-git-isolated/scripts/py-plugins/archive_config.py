@@ -20,31 +20,47 @@ _DEFAULT_7Z_PATH = Path(r"D:\download\7-Zip\7z.exe")
 # verified-runtime-index.json 路径模板
 _RUNTIME_INDEX_TEMPLATE = Path(r"${devroot}") / "references" / "runtime" / "verified-runtime-index.json"
 
-# 归档分组定义
-# 注意：cwd 是 7z 压缩时的工作目录，必须与 listfile 中的路径基准一致
-GROUPS_SPEC = {
-    "cs_py": {
-        "arcname": "cs_py",
-        "whitelist": [],
-        "blacklist": ["venv/", "cs_py/*.zip", "cs_py/*.7z"],
-        # cwd 为 devroot.parent，因为 listfile 中的路径是 "cs_py\\..."
-        "cwd_parent_level": 1,
-        "zip_name": "cs_py",
-    },
-    "venv": {
-        "arcname": "venv",
-        "whitelist": [".opencode", "data-opencode", "version"],
-        # 精确排除运行时锁定文件（来自 exclude-venv.txt 真源）
-        "blacklist": [
-            "venv/data-opencode/opencode/log/*",
-            "venv/data-opencode/opencode/opencode.db",
-            "venv/data-opencode/opencode/opencode.db-shm",
-            "venv/data-opencode/opencode/opencode.db-wal",
-        ],
-        "cwd_parent_level": 0,
-        "zip_name": "venv",
-    },
-}
+def _load_groups_spec() -> dict:
+    """
+    从 py-tools/archive-groups.json 加载分组配置。
+    配置文件与代码分离：改黑白名单只需编辑 JSON，无需动插件。
+    """
+    config_path = Path(__file__).parent.parent / "py-tools" / "archive-groups.json"
+    if config_path.exists():
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            groups = data.get("groups", {})
+            if groups:
+                return groups
+        except (json.JSONDecodeError, OSError):
+            pass
+    # fallback：内置默认值（配置文件缺失时的安全网）
+    return {
+        "cs_py": {
+            "arcname": "cs_py",
+            "whitelist": [],
+            "blacklist": ["venv/", "cs_py/*.zip", "cs_py/*.7z"],
+            "cwd_parent_level": 1,
+            "zip_name": "cs_py",
+        },
+        "venv": {
+            "arcname": "venv",
+            "whitelist": [".opencode", "data-opencode", "data-git", "version"],
+            "blacklist": [
+                "venv/data-opencode/opencode/log/*",
+                "venv/data-opencode/opencode/opencode.db",
+                "venv/data-opencode/opencode/opencode.db-shm",
+                "venv/data-opencode/opencode/opencode.db-wal",
+            ],
+            "cwd_parent_level": 0,
+            "zip_name": "venv",
+        },
+    }
+
+
+# 模块加载时读取配置（后续修改 JSON 后需重载模块或重启进程）
+GROUPS_SPEC = _load_groups_spec()
 
 
 def _find_toolchainroot(devroot: Path) -> Path:

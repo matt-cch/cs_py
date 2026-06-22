@@ -26,6 +26,7 @@ meta: {}
 |------|------|------|
 | JSON Schema 真源 | `json/plugin-result-schema.json` | 机器验证、IDE 提示、文档生成 |
 | 规范文档 | `docs/plugin-result-schema.md` | 人类阅读、开发参考 |
+| Commit Message 格式模板 | `docs/commit-message-format.md` | Issue 评论中 commit 记录的标准格式（元数据 + 上下文摘要） |
 | Pydantic Model | `py/models.py` | 备选强类型实现（默认 Dict，可选 Pydantic） |
 
 

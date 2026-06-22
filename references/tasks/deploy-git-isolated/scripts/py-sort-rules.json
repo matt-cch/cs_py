@@ -124,6 +124,20 @@
       "depends": ["env_config"],
       "tags": ["github", "api"],
       "description": "GitHub REST API 封装：认证读取、Issue/Comment 查询与创建、通用 API 调用"
+    },
+    {
+      "name": "time_source",
+      "module": "time_source",
+      "depends": [],
+      "tags": ["core", "utility"],
+      "description": "统一时间来源：解析时间字符串（ISO 8601 等）或返回当前时间，输出 (dt_local, dt_utc)"
+    },
+    {
+      "name": "timestamp",
+      "module": "timestamp",
+      "depends": ["time_source"],
+      "tags": ["core", "utility"],
+      "description": "时间戳格式化器：接收 time_source 输出的 datetime，格式化为多种字符串（YYYY-MM-DD、ISO 8601、文件名安全格式）"
     }
   ],
   "profiles": {

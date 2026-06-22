@@ -2,6 +2,8 @@
 """
 archive_cs_py.py — 快捷脚本：归档 cs_py 分组
 用法：python archive_cs_py.py [--stage all] [--format 7z] [--force]
+
+注：本脚本为 py-tools 快捷入口，透传参数到 archive_project.py（主编排层）。
 """
 import sys
 import subprocess

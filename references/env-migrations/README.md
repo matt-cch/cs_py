@@ -2,6 +2,7 @@
 title: references/env-migrations — 环境配置变更记录（一次性交接单）
 description: 存放单次 session 的环境级变更清单，供新开发环境复现后归档。与 changelog/（跨 session 时间线）区分。
 date: 2026-06-02
+meta: {}
 ---
 
 # `references/env-migrations/` — 环境配置变更记录
@@ -61,6 +62,11 @@ date: 2026-06-02
 | [env-migration-deploy-git-isolated-github-publish-2026-06-17-013059.md](env-migration-deploy-git-isolated-github-publish-2026-06-17-013059.md) | deploy-git-isolated task 发布到 GitHub（白名单 .gitignore + LF 强制 + 动态探测 + Issue 自动化） | 2026-06-17-013059 |
 | [env-migration-llama-cpp-python-version-pin-and-download-script-2026-06-17-124500.md](env-migration-llama-cpp-python-version-pin-and-download-script-2026-06-17-124500.md) | llama-cpp-python 版本固定与 Python 下载脚本建设（0.3.22 兼容性分界 + download-runtime-tool.py 新建） | 2026-06-17-124500 |
 | [env-migration-deploy-git-issue-sync-and-profile-filter-2026-06-17-175500.md](env-migration-deploy-git-issue-sync-and-profile-filter-2026-06-17-175500.md) | deploy-git-isolated 扩展 — Issue 同步体系（github-api 插件 + 同步入口）与 Profile 筛选机制（三层筛选 + 依赖自动补齐） | 2026-06-17-175500 |
+| [env-migration-deploy-git-py-steps-and-workflow-validation-2026-06-20-060000.md](env-migration-deploy-git-py-steps-and-workflow-validation-2026-06-20-060000.md) | deploy-git-isolated Python 步骤脚本化（Step 5-9）+ workflow 全链路编排验证 | 2026-06-20-060000 |
+| [env-migration-runtime-verify-download-fix-and-workflow-arch-clarity-2026-06-21-103444.md](env-migration-runtime-verify-download-fix-and-workflow-arch-clarity-2026-06-21-103444.md) | runtime 检测下载修复 + workflow 架构明晰（candidate_paths 兜底、download 切 py、三层+配置契约、archive 迁入 py-lib） | 2026-06-21-103444 |
+| [env-migration-archive-workflow-v2-enhancement-2026-06-21-143000.md](env-migration-archive-workflow-v2-enhancement-2026-06-21-143000.md) | 归档工作流 v2 增强（空目录检测 + audit + 模式语法统一 + 插件间 import 规则） | 2026-06-21-143000 |
+| [env-migration-verify-runtime-lint-unified-and-timestamp-plugin-2026-06-21-144609.md](env-migration-verify-runtime-lint-unified-and-timestamp-plugin-2026-06-21-144609.md) | 真源检测验证统一化 + timestamp 插件体系 + py-tools 原子型/编排型分层 | 2026-06-21-144609 |
+| [env-migration-version-update-python-migration-2026-06-22-112000.md](env-migration-version-update-python-migration-2026-06-22-112000.md) | 版本记录更新 Python 化迁移（runtime_version 插件 + update-version Workflow + 4 文档修订联动） | 2026-06-22-112000 |
 
 ## 上级导航
 

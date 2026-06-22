@@ -14,10 +14,20 @@
 import csv
 import fnmatch
 import os
+import shutil
+import subprocess
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
+
+from archive_empty_handler import (
+    cleanup_emptydirs,
+    detect_empty_dirs,
+    detect_zero_byte_files,
+    fill_emptydirs,
+    write_detail_list,
+)
 
 PLACEHOLDER = ".emptydir"
 
@@ -26,14 +36,20 @@ def match_blacklist(path: str, patterns: list) -> bool:
     """
     判断路径是否匹配黑名单模式。
 
-    模式语法（对齐 scan-for-backup.py）：
-    - dir/     : 排除 dir 及其所有子孙
-    - dir/*    : 同 dir/
-    - a/b/*.x  : 严格路径匹配（* 不匹配 /）
-    - *.x      : basename 匹配（任何层级）
+    模式语法（对齐 .gitignore + 根级锚点）：
+    - dir/        : 排除 dir 及其所有子孙
+    - dir/*       : 同 dir/
+    - a/b/*.x     : 严格路径匹配（* 不匹配 /）
+    - /*.x        : 根级匹配（仅该目录下直接文件，不递归）
+    - *.x         : basename 匹配（递归所有层级）
     """
     for pat in patterns:
-        if pat.endswith("/"):
+        if pat.startswith("/*"):
+            # 根级匹配：path 恰好两段（arcname/filename），且第二段匹配 pat[1:]
+            path_parts = path.split("/")
+            if len(path_parts) == 2 and fnmatch.fnmatch(path_parts[1], pat[1:]):
+                return True
+        elif pat.endswith("/"):
             dir_pat = pat[:-1]
             if (
                 path == dir_pat
@@ -52,15 +68,25 @@ def match_blacklist(path: str, patterns: list) -> bool:
         elif "/" in pat:
             pat_parts = pat.split("/")
             path_parts = path.split("/")
-            if len(pat_parts) != len(path_parts):
-                continue
-            matched = True
-            for pp, pt in zip(path_parts, pat_parts):
-                if not fnmatch.fnmatch(pp, pt):
-                    matched = False
-                    break
-            if matched:
-                return True
+            # 完整路径匹配（段数一致）
+            if len(pat_parts) == len(path_parts):
+                matched = True
+                for pp, pt in zip(path_parts, pat_parts):
+                    if not fnmatch.fnmatch(pp, pt):
+                        matched = False
+                        break
+                if matched:
+                    return True
+            # 子路径匹配：pat 作为 path 的连续子序列
+            pat_len = len(pat_parts)
+            for i in range(len(path_parts) - pat_len + 1):
+                matched = True
+                for j in range(pat_len):
+                    if not fnmatch.fnmatch(path_parts[i + j], pat_parts[j]):
+                        matched = False
+                        break
+                if matched:
+                    return True
         else:
             if fnmatch.fnmatch(os.path.basename(path), pat):
                 return True
@@ -88,9 +114,10 @@ def scan(src_dir: Path, arcname: str, whitelist: list, blacklist: list):
     if whitelist:
         top_dirs = []
         for w in whitelist:
-            disk_path = src / w
+            w_clean = w.rstrip("/")
+            disk_path = src / w_clean
             if disk_path.exists():
-                top_dirs.append((disk_path, f"{arcname}/{w}"))
+                top_dirs.append((disk_path, f"{arcname}/{w_clean}"))
     else:
         top_dirs = [(src, arcname)]
 
@@ -222,7 +249,7 @@ def write_csv(entries: dict, csv_path: Path):
 
 
 def write_listfile(entries: dict, listfile_path: Path):
-    """将文件路径写入 listfile（Win 反斜杠，相对于 cwd）"""
+    """将文件路径写入 listfile（Win 反斜杠，相对于 cwd），同时保留历史版本"""
     file_paths = sorted(
         path.replace("/", "\\")
         for path, entry in entries.items()
@@ -233,6 +260,15 @@ def write_listfile(entries: dict, listfile_path: Path):
         f.write("\n".join(file_paths))
         if file_paths:
             f.write("\n")
+
+    # 保留历史版本（带时间戳），用于下次 diff
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    history_path = listfile_path.parent / f"{listfile_path.stem}-{ts}{listfile_path.suffix}"
+    with open(history_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(file_paths))
+        if file_paths:
+            f.write("\n")
+
     return len(file_paths)
 
 
@@ -256,6 +292,7 @@ def scan_group(cfg: dict) -> dict:
     """
     src = cfg["src"]
     arcname = cfg["arcname"]
+    group_name = cfg.get("name", arcname)
     whitelist = cfg.get("whitelist", [])
     blacklist = cfg.get("blacklist", [])
     csv_path = cfg["csv"]
@@ -267,14 +304,22 @@ def scan_group(cfg: dict) -> dict:
     print(f"[scan] blacklist: {blacklist}")
 
     start = time.time()
+
+    # 1. 清理旧的 .emptydir（避免上一次 run 的残留影响本次 scan）
+    removed = cleanup_emptydirs(src)
+    if removed:
+        print(f"[scan] 清理旧占位文件: {removed} 个")
+
+    # 2. 第一次扫描
     entries = scan(src, arcname, whitelist, blacklist)
 
     # 补齐根目录条目（scan 不记录 top_root 自身）
     if whitelist:
         for w in whitelist:
-            d = f"{arcname}/{w}"
+            w_clean = w.rstrip("/")
+            d = f"{arcname}/{w_clean}"
             if d not in entries:
-                disk_path = src / w
+                disk_path = src / w_clean
                 if disk_path.exists():
                     try:
                         stat = disk_path.stat()
@@ -315,18 +360,46 @@ def scan_group(cfg: dict) -> dict:
                 except OSError:
                     pass
 
-    # 空目录检测与占位
-    empty_dirs = find_empty_dirs(entries)
+    # 3. 检测空目录
+    empty_dirs = detect_empty_dirs(entries)
+    empty_dirs_path = listfile_path.parent / f"empty-dirs-{group_name}.txt"
+    write_detail_list(empty_dirs, empty_dirs_path)
+    print(f"[scan] 空目录: {len(empty_dirs)} 个 → {empty_dirs_path}")
+
+    # 4. 填充 .emptydir 到空目录
     placeholders_created = 0
     if empty_dirs:
-        print(f"[scan] 发现 {len(empty_dirs)} 个空目录，创建占位文件...")
-        placeholders_created = create_placeholders(entries, empty_dirs, src, arcname)
+        placeholders_created = fill_emptydirs(empty_dirs, src, arcname)
         print(f"[scan] 新建占位文件: {placeholders_created} 个")
 
-    # 写 CSV
+    # 5. 手动把 .emptydir 添加到 entries
+    for path in empty_dirs:
+        ph_path = path + "/" + PLACEHOLDER
+        rel = path.split("/", 1)[1] if "/" in path else ""
+        disk_path = src / rel.replace("/", os.sep) / PLACEHOLDER
+        if disk_path.exists():
+            try:
+                stat = disk_path.stat()
+                entries[ph_path] = {
+                    "path": ph_path,
+                    "type": "FILE",
+                    "size": 0,
+                    "mtime_iso": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    "mtime_ts": int(stat.st_mtime),
+                }
+            except OSError:
+                pass
+
+    # 6. 检测 0 字节文件（此时包含 .emptydir）
+    zero_byte_files = detect_zero_byte_files(entries)
+    zero_byte_path = listfile_path.parent / f"zero-byte-files-{group_name}.txt"
+    write_detail_list(zero_byte_files, zero_byte_path)
+    print(f"[scan] 0 字节文件: {len(zero_byte_files)} 个 → {zero_byte_path}")
+
+    # 7. 写 CSV
     write_csv(entries, csv_path)
 
-    # 写 listfile
+    # 8. 写 listfile
     file_count = write_listfile(entries, listfile_path)
 
     dir_count = sum(1 for e in entries.values() if e["type"] == "DIR")
@@ -348,6 +421,120 @@ def scan_group(cfg: dict) -> dict:
         "total_size": total_size,
         "empty_dirs": len(empty_dirs),
         "placeholders_created": placeholders_created,
+        "zero_byte_files": len(zero_byte_files),
+    }
+
+
+def cleanup_placeholders(src_dir) -> int:
+    """
+    清理 scan_group 创建的 .emptydir 占位文件。
+    供 workflow 层在 compress 后调用，避免污染源目录。
+
+    参数:
+        src_dir: 源目录绝对路径（str 或 Path）
+
+    返回:
+        int: 删除的 .emptydir 数量
+    """
+    removed = cleanup_emptydirs(Path(src_dir))
+    if removed:
+        print(f"[cleanup] 删除占位文件: {removed} 个")
+    return removed
+
+
+def verify_group(cfg: dict, zip_path: Path, seven_zip: Path) -> dict:
+    """
+    解压压缩包并与 listfile 交叉验证。
+
+    参数:
+        cfg: archive_config.get_group_config 返回的配置字典
+        zip_path: 压缩包绝对路径
+        seven_zip: 7z.exe 绝对路径
+
+    返回:
+        dict: {
+            "pass": bool,
+            "expected": int,
+            "actual": int,
+            "missing": list,
+            "extra": list,
+        }
+    """
+    listfile_path = cfg["listfile"]
+    group_name = cfg.get("name", "unknown")
+    extract_dir = cfg["out_dir"] / f"verify-extract-{group_name}"
+
+    # 清理旧临时目录
+    if extract_dir.exists():
+        shutil.rmtree(extract_dir, ignore_errors=True)
+    extract_dir.mkdir(parents=True, exist_ok=True)
+
+    # 解压
+    print(f"[verify] 解压到: {extract_dir}")
+    proc = subprocess.run(
+        [str(seven_zip), "x", str(zip_path), f"-o{extract_dir}", "-y"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if proc.returncode != 0:
+        print(f"[verify] 解压失败: returncode={proc.returncode}")
+        return {"pass": False, "expected": 0, "actual": 0, "missing": [], "extra": []}
+
+    # 收集解压后的文件路径
+    actual_files = set()
+    for root, dirs, files in os.walk(extract_dir):
+        for f in files:
+            full = Path(root) / f
+            rel = full.relative_to(extract_dir)
+            rel_str = str(rel).replace("/", "\\")
+            actual_files.add(rel_str)
+
+    # 读取 listfile
+    expected_files = set()
+    if listfile_path.exists():
+        with open(listfile_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    expected_files.add(line)
+
+    # 交叉比对
+    missing = sorted(expected_files - actual_files)
+    extra = sorted(actual_files - expected_files)
+
+    print(f"[verify] 预期文件数: {len(expected_files)}")
+    print(f"[verify] 实际文件数: {len(actual_files)}")
+
+    if missing:
+        print(f"[verify] 缺失文件: {len(missing)} 个")
+        for p in missing[:10]:
+            print(f"  - {p}")
+        if len(missing) > 10:
+            print(f"  ... 还有 {len(missing) - 10} 个")
+    if extra:
+        print(f"[verify] 多余文件: {len(extra)} 个")
+        for p in extra[:10]:
+            print(f"  + {p}")
+        if len(extra) > 10:
+            print(f"  ... 还有 {len(extra) - 10} 个")
+
+    # 清理临时目录
+    shutil.rmtree(extract_dir, ignore_errors=True)
+
+    passed = len(missing) == 0 and len(extra) == 0
+    if passed:
+        print("[verify] PASS: 文件一一匹配")
+    else:
+        print(f"[verify] FAIL: 缺失 {len(missing)} 个, 多余 {len(extra)} 个")
+
+    return {
+        "pass": passed,
+        "expected": len(expected_files),
+        "actual": len(actual_files),
+        "missing": missing,
+        "extra": extra,
     }
 
 
@@ -357,4 +544,4 @@ if __name__ == "__main__":
 
     # 自检：需要 cfg，通常由 archive_config 提供
     print("archive_scanner 模块已加载")
-    print("用法: from archive_scanner import scan_group")
+    print("用法: from archive_scanner import scan_group, cleanup_placeholders, verify_group")

@@ -110,6 +110,82 @@ registry = load_plugins(devroot="...", tags=["lint", "encoding"])
 > 与 schema/tool/ 通用 lint 的区别：task 本地 lint 插件集成在 py_lib 插件体系中，可按 profile 按需加载；schema/tool/ 下的 lint-json.py / lint-ps1.ps1 是全局通用工具，不依赖 py_lib。
 > 本 task 新建脚本交付前，**优先使用 task 本地 lint 插件**（通过 run-lint.py 或 py_lib），保持与现有插件体系对齐。
 
+### 1.3 版本记录更新
+
+| 脚本 | 职责 | 典型场景 | 状态 |
+|------|------|---------|------|
+| `update-version.py` | **Workflow：版本记录更新**。自动发现 venv/version/ 下工具 → 调用 runtime_version 插件实测本地版本 → 对比记录版本 → 更新 .md（frontmatter date + version 表格）+ 追加 `*-history.md` | 记一版 version / 更新 venv/version | ready |
+
+> **与 5 个独立 get-*-version.ps1 的区别**：`update-version.py` 是统一 Workflow 入口，自动发现、自动对比、自动更新文件；`schema/tool/get-*-version.ps1` 是单工具实测脚本（遗留，仍可用作 fallback）。
+> **架构**：update-version.py（Workflow）→ py_lib.load_plugins() → runtime_version 插件（detect 接口）→ process_runner（subprocess 封装）。
+
+**CLI 用法**：
+```powershell
+# 全量自动检测与更新
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\update-version.py" --devroot "${devroot}"
+
+# 仅检测指定工具
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\update-version.py" --devroot "${devroot}" --tool node
+
+# 仅检测对比，不写入文件（dry-run）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\update-version.py" --devroot "${devroot}" --dry-run
+```
+
+### 1.4 时间戳生成
+
+| 脚本 | 职责 | 典型场景 | 状态 |
+|------|------|---------|------|
+| `get-timestamp.py` | Workflow CLI：通过 py_lib 调用 timestamp + time_source 插件，输出格式化时间 | Agent 写入 .md / .json 的 date/frontmatter 字段时获取标准格式 | ready |
+| `timestamp.py` | 底层插件：接收 datetime 对象，格式化为多种字符串 | py_lib 插件体系内调用，只做格式化不生产时间 | ready |
+| `time_source.py` | 底层插件：**统一时间来源**。默认当前时间，也支持解析外部时间字符串 | 被 timestamp 依赖；也可独立调用解析时间 | ready |
+
+**架构**：
+```
+time_source.parse_time(source) → (dt_local, dt_utc)
+                ↓
+timestamp.format_timestamp(dt_local, dt_utc) → {local_short, local_iso, utc_iso, ...}
+```
+
+**CLI 用法**：
+```powershell
+# 默认当前时间
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --format local_iso
+
+# 指定时间来源（ISO 8601 格式）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --source "2026-06-21" --format utc_short
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --source "2026-06-21T14:30:00" --format utc_iso
+
+# 输出全部格式
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --all
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --json
+```
+
+**插件用法（通过 py_lib）**：
+```python
+registry = load_plugins(devroot="...", tags=["utility"])
+
+# 默认当前时间
+ts = registry.timestamp.get_now()
+print(ts["local_iso"])
+
+# 指定时间来源
+dt_local, dt_utc = registry.time_source.parse_time("2026-01-15T09:00:00")
+ts = registry.timestamp.format_timestamp(dt_local, dt_utc)
+print(ts["local_iso"])   # 2026-01-15T09:00:00
+print(ts["utc_iso"])     # 2026-01-15T01:00:00Z
+```
+
+**格式键名速查**：
+| 键名 | 说明 | 示例 |
+|------|------|------|
+| `local_short` | 本地日期（短） | `2026-06-21` |
+| `local_long` | 本地时间（长，紧凑） | `2026-06-21T143218` |
+| `local_iso` | 本地时间（ISO 扩展） | `2026-06-21T14:32:18` |
+| `utc_short` | UTC 日期（短） | `2026-06-21` |
+| `utc_long` | UTC 时间（长，紧凑） | `2026-06-21T063218Z` |
+| `utc_iso` | UTC 时间（ISO 扩展） | `2026-06-21T06:32:18Z` |
+| `filename_safe` | 文件名安全格式 | `2026-06-21-143218` |
+
 ### 1.4 通用包装器
 
 | 脚本 | 职责 | 典型场景 | 状态 |
@@ -143,6 +219,17 @@ registry = load_plugins(devroot="...", tags=["lint", "encoding"])
 > PS 插件：`github-api.ps1`（GitHub REST API 封装，自动 UTF-8 encoding）
 > Python 插件：`github_api.py`（GitHub REST API 封装，urllib 实现，与 PS 版功能对等）
 
+### 1.6 归档 Workflow
+
+| 脚本 | 职责 | 典型场景 | 状态 |
+|------|------|---------|------|
+| `archive_project.py` | 项目归档主编排：scan → compress → verify 三阶段闭环 | 归档 cs_py / venv 分组 | ready |
+| `archive_cs_py.py` | 快捷入口：归档 cs_py 分组 | `python archive_cs_py.py --format 7z` | ready |
+| `archive_venv.py` | 快捷入口：归档 venv 分组 | `python archive_venv.py --format 7z` | ready |
+
+> 架构：三层 + 配置契约。Workflow 通过 `py_lib.load_plugins(profile="archive")` 调用 `archive_config` / `archive_scanner` / `archive_compressor` 插件。
+> 配置真源：`py-tools/archive-groups.json`（黑白名单、输出格式）
+
 
 ## 2. 外部通用工具引用（runtime / schema/tool）
 
@@ -156,7 +243,7 @@ registry = load_plugins(devroot="...", tags=["lint", "encoding"])
 | **file-write-helper.py** | `schema/tool/file-write-helper.py` | `verified-task-index.json` → `file-write-helper` | 写入含中文的 `.ps1` 时处理 UTF-8 BOM | 文件写入 helper 是通用能力 |
 | **get-timestamp.ps1** | `schema/tool/get-timestamp.ps1` | `verified-task-index.json` → `get-timestamp` | 生成带时间戳的文件名或记录操作时间 | 时间戳生成是通用能力 |
 | **verify-runtime.ps1** | `references/runtime/verify-runtime.ps1` | `verified-task-index.json` → `verify-runtime` | 真源检测时扫描 `venv/git/` 是否存在 | 运行时真源检测是全局能力 |
-| **download-runtime-tool.ps1** | `references/runtime/download-runtime-tool.ps1` | `verified-task-index.json` → `download-runtime-tool` | 如需升级 MinGit 版本时使用 | 运行时下载是全局能力，本 task 只消费 |
+| **download-runtime-tool.py** | `references/runtime/download-runtime-tool.py` | `verified-task-index.json` → `download-runtime-tool` | 如需升级 MinGit 版本时使用 | 运行时下载是全局能力，本 task 只消费 |
 | **trigger-index** | `references/runtime/verified-trigger-index.json` | `verified-task-index.json` → `trigger-index` | 查询 trigger 归属、注册新 trigger | trigger 治理是全局能力 |
 
 > **铁律**：以上工具已存在且已登记，本 task 禁止自行实现同类功能。新增需求时先查 `verified-task-index.json` → `available_scripts_and_tools`。
@@ -176,10 +263,14 @@ registry = load_plugins(devroot="...", tags=["lint", "encoding"])
 | push 前安全检查 | `github-safety-check.ps1`（本地） | — | 禁止跳过安全检查直接 push |
 | 日常 git 操作 | `git-isolated.ps1`（本地） | — | 禁止裸 `git` 调用（可能命中系统版） |
 | 真源扫描 | `verify-runtime.ps1`（通用） | — | 禁止自行实现文件存在性扫描 |
-| 下载 MinGit | `download-runtime-tool.ps1`（通用） | — | 禁止自行写 `curl`/`Invoke-WebRequest` 下载 |
+| 下载 MinGit | `download-runtime-tool.py`（通用） | — | 禁止自行写 `curl`/`Invoke-WebRequest` 下载 |
 | Issue 同步（create/update/comment） | `github-sync-issue.ps1`（本地） | — | 禁止裸 API 调用，禁止重复造轮子 |
 | Issue 内容查看（body + 评论） | `fetch_issue.py`（本地，py_lib 插件） | `github-sync-issue.ps1 -Mode get-issue/list-comments` | 禁止裸 API 调用 |
 | 插件筛选加载 | `github-lib.ps1` -Profile（本地） | — | 禁止全量加载冗余插件 |
+| 项目归档（cs_py） | `archive_cs_py.py`（本地 workflow） | `archive_project.py --group cs_py` | 禁止裸 `7z`/`zip` 命令归档 |
+| 项目归档（venv） | `archive_venv.py`（本地 workflow） | `archive_project.py --group venv` | 禁止裸 `7z`/`zip` 命令归档 |
+| 版本记录更新 | `update-version.py`（本地 workflow） | — | 禁止自行写 `python -c` 测版本 |
+| 获取时间戳 | `get-timestamp.py`（本地 workflow） | — | 禁止内嵌 `Get-Date` 拼文件名 |
 
 
 ## 4. 速查命令
@@ -232,6 +323,15 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 
 # 文件写入 helper（含中文 .ps1）
 "${devroot}\venv\py\python.exe" "${devroot}\schema\tool\file-write-helper.py" --config "${devroot}\venv\tmp\job.ini"
+
+# 归档 cs_py（快捷入口）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\archive_cs_py.py" --stage all --format 7z
+
+# 归档 venv（快捷入口）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\archive_venv.py" --stage all --format 7z
+
+# 归档全量（主编排层）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\archive_project.py" --group cs_py venv --stage all --format 7z
 ```
 
 
@@ -245,6 +345,7 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 | `SOP.md` | 标准流程（Step 契约 + Ralph Loop） |
 | `scripts/EXEC-CHEATSHEET.md` | 执行速查（命令+配置+参数） |
 | `scripts/py-tools/run-lint.py` | 统一 lint CLI 入口（JSON/PS1/Python/Encoding，支持 `--files` 单文件列表） |
+| `scripts/py-tools/update-version.py` | 版本记录更新 Workflow（自动发现 → 实测 → 更新 .md + history） |
 | `scripts/py-tools/fetch_issue.py` | 获取 GitHub Issue 完整内容（含评论） |
 | `scripts/py-plugins/lint_*.py` | Lint 插件（json/ps1/python/encoding） |
 | `scripts/py-plugins/github_api.py` | GitHub REST API 封装（Python 插件） |

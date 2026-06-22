@@ -2,6 +2,8 @@
 """
 archive_venv.py — 快捷脚本：归档 venv 分组
 用法：python archive_venv.py [--stage all] [--format 7z] [--force]
+
+注：本脚本为 py-tools 快捷入口，透传参数到 archive_project.py（主编排层）。
 """
 import sys
 import subprocess

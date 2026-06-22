@@ -57,8 +57,17 @@ _EXCLUDED_FILENAMES = {
 
 
 def _is_excluded_file(filepath: Path) -> bool:
-    """判断文件是否在 frontmatter 强制约束的例外列表中"""
-    return filepath.name in _EXCLUDED_FILENAMES
+    """判断文件是否在 frontmatter 强制约束的例外列表中
+
+    豁免范围（来源：.cursor/rules/markdown-docs-format.mdc）：
+    - SKILL.md / AGENTS.md 等约定俗成元文档
+    - .cursor/rules/*.mdc（Cursor Rules，自有 frontmatter 规范）
+    """
+    if filepath.name in _EXCLUDED_FILENAMES:
+        return True
+    if filepath.suffix == ".mdc":
+        return True
+    return False
 
 
 def _extract_frontmatter_lines(content: str):
