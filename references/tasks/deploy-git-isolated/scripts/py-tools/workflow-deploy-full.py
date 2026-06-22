@@ -29,6 +29,8 @@ def _generate_ai_summary(devroot: Path, message: str) -> str:
     调用 generate-ai-summary.py 生成 AI 语义摘要。
     返回摘要文本（失败时返回空字符串）。
     """
+    import json
+
     script = Path(__file__).parent / "generate-ai-summary.py"
     cmd = [str(_PY_EXE), str(script), "--devroot", str(devroot), "--message", message]
 
