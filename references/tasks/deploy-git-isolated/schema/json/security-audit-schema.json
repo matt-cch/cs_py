@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "security-audit-schema",
+  "title": "Security Audit Report Schema",
+  "description": "部署前安全审计报告的数据结构契约。供 security_audit.py 插件与 security-audit.py CLI 统一消费。",
+  "version": "1.0.0",
+  "definitions": {
+    "SensitivePattern": {
+      "type": "object",
+      "required": ["name", "regex"],
+      "properties": {
+        "name": { "type": "string", "description": "模式名称，如 api_key_moonshot" },
+        "regex": { "type": "string", "description": "正则表达式字符串" },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low", "info"],
+          "description": "严重等级"
+        },
+        "description": { "type": "string", "description": "该模式检测什么内容" },
+        "false_positive_hints": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "常见的误报特征（用于人工复核）"
+        }
+      }
+    },
+    "Finding": {
+      "type": "object",
+      "required": ["file", "line_number", "matched_text", "pattern_name"],
+      "properties": {
+        "file": { "type": "string", "description": "相对路径" },
+        "line_number": { "type": "integer", "minimum": 1 },
+        "column_start": { "type": "integer", "minimum": 0 },
+        "column_end": { "type": "integer", "minimum": 0 },
+        "matched_text": { "type": "string", "description": "匹配到的原始文本" },
+        "line_preview": { "type": "string", "description": "整行预览（脱敏后）" },
+        "pattern_name": { "type": "string", "description": "命中哪个 SensitivePattern" },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low", "info"]
+        },
+        "assessment": {
+          "type": "string",
+          "enum": ["pending", "confirmed_leak", "false_positive", "needs_review"],
+          "description": "人工复核状态"
+        },
+        "notes": { "type": "string", "description": "复核备注" }
+      }
+    },
+    "FileAuditResult": {
+      "type": "object",
+      "required": ["file", "status"],
+      "properties": {
+        "file": { "type": "string", "description": "相对路径" },
+        "status": {
+          "type": "string",
+          "enum": ["clean", "finding", "error", "skipped"],
+          "description": "该文件审计状态"
+        },
+        "findings": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Finding" },
+          "description": "该文件的全部发现项"
+        },
+        "size_bytes": { "type": "integer", "minimum": 0 },
+        "line_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "PhaseResult": {
+      "type": "object",
+      "required": ["phase_name", "status"],
+      "properties": {
+        "phase_name": { "type": "string", "description": "如 pattern_scan, high_priority_files, source_snapshots, git_tracking" },
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail", "warn", "skipped"]
+        },
+        "summary": { "type": "string", "description": "一句话结论" },
+        "files_audited": { "type": "integer", "minimum": 0 },
+        "files_with_findings": { "type": "integer", "minimum": 0 },
+        "total_findings": { "type": "integer", "minimum": 0 },
+        "details": {
+          "type": "array",
+          "items": { "type": "object" },
+          "description": "各 phase 特有的详细数据"
+        },
+        "elapsed_seconds": { "type": "number", "minimum": 0 }
+      }
+    }
+  },
+  "type": "object",
+  "required": ["version", "audit_id", "audited_at", "commit_range", "phases", "overall_status"],
+  "properties": {
+    "version": { "type": "string", "const": "1.0.0" },
+    "audit_id": { "type": "string", "description": "审计唯一标识（时间戳或 UUID）" },
+    "audited_at": { "type": "string", "format": "date-time", "description": "ISO 8601 时间" },
+    "devroot": { "type": "string", "description": "审计目标 devroot 绝对路径" },
+    "commit_range": { "type": "string", "description": "审计的 git commit 范围，如 HEAD~10..HEAD" },
+    "files_in_scope": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "纳入审计的全部文件相对路径"
+    },
+    "phases": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/PhaseResult" },
+      "description": "各 phase 的审计结果"
+    },
+    "overall_status": {
+      "type": "string",
+      "enum": ["pass", "fail", "warn"],
+      "description": "总体结论"
+    },
+    "overall_summary": { "type": "string", "description": "总体结论一句话" },
+    "recommendations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "改进建议列表"
+    },
+    "total_elapsed_seconds": { "type": "number", "minimum": 0 }
+  }
+}

@@ -120,16 +120,19 @@ def run_files_via_py_lib(devroot: str, files: list):
     for fpath in files:
         fp = Path(fpath)
         ext = fp.suffix.lower()
+        matched_plugins = set()
 
         if ext in EXT_TO_PLUGIN:
-            plugin_name = EXT_TO_PLUGIN[ext]
-        elif ext in ENCODING_EXTENSIONS:
-            plugin_name = "lint_encoding"
-        else:
+            matched_plugins.add(EXT_TO_PLUGIN[ext])
+        if ext in ENCODING_EXTENSIONS or ext in (".md", ".mdc"):
+            matched_plugins.add("lint_encoding")
+
+        if not matched_plugins:
             skipped.append(fpath)
             continue
 
-        plugin_files.setdefault(plugin_name, []).append(fpath)
+        for plugin_name in matched_plugins:
+            plugin_files.setdefault(plugin_name, []).append(fpath)
 
     results = []
     has_error = False

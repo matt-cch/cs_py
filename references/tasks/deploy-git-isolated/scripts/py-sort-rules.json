@@ -173,6 +173,13 @@
       "depends": ["llm_client", "agent_tools", "agent_context"],
       "tags": ["agent"],
       "description": "Agent 核心引擎：标准 ReAct 循环（LLM → tool_calls → 执行 → 再生成），支持上下文自动压缩"
+    },
+    {
+      "name": "security_audit",
+      "module": "security_audit",
+      "depends": [],
+      "tags": ["core", "validation"],
+      "description": "安全审计插件：部署前敏感内容巡检，支持 pattern scan / git tracking / 汇总报告"
     }
   ],
   "profiles": {
@@ -230,6 +237,11 @@
       "include_tags": ["agent"],
       "exclude_tags": [],
       "description": "Agent 全量（llm_client + agent_tools + agent_context + agent_core，含 core 依赖自动补齐）"
+    },
+    "validation": {
+      "include_tags": ["validation"],
+      "exclude_tags": [],
+      "description": "验证与安全审计（security_audit 等）"
     }
   }
 }

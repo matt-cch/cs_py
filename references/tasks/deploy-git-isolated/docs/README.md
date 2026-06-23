@@ -32,7 +32,8 @@ meta: {}
 | [research/task-dependency-graph.md](research/task-dependency-graph.md) | research | Task 依赖图与修订联动路径：PS 点源/Python import/文档引用/配置索引的全量依赖关系 |
 | [research/workflow-entry-plugins-architecture-research.md](research/workflow-entry-plugins-architecture-research.md) | research | workflow→entry→plugins 三层架构选型演进与反例分析（lint 体系建设 session 共识沉淀） |
 | [research/task-agent-self-explanation-validation.md](research/task-agent-self-explanation-validation.md) | research | Task Agent 自说明能力验证实验 — 从零上下文到自主执行的探索，含知行 gap 分析与改进建议 |
+| [research/agent-directory-reading-pattern.md](research/agent-directory-reading-pattern.md) | research | Agent 目录自然阅读次序模式 — 从目录扫描到意图衔接的五层认知模型 |
 
 
-*导航版本: v1.1*  
+*导航版本: v1.2*  
 *更新时间: 2026-06-19*

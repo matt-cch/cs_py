@@ -713,6 +713,89 @@ for p in list_plugins():
 | `md_lint.py` | `md`, `validation` | Markdown frontmatter 校验 | ready |
 ```
 
+#### 8.4.7 工具命名规范：workflow- 与 atomic- 前缀，及 Phase / Atomic / Workflow 边界
+
+> **来源**：用户与 Agent 在 2026-06-22 对话中共同确认。本节固化 `py-tools/` 目录下脚本文件的分层命名契约，以及 Atomic、Phase、Workflow 三者的语义边界。
+
+**问题 1**：`py-plugins/security_audit.py` 与 `py-tools/security-audit.py` 同名（仅下划线 vs 连字符差异），造成维护混淆，Agent 和人类都容易搞混哪一个是插件、哪一个是入口。
+
+**问题 2**：一个 Workflow 如果全部由 Phase 组成（没有调用任何 Atomic 脚本），是否还配叫 Workflow？
+
+***
+
+**命名铁律（文件系统层面）**：
+
+| 层级 | 文件位置 | 命名格式 | 示例 |
+|------|---------|---------|------|
+| **Plugin** | `py-plugins/*.py` | 下划线蛇形，`{domain}_{capability}.py` | `security_audit.py`, `lint_json.py` |
+| **Workflow Tool** | `py-tools/workflow-*.py` | `workflow-{verb}-{slug}.py`，kebab-case | `workflow-security-audit.py`, `workflow-deploy-full.py` |
+| **Atomic Tool** | `py-tools/atomic-*.py` | `atomic-{verb}-{slug}.py`，kebab-case | `atomic-generate-ai-summary.py`, `atomic-fetch-issue.py` |
+
+**语义区分（架构层面）**：
+
+| 概念 | 定义 | 是否可独立运行 | 判断标准 |
+|------|------|---------------|---------|
+| **Atomic** | 独立可执行的最小单元 | ✅ 是 | `python atomic-xxx.py` 即可运行，输出自包含，可被多个 Workflow 复用 |
+| **Phase** | Workflow 内部的逻辑分段 | ❌ 否 | 脱离 Workflow 上下文无意义，通常没有自己的 CLI 入口 |
+| **Workflow** | 编排多个 Phase（其中一些可能调用 Atomic） | ✅ 是 | 有阶段流转（phase1 → phase2 → ...）、条件判断、报告聚合 |
+
+**关键判定原则**：
+
+1. **Atomic 的充要条件**：单一职责 + 可独立运行 + 可复用。
+2. **Workflow 的充要条件**（满足任一）：
+   - 组装 ≥2 个 Atomic
+   - 组装 ≥1 个 Atomic + ≥1 个不可独立运行的 Phase
+   - **内部有明确的阶段编排（≥2 个 Phase），即使全部 Phase 都直接调用 Plugin**
+3. **Phase ≠ Atomic**：Phase 是 Workflow 的"内部步骤"，不可独立运行。即使某个 Phase 只调用一个 Plugin，只要它没有独立的 CLI 入口和自包含输出，就不是 Atomic。
+
+**实例对照**：
+
+| 脚本 | 类型 | 理由 |
+|------|------|------|
+| `generate-ai-summary.py` | **Atomic** | 独立可运行：`python atomic-generate-ai-summary.py --devroot ...` 即可生成摘要并落盘 |
+| `workflow-deploy-full.py` | **Workflow** | 组装 step-04~09（其中 step-09 是 atomic-fetch-issue 的调用）+ 条件判断 + 报告聚合 |
+| `workflow-security-audit.py` | **Workflow**（方案 A） | 5 个 Phase 直接调用 `security_audit` plugin，无 Atomic 组装，但有明确的阶段编排和报告聚合 |
+
+**方案 A 决策（2026-06-22 确认）**：
+
+> `workflow-security-audit.py` 保持为 Workflow，不强行拆分 Atomic。
+> 
+> 理由：
+> 1. 5 个 Phase 中真正能独立运行的只有 Phase 1/4，但它们单独运行意义有限（人工复核 Phase 2/3 不可跳过）
+> 2. 安全审计的核心价值是"五 Phase 完整流程"，不是某个单 Phase
+> 3. 过度拆分会降低可维护性
+> 
+> **例外触发条件**：若未来某个 Phase 被多个 Workflow 复用（如 `scan-patterns` 被 lint workflow 也用），则提取为 `atomic-scan-patterns.py`。
+
+**禁止行为**：
+- ❌ `py-plugins/foo.py` + `py-tools/foo.py`（同名，任何变体）
+- ❌ `py-tools/foo.py` 直接 import `py-plugins/foo.py`（越级调用，见 8.4.5）
+- ❌ 在 `py-tools/` 下使用与 `py-plugins/` 相同的下划线命名（如 `security_audit.py`）
+    - ❌ 把不可独立运行的 Phase 错误命名为 `atomic-xxx.py`（名称承诺与实际能力不符）
+
+#### 8.4.8 产出文件默认落盘到 `venv/tmp/`
+
+> **来源**：用户与 Agent 在 2026-06-22 对话中共同确认。
+
+**规则**：任何脚本（workflow / atomic / plugin 的 CLI 入口）生成的**产出文件**（报告、日志、中间产物），若用户**没有显式指定输出路径**，默认落盘到 `${devroot}/venv/tmp/`。
+
+**原因**：
+1. `venv/` 已在 `.gitignore` 中，产出文件不会被意外提交到 GitHub
+2. `tmp/` 是公认的临时目录，用户清楚里面的内容可被随时清理
+3. 避免 task 目录被中间产物污染，保持仓库整洁
+
+**实现要求**：
+
+| 场景 | 行为 | 示例 |
+|------|------|------|
+| 用户显式传 `--output /path/to/file.json` | 写到指定路径 | `--output out/audit.json` → `out/audit.json` |
+| 用户未传 `--output` | 自动写到 `venv/tmp/{script-name}-{timestamp}.{ext}` | 无参数 → `venv/tmp/security-audit-report-20260622-094202.json` |
+| 用户传 `--output-dir /custom/dir` | 在该目录下自动生成文件名 | `--output-dir debug/` → `debug/security-audit-report-20260622-094202.json` |
+
+**禁止行为**：
+- ❌ 默认写到 task 根目录或 `scripts/` 子目录（可能被 git 追踪）
+- ❌ 默认覆盖已有文件（应使用时间戳或序号避免冲突）
+
 #### 8.4.6 案例讲解：workflow-lint-amend-lint.py 的正确实现
 
 **需求**：对指定目录执行"检测 → 修复 → 验证"闭环。
@@ -912,4 +995,5 @@ from archive_empty_handler import detect_empty_dirs
 *模板来源: schema/task-template/task-canonical-baseline.md*  
 *创建时间: 2026-06-16*  
 *本 task 定制内容: 第 3.2/3.3 节（SOP vs TOOLS-INDEX 区分）、第 6.2 节（TASK-TOOLS-INDEX 位置约定）、第 8 节（本 task 特殊约定）*  
-*本次修订: 2026-06-20，新增第 8.4.5 节（文档不暴露插件文件名）、第 8.5 节（标准文档与实现代码真源对齐）*
+*本次修订: 2026-06-22，新增第 8.4.7 节（工具命名规范：workflow- / atomic- 前缀，Phase / Atomic / Workflow 边界）、第 8.4.8 节（产出文件默认落盘到 venv/tmp/）*  
+*历史修订: 2026-06-20，新增第 8.4.5 节（文档不暴露插件文件名）、第 8.5 节（标准文档与实现代码真源对齐）*

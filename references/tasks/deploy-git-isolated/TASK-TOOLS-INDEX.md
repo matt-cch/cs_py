@@ -3,7 +3,7 @@ title: deploy-git-isolated 可用工具速查表
 description: 本 task 全部可用工具的索引、职责、路径与边界说明。包含本地专属脚本与外部通用工具的引用链路，防止重复造轮子。
 date: 2026-06-20
 meta:
-  version: 1.1
+  version: 1.2
 ---
 
 # deploy-git-isolated 可用工具速查表
@@ -131,7 +131,40 @@ registry = load_plugins(devroot="...", tags=["lint", "encoding"])
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\update-version.py" --devroot "${devroot}" --dry-run
 ```
 
-### 1.4 时间戳生成
+### 1.4 安全审计（Security Audit）
+
+| 脚本 | 职责 | 典型场景 | 状态 |
+|------|------|---------|------|
+| `workflow-security-audit.py` | **Workflow：部署前敏感内容巡检**。组装 security_audit 插件的五 Phase 流程（pattern_scan / git_tracking），输出人类可读报告 + JSON 报告 | commit/push 前必执行，确保无 API key / PAT / 私钥泄露 | ready |
+| `security_audit.py` | 底层插件：提供 pattern scan、git tracking 验证、报告聚合能力 | 被 workflow 调用，不直接作为 CLI 入口 | ready |
+
+**架构**：
+```
+workflow-security-audit.py（Workflow）→ py_lib.load_plugins(profile="validation") → security_audit 插件
+  Phase 1: pattern_scan → 对 tracked 文件正则扫描敏感模式
+  Phase 4: git_tracking → 验证 .env / config.json / key.txt 未被 git 追踪
+  Phase 5: summary → 聚合报告，输出 pass / warn / fail
+```
+
+**CLI 用法**：
+```powershell
+# 完整审计（默认 HEAD~10..HEAD）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-security-audit.py" --devroot "${devroot}"
+
+# 指定 commit 范围
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-security-audit.py" --devroot "${devroot}" --commit-range "HEAD~5..HEAD"
+
+# 仅执行特定 phase
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-security-audit.py" --devroot "${devroot}" --phases pattern_scan git_tracking
+
+# 输出 JSON 报告（自动落盘到 venv/tmp/）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-security-audit.py" --devroot "${devroot}" --output "${devroot}\venv\tmp\audit.json"
+```
+
+> **关联规范**：`schema/docs/security-audit-spec.md`（审计流程、敏感模式定义、严重等级）
+> **关联 schema**：`schema/json/security-audit-schema.json`（报告数据结构契约）
+
+### 1.5 时间戳生成
 
 | 脚本 | 职责 | 典型场景 | 状态 |
 |------|------|---------|------|

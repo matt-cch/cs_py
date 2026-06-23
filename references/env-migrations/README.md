@@ -67,6 +67,7 @@ meta: {}
 | [env-migration-archive-workflow-v2-enhancement-2026-06-21-143000.md](env-migration-archive-workflow-v2-enhancement-2026-06-21-143000.md) | 归档工作流 v2 增强（空目录检测 + audit + 模式语法统一 + 插件间 import 规则） | 2026-06-21-143000 |
 | [env-migration-verify-runtime-lint-unified-and-timestamp-plugin-2026-06-21-144609.md](env-migration-verify-runtime-lint-unified-and-timestamp-plugin-2026-06-21-144609.md) | 真源检测验证统一化 + timestamp 插件体系 + py-tools 原子型/编排型分层 | 2026-06-21-144609 |
 | [env-migration-version-update-python-migration-2026-06-22-112000.md](env-migration-version-update-python-migration-2026-06-22-112000.md) | 版本记录更新 Python 化迁移（runtime_version 插件 + update-version Workflow + 4 文档修订联动） | 2026-06-22-112000 |
+| [env-migration-nanobot-agent-and-security-audit-2026-06-22-174549.md](env-migration-nanobot-agent-and-security-audit-2026-06-22-174549.md) | nanobot Agent 底层能力 + 安全审计工具体系 + 命名规范固化（workflow-/atomic- 前缀 + Phase/Atomic/Workflow 边界 + 产出文件默认落盘 venv/tmp/） | 2026-06-22-174549 |
 
 ## 上级导航
 
