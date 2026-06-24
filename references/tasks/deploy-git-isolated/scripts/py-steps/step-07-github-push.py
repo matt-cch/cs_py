@@ -10,6 +10,7 @@ step-07-github-push.py — Step 7: Push to GitHub
     python step-07-github-push.py --devroot "D:/pjt/cursor/cs_py"
 """
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -95,11 +96,17 @@ def main():
     auth_url = f"https://{username}:{pat}@github.com/{repo_path}"
 
     print("正在 push 到 GitHub ...")
-    # 【自动部署关键】禁用 credential helper，防止弹出 OAuth 选账号窗口
-    # 使用 URL 中嵌入的 PAT 直接认证
+    # 【自动部署关键】三重防护，彻底阻止 OAuth 选账号弹窗：
+    # 1. -c credential.helper= 禁用 Git 凭据助手
+    # 2. GIT_ASKPASS=echo 用空命令替代密码询问
+    # 3. GIT_TERMINAL_PROMPT=0 禁用终端交互提示
+    env = os.environ.copy()
+    env["GIT_ASKPASS"] = "echo"
+    env["GIT_TERMINAL_PROMPT"] = "0"
     result = subprocess.run(
         [str(git_exe), "-C", str(devroot), "-c", "credential.helper=", "push", auth_url, branch],
-        capture_output=True, text=True, encoding="utf-8", errors="replace"
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        env=env
     )
     print(result.stdout, end="")
     if result.stderr:
