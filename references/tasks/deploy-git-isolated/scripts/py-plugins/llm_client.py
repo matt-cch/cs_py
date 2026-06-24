@@ -175,8 +175,12 @@ def chat(
     }
     if effective_temperature is not None:
         payload["temperature"] = effective_temperature
-    if max_tokens is not None:
-        payload["max_tokens"] = max_tokens
+    # max_tokens 优先级：显式参数 > provider_cfg.context_limit > None（不传）
+    effective_max_tokens = max_tokens
+    if effective_max_tokens is None and provider_cfg is not None:
+        effective_max_tokens = provider_cfg.get("context_limit")
+    if effective_max_tokens is not None:
+        payload["max_tokens"] = effective_max_tokens
     if tools is not None:
         payload["tools"] = tools
     # 传递 thinking 参数（如 provider_cfg 中有）
