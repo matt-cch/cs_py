@@ -269,20 +269,16 @@ def _run_py_step(name: str, script_path: Path, extra_args: list = None) -> tuple
 
     start = time.time()
     try:
+        # 不 capture_output，子进程 stdout/stderr 直接继承父进程终端
+        # 优点：实时输出 + 无 PIPE 死锁（无 _readerthread）
         result = subprocess.run(
             cmd,
-            capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=120,
+            timeout=30,
         )
         elapsed = time.time() - start
-
-        if result.stdout:
-            print(result.stdout, end="")
-        if result.stderr:
-            print(result.stderr, end="")
 
         if result.returncode != 0:
             print(f"[FAIL] {name} 失败 (耗时 {elapsed:.2f}s)")
@@ -293,7 +289,7 @@ def _run_py_step(name: str, script_path: Path, extra_args: list = None) -> tuple
 
     except subprocess.TimeoutExpired:
         elapsed = time.time() - start
-        print(f"[FAIL] {name} 超时 (>120s)")
+        print(f"[FAIL] {name} 超时 (>30s)")
         return False, elapsed
     except Exception as e:
         elapsed = time.time() - start
