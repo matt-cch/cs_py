@@ -119,18 +119,10 @@ Diff：
     start = time.time()
     try:
         # 显式构造 AgentCore，传入 config.json 的 provider_cfg
-        # 【注意】摘要场景不需要 thinking（deep reasoning），清除 thinking 参数
-        # 否则 reasoning_content 会消耗全部 max_tokens，导致 content 为空
-        clean_cfg = dict(provider_cfg)
-        clean_cfg.pop("thinking", None)
-        # max_tokens 从 provider_cfg 的 output_limit 取（config.json 中配的模型上限）
-        max_output_tokens = clean_cfg.get("output_limit") or 32768
+        # 【原则】generate-ai-summary 不创造/修改任何参数，全部从 config.json 照搬
         agent = registry.agent_core.AgentCore(
-            model=None,
-            temperature=None,  # 使用 provider_cfg 中的 temperature（config.json 已配 1.0）
-            max_tokens=max_output_tokens,
             enable_tools=False,
-            provider_cfg=clean_cfg,
+            provider_cfg=provider_cfg,
         )
         summary = agent.run(
             prompt=prompt,
