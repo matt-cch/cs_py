@@ -322,7 +322,6 @@ workflow-deploy-full.py（Workflow 编排）
 | **lint-ps1.ps1** | `schema/tool/lint-ps1.ps1` | `verified-task-index.json` → `lint-ps1` | 验证本 task 下所有 `.ps1` 脚本语法 | PS 语法检查是通用能力 |
 | **check-file-encoding.ps1** | `schema/tool/check-file-encoding.ps1` | `verified-task-index.json` → `check-file-encoding` | 检查所有落盘文件的 BOM/CRLF/LF | 编码检查统一走此工具 |
 | **file-write-helper.py** | `schema/tool/file-write-helper.py` | `verified-task-index.json` → `file-write-helper` | 写入含中文的 `.ps1` 时处理 UTF-8 BOM | 文件写入 helper 是通用能力 |
-| **get-timestamp.ps1** | `schema/tool/get-timestamp.ps1` | `verified-task-index.json` → `get-timestamp` | 生成带时间戳的文件名或记录操作时间 | 时间戳生成是通用能力 |
 | **verify-runtime.ps1** | `references/runtime/verify-runtime.ps1` | `verified-task-index.json` → `verify-runtime` | 真源检测时扫描 `venv/git/` 是否存在 | 运行时真源检测是全局能力 |
 | **download-runtime-tool.py** | `references/runtime/download-runtime-tool.py` | `verified-task-index.json` → `download-runtime-tool` | 如需升级 MinGit 版本时使用 | 运行时下载是全局能力，本 task 只消费 |
 | **trigger-index** | `references/runtime/verified-trigger-index.json` | `verified-task-index.json` → `trigger-index` | 查询 trigger 归属、注册新 trigger | trigger 治理是全局能力 |
@@ -339,7 +338,7 @@ workflow-deploy-full.py（Workflow 编排）
 | 验证 Python 语法 | `lint_python.py`（本地，py_lib 插件） | — | 禁止不验证直接交付 `.py` |
 | 检查文件编码 | `lint_encoding.py`（本地，py_lib 插件） | `schema/tool/check-file-encoding.ps1`（通用） | 禁止现写编码检查命令 |
 | 写入含中文 `.ps1` | `file-write-helper.py`（通用） | — | 禁止 Shell 重定向写 `.ps1` |
-| 生成时间戳文件名 | `get-timestamp.ps1`（通用） | — | 禁止内嵌 `Get-Date` 拼文件名 |
+| 生成时间戳文件名 | `get-timestamp.py`（本地 workflow） | — | 禁止内嵌 `Get-Date` 拼文件名 |
 | git init / push | `github-step-01/07.ps1`（本地） | — | 禁止裸命令操作 Git |
 | push 前安全检查 | `github-safety-check.ps1`（本地） | — | 禁止跳过安全检查直接 push |
 | 日常 git 操作 | `git-isolated.ps1`（本地） | — | 禁止裸 `git` 调用（可能命中系统版） |

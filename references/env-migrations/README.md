@@ -70,6 +70,7 @@ meta: {}
 | [env-migration-nanobot-agent-and-security-audit-2026-06-22-174549.md](env-migration-nanobot-agent-and-security-audit-2026-06-22-174549.md) | nanobot Agent 底层能力 + 安全审计工具体系 + 命名规范固化（workflow-/atomic- 前缀 + Phase/Atomic/Workflow 边界 + 产出文件默认落盘 venv/tmp/） | 2026-06-22-174549 |
 | [env-migration-run-lint-routing-fix-and-archive-timeout-analysis-2026-06-23-180826.md](env-migration-run-lint-routing-fix-and-archive-timeout-analysis-2026-06-23-180826.md) | run-lint.py 路由修复（.md 双重检查）+ docs/ CRLF 批量修复 + archive 超时根因分析 + Agent 目录阅读模式文档 | 2026-06-23-180826 |
 | [env-migration-lint-system-upgrade-2026-06-24-112406.md](env-migration-lint-system-upgrade-2026-06-24-112406.md) | lint 体系升级：link_checker/py-sort-rules/py_lib/run-lint 版本升级、新增 lint-rules-manifest.json、AGENTS.md 思考语言锚定、入口文件修订联动 | 2026-06-24-112406 |
+| [env-migration-deploy-git-auto-deploy-and-auth-fix-2026-06-24-054242.md](env-migration-deploy-git-auto-deploy-and-auth-fix-2026-06-24-054242.md) | deploy-git-isolated 自动部署完善与 GitHub 认证弹窗修复（--auto / GCM 阻断 / Cursor 扩展 / Popen 死锁 / upstream 超时） | 2026-06-24-054242 |
 
 
 ## 上级导航

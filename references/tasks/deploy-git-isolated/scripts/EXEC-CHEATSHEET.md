@@ -177,10 +177,13 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 
 **Agent:**
 ```powershell
-# 完整部署
+# 全自动发布（从 staged 文件自动生成 commit message，推荐日常用）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --auto
+
+# 完整部署（指定 commit message）
 & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
 
-# 仅执行单步（如仅 push）
+# 仅执行单步（如仅 push，调试用）
 & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --step 7 --message "feat: xxx"
 
 # 指定 Issue 编号（Step 9 同步用）
@@ -189,6 +192,9 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 
 **终端:**
 ```powershell
+# 全自动发布
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --auto
+
 # 完整部署
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
 ```
@@ -224,6 +230,33 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 
 > **覆盖工具**：自动扫描 `venv/version/*.md` 发现，当前为 python / node / opencode / cursor / chromium
 > **历史记录**：变更自动追加到对应 `*-history.md`
+
+
+## Stage S5.7: 时间戳生成（禁止现写）
+
+> **铁律**：`.md` / `.json` 文件中的 `date` 字段和文件名时间戳，**必须使用**本工具生成，禁止在 Agent 回复中现写时间字符串。
+
+**默认当前时间：**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --format local_iso
+```
+
+**文件名安全格式：**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --format filename_safe
+```
+
+**全部可用格式：**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --all
+```
+
+**JSON 输出（脚本消费）：**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --json
+```
+
+> **与 `schema/tool/get-timestamp.ps1` 的区别**：PS1 版为 legacy fallback；Python 版是当前推荐，支持更多格式、JSON 输出、指定时间来源。
 
 
 ## Stage S6: Lint 检查（脚本交付前必执行）
