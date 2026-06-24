@@ -96,12 +96,15 @@ def main():
     auth_url = f"https://{username}:{pat}@github.com/{repo_path}"
 
     print("正在 push 到 GitHub ...")
-    # 【自动部署关键】三重防护，彻底阻止 OAuth 选账号弹窗：
-    # 1. -c credential.helper= 禁用 Git 凭据助手
-    # 2. GIT_ASKPASS=echo 用空命令替代密码询问
-    # 3. GIT_TERMINAL_PROMPT=0 禁用终端交互提示
+    # 【自动部署关键】阻止 Git Credential Manager (GCM) 弹窗
+    # GCM_INTERACTIVE=0: 彻底禁用所有 GUI / TTY 交互
+    # GCM_GUI_PROMPT=0: 禁用 GUI 弹窗（辅助）
+    # GCM_PROVIDER=github: 跳过 provider 探测（加速）
+    # GIT_TERMINAL_PROMPT=0: 禁用 Git 终端密码提示
     env = os.environ.copy()
-    env["GIT_ASKPASS"] = "echo"
+    env["GCM_INTERACTIVE"] = "0"
+    env["GCM_GUI_PROMPT"] = "0"
+    env["GCM_PROVIDER"] = "github"
     env["GIT_TERMINAL_PROMPT"] = "0"
     result = subprocess.run(
         [str(git_exe), "-C", str(devroot), "-c", "credential.helper=", "push", auth_url, branch],
