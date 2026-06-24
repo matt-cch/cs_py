@@ -10,6 +10,7 @@ step-08-github-upstream.py — Step 8: Set Upstream
     python step-08-github-upstream.py --devroot "D:/pjt/cursor/cs_py"
 """
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
