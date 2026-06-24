@@ -51,10 +51,18 @@ def main():
         print("[ERROR] 无法获取当前分支名")
         sys.exit(1)
 
-    # 设置 upstream
+    # 设置 upstream（复用 Step 7 的 GCM 阻断）
+    subprocess.run(
+        [str(git_exe), "-C", str(devroot), "config", "--local", "credential.helper", ""],
+        capture_output=True
+    )
+    env = os.environ.copy()
+    env["GCM_INTERACTIVE"] = "0"
+    env["GIT_TERMINAL_PROMPT"] = "0"
     result = subprocess.run(
         [str(git_exe), "-C", str(devroot), "push", "-u", "origin", branch],
-        capture_output=True, text=True, encoding="utf-8", errors="replace"
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        env=env
     )
     print(result.stdout, end="")
     if result.stderr:
