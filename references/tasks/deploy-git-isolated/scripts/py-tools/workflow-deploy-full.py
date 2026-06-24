@@ -269,30 +269,32 @@ def _run_py_step(name: str, script_path: Path, extra_args: list = None) -> tuple
 
     start = time.time()
     try:
-        proc = subprocess.Popen(
+        result = subprocess.run(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
-            bufsize=1,
+            timeout=120,
         )
-
-        for line in proc.stdout:
-            sys.stdout.write(line)
-            sys.stdout.flush()
-
-        proc.wait()
         elapsed = time.time() - start
 
-        if proc.returncode != 0:
+        if result.stdout:
+            print(result.stdout, end="")
+        if result.stderr:
+            print(result.stderr, end="")
+
+        if result.returncode != 0:
             print(f"[FAIL] {name} 失败 (耗时 {elapsed:.2f}s)")
             return False, elapsed
 
         print(f"[OK] {name} 完成 (耗时 {elapsed:.2f}s)")
         return True, elapsed
 
+    except subprocess.TimeoutExpired:
+        elapsed = time.time() - start
+        print(f"[FAIL] {name} 超时 (>120s)")
+        return False, elapsed
     except Exception as e:
         elapsed = time.time() - start
         print(f"[FAIL] {name} 异常: {e} (耗时 {elapsed:.2f}s)")
