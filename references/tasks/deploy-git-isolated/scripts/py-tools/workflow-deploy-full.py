@@ -191,13 +191,17 @@ def _generate_meta_before_commit(devroot: Path, message: str) -> Path:
     }
     for status, paths in changes.items():
         for p in paths:
-            if "scripts/" in p or "py-steps/" in p or "py-tools/" in p or "ps-steps/" in p or "ps-tools/" in p:
+            # 优先按扩展名判断文档类型（.md/.mdc 无论放在哪个目录都是文档）
+            if p.endswith(".md") or p.endswith(".mdc") or p.endswith(".txt") or p.endswith(".rst"):
+                label = "新增" if status == "A" else ("删除" if status == "D" else "修改")
+                cats["文档更新"].append(f"{label}: {p}")
+            elif "scripts/" in p or "py-steps/" in p or "py-tools/" in p or "ps-steps/" in p or "ps-tools/" in p:
                 label = "新增" if status == "A" else ("删除" if status == "D" else "修改")
                 cats["脚本改造"].append(f"{label}: {p}")
             elif "schema/" in p or "json/" in p:
                 label = "新增" if status == "A" else ("删除" if status == "D" else "修改")
                 cats["规范与模板"].append(f"{label}: {p}")
-            elif "docs/" in p or "README" in p or ".md" in p:
+            elif "docs/" in p or "README" in p:
                 label = "新增" if status == "A" else ("删除" if status == "D" else "修改")
                 cats["文档更新"].append(f"{label}: {p}")
             else:
