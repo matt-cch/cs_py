@@ -96,17 +96,20 @@ def main():
     auth_url = f"https://{username}:{pat}@github.com/{repo_path}"
 
     print("正在 push 到 GitHub ...")
-    # 【自动部署关键】阻止 Git Credential Manager (GCM) OAuth 弹窗
-    # 根因：隔离 Git 的 system 配置设置了 credential.helper=manager
-    #       -c credential.helper= 无法覆盖 system 级别（Git 会收集所有级别依次调用）
-    # 修复：在仓库 local 级别设置空 helper（local 优先级 > system/global）
+    # 【自动部署关键】双重阻断 GCM OAuth 弹窗
+    # 第一层：local 级别覆盖空 helper，阻止 helper 链调用 GCM
+    # 第二层：环境变量 GCM_INTERACTIVE=0，即使 GCM 被调也不弹窗
     subprocess.run(
         [str(git_exe), "-C", str(devroot), "config", "--local", "credential.helper", ""],
         capture_output=True
     )
+    env = os.environ.copy()
+    env["GCM_INTERACTIVE"] = "0"
+    env["GIT_TERMINAL_PROMPT"] = "0"
     result = subprocess.run(
         [str(git_exe), "-C", str(devroot), "push", auth_url, branch],
-        capture_output=True, text=True, encoding="utf-8", errors="replace"
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        env=env
     )
     print(result.stdout, end="")
     if result.stderr:
