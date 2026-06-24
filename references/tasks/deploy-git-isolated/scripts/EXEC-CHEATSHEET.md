@@ -170,6 +170,32 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 ```
 
 
+## Stage S5.3: 全链条部署（Python Workflow）
+
+编排 Step 4-9（add → commit → remote → push → upstream → issue sync），
+可一步到位完成完整流水线，支持 `--step` 单步执行。
+
+**Agent:**
+```powershell
+# 完整部署
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
+
+# 仅执行单步（如仅 push）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --step 7 --message "feat: xxx"
+
+# 指定 Issue 编号（Step 9 同步用）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx" --issue 1
+```
+
+**终端:**
+```powershell
+# 完整部署
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
+```
+
+> 前置：`.env` 中已配置 `GIT_USER_NAME`、`GIT_USER_EMAIL`、`GITHUB_REPO_URL`、`GITHUB_PAT`
+
+
 ## Stage S5.5: 版本记录更新
 
 ### 全量自动检测与更新
@@ -205,26 +231,85 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 ### 架构层级（禁止越级）
 
 ```
-workflow-*          → 编排层（步骤逻辑、判断、报告）
+run-lint.py          → 唯一入口（编排层），支持 --fix 三阶段闭环
   ↓ 通过 py_lib 统一入口
-py_lib.load_plugins → 聚合层（拓扑排序、依赖补齐、registry 注入）
+py_lib.load_plugins  → 聚合层（拓扑排序、依赖补齐、registry 注入）
   ↓ 加载
-py-plugins/*        → 底座层（具体检测/修复能力）
+py-plugins/*         → 底座层（具体检测/修复能力）
 ```
 
-> **铁律**：workflow 禁止直接 `import` plugin。所有能力必须通过 `py_lib.load_plugins()` 获取。
+> **铁律**：
+> 1. **所有 lint 操作必须通过 `run-lint.py` 唯一入口**，禁止绕行其他工具。
+> 2. workflow 禁止直接 `import` plugin。所有能力必须通过 `py_lib.load_plugins()` 获取。
+> 3. 修复能力由各插件内部 `fix=True` 参数提供，`run-lint.py` 编排三阶段闭环。
 
 
-### Workflow A: 全量 lint（run-lint.py）
+### run-lint.py — 唯一 lint 入口
 
 通过 py_lib 加载全部 lint 插件，统一执行、统一报告。
+支持 `--fix` 三阶段闭环：detect → amend → re-verify。
 
-**Agent:**
+#### Phase 1: 检测
+
+**单文件列表（新建/更新文档后必执行）：**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --files "path/to/file.md" "path/to/file.py"
+```
+
+**目录全量扫描：**
 ```powershell
 & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}"
 ```
 
-**按需单类型（通过 profile 筛选）：**
+#### Phase 1-3: 检测→修复→验证闭环（推荐）
+
+```powershell
+# 单文件三阶段闭环
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --files "path/to/file.md" --fix
+
+# 目录全量三阶段闭环
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --fix
+```
+
+**输出示例：**
+```
+[Phase 1] 首次 lint 检测
+  ❌ docs/README.md — 1 处违规 (CRLF)
+  ❌ docs/README.md — 1 处违规 (缺少 meta)
+
+[Phase 2] 执行修复（lint_encoding + md_lint）
+  ✅ 修复完成，共修复 1 个文件
+
+[Phase 3] 重新 lint 验证
+  ✅ docs/README.md (CRLF 已修复)
+  ❌ docs/README.md — 缺少必填字段 meta（不可自动修复）
+```
+
+**注意**：可自动修复的违规类型见下方「可修复 vs 仅检测」表。不可修复项需人工介入。
+
+#### 覆盖度审计（对照 manifest 检查规则完整性）
+
+```powershell
+# audit 模式：读取 schema/json/lint-rules-manifest.json → 加载插件 → 交叉校验覆盖度
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --audit
+```
+
+**输出示例**：
+```
+[run-lint --audit] 覆盖度审计
+  manifest 版本: 1.0.0
+  manifest 登记插件: 7 个
+  manifest 登记规则: 27 条
+  ✅ 插件覆盖度: 100%（7/全匹配）
+  各插件规则明细:
+    link_checker (v1.3.0): 3 条（可修复 0 条）
+    lint_encoding (v1.0.0): 9 条（可修复 3 条）
+    ...
+  结论: ✅ 审计完成
+```
+
+#### 按需单类型（通过 profile 筛选）
+
 ```powershell
 # 仅 JSON
 & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-json
@@ -240,51 +325,27 @@ py-plugins/*        → 底座层（具体检测/修复能力）
 ```
 
 
-### Workflow B: lint→amend→lint 闭环（workflow-lint-amend-lint.py）
+### 可修复 vs 仅检测
 
-通过 py_lib 加载 lint_encoding，完成"检测→修复→验证"闭环。
-
-```powershell
-# 对 task/ 目录执行完整闭环
-& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-lint-amend-lint.py" --devroot "${devroot}" --dir "references\tasks\deploy-git-isolated"
-```
-
-**输出示例：**
-```
-[workflow] 通过 py_lib 加载 lint_encoding 插件 ...
-[workflow] py_lib 已加载插件: ['encoding', 'core', 'lint_encoding', 'lint_json', ...]
-
-[Step 1] 首次 lint 检测（lint_encoding.validate）
-  扫描文件: 79 个
-  违规文件: 18 个
-  违规项: 18 处
-[Step 2] 执行 amend（lint_encoding.validate fix=True）
-  尝试修复: 18 个文件
-  实际修复: 18 个文件
-[Step 3] 重新 lint 验证（lint_encoding.validate）
-  扫描文件: 79 个
-  违规文件: 0 个
-  违规项: 0 处
-[Done] 巡检结论
-  ✅ lint→amend→lint 闭环完成，全部通过
-```
+| 插件 | 可自动修复 | 修复内容 | 仅检测 |
+|------|-----------|---------|-------|
+| `lint_encoding` | ✅ | 双 BOM、去/加 BOM、CRLF→LF | — |
+| `md_lint` | ✅ | description/date 拼接、正文 `---` 污染 | 缺失 frontmatter、缺失必填字段 |
+| `lint_json` | ❌ | — | JSON 语法 |
+| `lint_python` | ❌ | — | Python 语法 |
+| `lint_ps1` | ❌ | — | PowerShell 语法 |
+| `link_checker` | ❌ | — | MD 内部链接断裂 |
 
 
-### 新增 Workflow 的正确姿势
+### 文件类型 → 触发插件速查
 
-```python
-# 1. 通过 py_lib 统一入口获取能力
-from py_lib import load_plugins
-registry = load_plugins(devroot=devroot, tags=["lint", "encoding"])
-
-# 2. 通过 registry 访问插件（禁止直接 import plugin）
-lint_encoding = registry.lint_encoding
-
-# 3. 编排 workflow 步骤
-result = lint_encoding.validate(dir_path=target)
-if result["violations_found"] > 0:
-    lint_encoding.validate(dir_path=target, fix=True)
-```
+| 文件类型 | 语法检测 | 编码检测 | 链接检测 |
+|---------|---------|---------|---------|
+| `.md` / `.mdc` | `md_lint` | `lint_encoding` | `link_checker` |
+| `.py` | `lint_python` | `lint_encoding` | — |
+| `.json` / `.jsonc` | `lint_json` | `lint_encoding` | — |
+| `.ps1` | `lint_ps1` | `lint_encoding` | — |
+| `.js` / `.ts` / `.html` / 等 | — | `lint_encoding` | — |
 
 
 ## Stage S7: Issue 同步

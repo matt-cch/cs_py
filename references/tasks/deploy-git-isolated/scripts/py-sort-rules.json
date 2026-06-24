@@ -3,7 +3,7 @@
     "description": "py-plugins/ 目录下 Python 模块的依赖排序与标签筛选真源。由 py_lib.py 读取并执行拓扑排序，决定加载顺序。入口与配置在 scripts/ 根下，对称于 github-lib.ps1 + lib-sort-rules.json 架构。",
     "strategy": "topological_sort",
     "algorithm": "Kahn",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "plugins": [
     {
@@ -209,7 +209,7 @@
       "description": "归档相关插件（含 core 依赖自动补齐）"
     },
     "lint": {
-      "include_tags": ["lint"],
+      "include_tags": ["lint", "md"],
       "exclude_tags": [],
       "description": "全量 lint（JSON + PS1 + Python + Encoding + Markdown）"
     },

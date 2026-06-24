@@ -18,14 +18,16 @@ meta: {}
 
 | 用户意图 | 你的判断 | 立即执行 |
 |---------|---------|---------|
-| "部署隔离 Git" / "装 git" / "初始化 git" | **场景 A: 首次部署** | 按 Step 1→8 顺序执行 |
+| "部署隔离 Git" / "装 git" / "初始化 git" | **场景 A: 首次部署** | Step 1→3 用 PS 脚本 → Step 4→9 **必须**用 workflow |
 | "连 GitHub" / "push 到 github" / "建仓库" | **场景 B: GitHub 连接** | 确认 `.env` 有 PAT → 执行 Step 1→8 |
 | "检查哪些文件会传上去" / "安全确认" | **场景 C: 安全检查** | 执行 `github-safety-check.ps1` |
 | "git status" / "看看改了什么" / "哪些 staged" | **场景 D: 日常查询** | 执行 `git-isolated.ps1 status` |
-| "commit" / "push" / "add" | **场景 E: 日常操作** | 执行 `git-isolated.ps1 <子命令>` |
+| "发布github" / "自动部署" / "auto deploy" / "完整流水线" | **场景 G: 全自动发布** | 执行 `workflow-deploy-full.py --auto` |
+| "commit并push到github" / "提交并发布" | **场景 E: 提交+发布** | 执行 `workflow-deploy-full.py --message "feat: xxx"` |
 | "同步 Issue" / "更新 Issue" / "追加评论" | **场景 F: Issue 同步** | 执行 `github-sync-issue.ps1` |
 
 > **铁律**：不确定时先执行 `github-safety-check.ps1`，确认无敏感文件后再 push。
+> **铁律**：凡涉及 Step 4-9（add→commit→push→issue sync）的操作，**必须**使用 `workflow-deploy-full.py`，禁止手动逐条调用 ps-steps。
 
 
 ## 场景 A: 首次部署隔离 Git（Step 1→8）
@@ -47,20 +49,9 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 # Step 3: README
 powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-step-03-readme.ps1"
 
-# Step 4: add
-powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-step-04-stage.ps1"
-
-# Step 5: commit
-powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-step-05-commit.ps1"
-
-# Step 6: remote
-powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-step-06-remote.ps1"
-
-# Step 7: push（需要 PAT）
-powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-step-07-push.ps1"
-
-# Step 8: upstream
-powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-step-08-upstream.ps1"
+# Step 4-9: 全链条部署（add → commit → push → issue sync）
+# 【铁律】必须使用 workflow-deploy-full.py，禁止手动逐条调用 ps-steps
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --auto
 ```
 
 **人类终端等价格式**：把 `powershell -ExecutionPolicy Bypass -File` 换成 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\`，路径改用相对路径。
@@ -137,13 +128,17 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `scripts/ps-tools/github-sync-issue-config.json` | Issue 同步配置真源：模板、labels、endpoint 映射 | 调整 Issue 格式时 |
 | `scripts/lib-plugins/github-api.ps1` | 插件：GitHub REST API 封装（UTF-8 encoding） | 被 sync-issue / 其他脚本点源加载 |
 | `scripts/ps-tools/git-isolated.ps1` | 通用包装器：日常 git 子命令 | 日常操作 |
-| `scripts/py-tools/run-lint.py` | **Workflow：全量 lint**。通过 py_lib 聚合全部 lint 插件 | 脚本交付前必执行 |
+| `scripts/py-tools/workflow-deploy-full.py` | **Workflow：全链条部署**。编排 Step 4-9，调用 py-steps 分步执行 | 完整 GitHub 部署流水线 |
+| `scripts/py-steps/step-04-*.py` ~ `step-09-*.py` | Python 版 Step 脚本：add / commit / remote / push / upstream / issue sync | 被 workflow-deploy-full.py 调用 |
+| `scripts/py-tools/run-lint.py` | **Workflow：全量 lint**。--fix 三阶段闭环、--audit 覆盖度审计（对照 lint-rules-manifest.json） | 脚本交付前必执行 |
 | `scripts/py-tools/workflow-lint-amend-lint.py` | **Workflow：编码修复闭环**。通过 py_lib 调用 lint_encoding | 编码问题发现后修复 |
 | `scripts/py-tools/update-version.py` | **Workflow：版本记录更新**。自动发现 → 实测 → 对比 → 更新 .md + history | 记一版 version |
 | `scripts/py-tools/archive_project.py` | **Workflow：项目归档**。scan → compress → verify 三阶段闭环 | 项目归档（cs_py / venv） |
 | `scripts/py-tools/archive_cs_py.py` | 快捷入口：归档 cs_py 分组 | 调用 archive_project.py --group cs_py |
 | `scripts/py-tools/archive_venv.py` | 快捷入口：归档 venv 分组 | 调用 archive_project.py --group venv |
-| `scripts/py_lib.py` | **统一入口**。所有 workflow 必须通过它获取插件能力 | 禁止越级直接 import plugin |
+| `schema/json/lint-rules-manifest.json` | **Lint 规则全局清单**。7 插件 27 条规则，供 audit 巡检对照 | 审计时对照、新增规则后同步更新 |
+| `schema/docs/lint-rules-manifest.md` | 清单结构说明、规则 ID 命名约定、联动义务 | 理解 manifest 格式时查阅 |
+| `scripts/py_lib.py` | **统一入口**。v1.2.0，新增 __version__ / get_rules_version() / registry.rules_version | 禁止越级直接 import plugin |
 | `scripts/py-plugins/lint_json.py` | **底座：JSON 语法验证** | 被 py_lib 加载，不直接调用 |
 | `scripts/py-plugins/lint_ps1.py` | **底座：PowerShell 语法验证** | 被 py_lib 加载，不直接调用 |
 | `scripts/py-plugins/lint_python.py` | **底座：Python 语法验证** | 被 py_lib 加载，不直接调用 |
@@ -212,6 +207,7 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `verified-runtime-index.json` | ✅ | Git 工具链已登记 |
 | 标准流程 | ✅ | SOP.md v1.0（Step 契约 + Ralph Loop） |
 | 执行速查 | ✅ | EXEC-CHEATSHEET.md v1.0（命令+配置+参数） |
+| **Python 全链条部署** | ✅ | workflow-deploy-full.py 编排 Step 4-9，调用 py-steps 分步执行，支持 --step/--issue 参数 |
 | 工具索引 | ✅ | TASK-TOOLS-INDEX.md v1.0（本地+外部引用+边界） |
 | Issue 同步体系 | ✅ | github-sync-issue.ps1 + github-api.ps1 + config.json |
 | **版本记录更新** | ✅ | update-version.py（自动发现 → 实测 → 更新 .md + history） |

@@ -25,6 +25,8 @@ meta: {}
 | 文件 | 路径 | 说明 |
 |------|------|------|
 | JSON Schema 真源 | `json/plugin-result-schema.json` | 机器验证、IDE 提示、文档生成 |
+| Lint 规则全局清单 | `json/lint-rules-manifest.json` | 全部 lint/验证规则清单，供 audit 巡检对照 |
+| Lint 规则清单说明 | `docs/lint-rules-manifest.md` | 清单结构、规则 ID 命名约定、联动义务 |
 | 规范文档 | `docs/plugin-result-schema.md` | 人类阅读、开发参考 |
 | Commit Message 格式模板 | `docs/commit-message-format.md` | Issue 评论中 commit 记录的标准格式（元数据 + 上下文摘要） |
 | 安全审计规范 | `docs/security-audit-spec.md` | 部署前敏感内容巡检流程、检测规则、严重等级定义 |

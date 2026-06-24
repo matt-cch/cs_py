@@ -990,10 +990,57 @@ from archive_empty_handler import detect_empty_dirs
 - 增强 `md_lint.py` 检测能力 → **必须**检查 `markdown-docs-format.mdc` 是否需要补充规则定义
 - 两者任一改版 → 在 `md_lint.py` 的 docstring 中更新版本号，并注明「与 mdc X.X 对齐」
 
+### 8.6 全链条部署 Workflow 铁律
 
-*规范版本: v1.3*  
+> **来源**：用户与 Agent 在 2026-06-24 对话中共同确认。本节解决「Agent 按 steps 手动执行而非 workflow 整体调用」的问题。
+
+#### 8.6.1 问题背景
+
+`workflow-deploy-full.py` 是 Step 4-9 的唯一编排入口，但 Agent 在收到"commit and push"等指令时，习惯手动逐条调用 `ps-steps/` 下的独立脚本，导致：
+1. 跳过 AI 摘要生成（手动调 commit 不会触发 `generate-ai-summary.py`）
+2. 跳过 meta 参数注入（手动调 Step 9 时没有 `--meta`，Issue comment 无 AI 语义摘要）
+3. 跳过 Issue 同步（手动调 push 不会自动触发 issue sync）
+4. `--message` 参数不一致（手动调各步骤可能传不同的 message）
+
+#### 8.6.2 铁律
+
+凡涉及 Step 4-9（add → commit → remote → push → upstream → issue sync）的操作，**必须**使用 `workflow-deploy-full.py` 执行，禁止手动逐条调用 `py-steps/` 下的独立脚本。
+
+**执行的正确路径**：
+
+| 场景 | 命令 |
+|------|------|
+| 全自动发布（不关心 commit message） | `python workflow-deploy-full.py --auto` |
+| 发布并指定 commit message | `python workflow-deploy-full.py --message "feat: xxx"` |
+| 仅执行单步（调试用） | `python workflow-deploy-full.py --step 7 --message "feat: xxx"` |
+
+#### 8.6.3 执行顺序（不可更改）
+
+```
+Step 0: 前置验证（agent 插件 + .env 配置）→ 失败则停止，不执行后续
+Step 4: git add
+Step 4→5 之间: 生成 AI 摘要 + meta（使用 staged diff）
+                → 失败则报错停止（文件已 staged 但未 commit，可 git reset HEAD 回滚）
+Step 5: git commit（使用 --message 或 --auto 自动生成）
+更新 meta commit hash
+Step 6: remote
+Step 7: push
+Step 8: upstream
+Step 9: issue sync（使用 meta 中的 AI 摘要 + 分类信息）
+```
+
+#### 8.6.4 关键设计决策
+
+1. **AI 摘要失败不是静默 fallback**：AI 摘要生成失败时 workflow 直接 exit，并输出「已执行至 Step 4，请执行 git reset HEAD 回滚」。不静默跳过。
+2. **前置验证全量通行后才开始**：agent 插件加载、config.json 配置、.env 变量三方验证全通过后才执行 Step 4。任一失败不执行任何 git 操作。
+3. **--auto 不等于无入参**：--auto 模式自动从 staged 文件列表生成 commit message，无需用户指定 --message，但 .env 和 config.json 仍必须提前配置好。
+4. **`py-steps/` 下的脚本仍保留**：作为 `--step N` 单步调试模式的底层调用，但 Agent 禁止直接调用它们来完成全链条部署。
+
+
+*规范版本: v1.4*  
 *模板来源: schema/task-template/task-canonical-baseline.md*  
 *创建时间: 2026-06-16*  
 *本 task 定制内容: 第 3.2/3.3 节（SOP vs TOOLS-INDEX 区分）、第 6.2 节（TASK-TOOLS-INDEX 位置约定）、第 8 节（本 task 特殊约定）*  
-*本次修订: 2026-06-22，新增第 8.4.7 节（工具命名规范：workflow- / atomic- 前缀，Phase / Atomic / Workflow 边界）、第 8.4.8 节（产出文件默认落盘到 venv/tmp/）*  
+*本次修订: 2026-06-24，新增第 8.6 节（全链条部署 Workflow 铁律）、更新 v1.4*  
+*历史修订: 2026-06-22，新增第 8.4.7 节（工具命名规范）、第 8.4.8 节（产出文件默认落盘）*  
 *历史修订: 2026-06-20，新增第 8.4.5 节（文档不暴露插件文件名）、第 8.5 节（标准文档与实现代码真源对齐）*

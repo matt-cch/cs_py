@@ -212,6 +212,19 @@ meta: {}
 | **Rollback** | `github-sync-issue.ps1 -Mode delete-comment`（如支持）或 GitHub Web 手动删除 |
 
 
+## 5.5 全链条部署（Workflow 编排）
+
+| 契约项 | 定义 |
+|--------|------|
+| **Input** | `.env` 中已配置 `GIT_USER_NAME`、`GIT_USER_EMAIL`、`GITHUB_REPO_URL`、`GITHUB_PAT`；`venv/.opencode/config.json` 已配置 LLM provider |
+| **Process** | 执行 `workflow-deploy-full.py --auto`（全自动模式）或 `--message "feat: xxx"`（指定提交信息） |
+| **Output** | Step 4-9 依次完成：文件 staged → commit 提交 → remote 配置 → push 到 GitHub → upstream 设置 → Issue comment 追加（含 AI 语义摘要） |
+| **Validation** | workflow 内部每步独立验证；最终输出 [SUCCESS] 和总耗时 |
+| **Audit Trail** | 日志：`venv/tmp/workflow-meta-{ts}.json`（含 commit hash、变更分类、AI 摘要） |
+| **Rollback** | AI 摘要生成失败时只到 Step 4（staged），`git reset HEAD` 可回滚；commit 后可用 `git reset --soft HEAD~1` |
+
+> **铁律**：凡涉及 Step 4-9 的操作，必须使用 `workflow-deploy-full.py`，禁止手动逐条调用 `ps-steps/` 下的独立脚本。
+
 ## 6. 关联文件
 
 | 文件 | 职责 | 何时读 |

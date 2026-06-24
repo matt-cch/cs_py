@@ -1,0 +1,232 @@
+{
+  "meta": {
+    "description": "deploy-git-isolated task 的全部 lint/验证规则全局清单。供 audit 巡检时对照核查，确保无规则遗漏。",
+    "version": "1.0.0",
+    "last_updated": "2026-06-24",
+    "source_task": "references/tasks/deploy-git-isolated",
+    "entry_point": "scripts/py-tools/run-lint.py",
+    "plugin_loader": "scripts/py_lib.py",
+    "rule_config": "scripts/py-sort-rules.json",
+    "checklist_purpose": "audit 排查时逐一比对：所有规则是否已覆盖、是否有漏注册、插件版本是否匹配"
+  },
+  "profiles": [
+    {
+      "name": "_default",
+      "include_tags": [],
+      "exclude_tags": [],
+      "description": "向后兼容，加载全部插件"
+    },
+    {
+      "name": "core",
+      "include_tags": ["core"],
+      "description": "基础设施插件（devroot/encoding/constants/core/env_config）"
+    },
+    {
+      "name": "md-validation",
+      "include_tags": ["md", "validation"],
+      "description": "Markdown 验证（md_lint + link_checker）"
+    },
+    {
+      "name": "lint",
+      "include_tags": ["lint", "md"],
+      "description": "全量 lint：JSON + PS1 + Python + Encoding + Markdown"
+    },
+    {
+      "name": "lint-json",
+      "include_tags": ["lint", "json"],
+      "description": "仅 JSON lint"
+    },
+    {
+      "name": "lint-ps1",
+      "include_tags": ["lint", "ps1"],
+      "description": "仅 PowerShell lint"
+    },
+    {
+      "name": "lint-python",
+      "include_tags": ["lint", "python"],
+      "description": "仅 Python lint"
+    },
+    {
+      "name": "lint-encoding",
+      "include_tags": ["lint", "encoding"],
+      "description": "仅编码/BOM/行尾符 lint"
+    },
+    {
+      "name": "validation",
+      "include_tags": ["validation"],
+      "description": "安全审计（security_audit）"
+    },
+    {
+      "name": "archive",
+      "include_tags": ["archive"],
+      "description": "归档插件"
+    },
+    {
+      "name": "minimal",
+      "include_tags": [],
+      "description": "最小功能集（占位）"
+    }
+  ],
+  "plugins": [
+    {
+      "name": "lint_encoding",
+      "version": "1.0.0",
+      "module": "lint_encoding",
+      "tags": ["lint", "encoding"],
+      "depends": ["core"],
+      "description": "文件编码/BOM/行尾符检测器",
+      "file_types": [".py", ".js", ".ts", ".jsx", ".tsx", ".html", ".css", ".md", ".json", ".jsonc", ".yml", ".yaml", ".toml", ".sh", ".ps1", ".txt", ".ini", ".cfg", ".log"],
+      "fixable": true,
+      "rules": [
+        {"id": "LINT-ENC-001", "severity": "info", "description": "检测 UTF-8 BOM 头（前 3 字节 EF BB BF）", "fixable": false},
+        {"id": "LINT-ENC-002", "severity": "error", "description": "检测双 BOM（前 6 字节中出现两次 EF BB BF）", "fixable": true, "fix_action": "去重为单 BOM"},
+        {"id": "LINT-ENC-003", "severity": "error", "description": "非 .ps1 文件不应存在 BOM（NO_BOM_EXTENSIONS）", "fixable": true, "fix_action": "去 BOM → 纯 UTF-8 无 BOM"},
+        {"id": "LINT-ENC-004", "severity": "info", "description": ".ps1 文件 UTF-8 BOM 期望（由规则 002 覆盖）", "fixable": false},
+        {"id": "LINT-ENC-005", "severity": "error", "description": ".md/.mdc 文件必须使用 LF 换行符，禁止 CRLF", "fixable": true, "fix_action": "替换 \\r\\n 为 \\n"},
+        {"id": "LINT-ENC-006", "severity": "none", "description": "空文件跳过，不视为违规", "fixable": false},
+        {"id": "LINT-ENC-007", "severity": "none", "description": "跳过二进制/不可读扩展名（.bat/.cmd/.exe/.dll/.zip/.png/.jpg/.gif/.ico）", "fixable": false},
+        {"id": "LINT-ENC-008", "severity": "none", "description": "跳过隔离目录（venv/ node_modules/ .git/ __pycache__/）", "fixable": false},
+        {"id": "LINT-ENC-009", "severity": "error", "description": "文件读取失败时记录错误但不崩溃", "fixable": false}
+      ]
+    },
+    {
+      "name": "md_lint",
+      "version": "1.2.0",
+      "module": "md_lint",
+      "tags": ["md", "validation"],
+      "depends": [],
+      "description": "Markdown 格式 Linter（frontmatter 合规性）",
+      "file_types": [".md", ".mdc"],
+      "fixable": true,
+      "rules": [
+        {"id": "MD-LINT-001", "severity": "error", "description": "文件第 1 行必须有 YAML frontmatter（--- 定界符）", "fixable": false},
+        {"id": "MD-LINT-002", "severity": "error", "description": "frontmatter 必须包含 4 个必填字段：title/description/date/meta", "fixable": false},
+        {"id": "MD-LINT-003", "severity": "error", "description": "date 格式严格为 YYYY-MM-DD", "fixable": false},
+        {"id": "MD-LINT-004", "severity": "error", "description": "禁止 description 与 date 拼接在同一行", "fixable": true, "fix_action": "拆分为两行"},
+        {"id": "MD-LINT-005", "severity": "error", "description": "正文中严禁使用 --- 水平分隔线（frontmatter 边界污染）", "fixable": true, "fix_action": "删除或替换为 ***"},
+        {"id": "MD-LINT-006", "severity": "error", "description": "frontmatter 必须从第 1 行开始", "fixable": false},
+        {"id": "MD-LINT-007", "severity": "none", "description": "SKILL.md/AGENTS.md/*.mdc 豁免 frontmatter 字段校验", "fixable": false},
+        {"id": "MD-LINT-008", "severity": "none", "description": "代码块内 --- 例外处理（``` 配对追踪）", "fixable": false}
+      ]
+    },
+    {
+      "name": "link_checker",
+      "version": "1.3.0",
+      "module": "link_checker",
+      "tags": ["md", "validation"],
+      "depends": ["core", "constants"],
+      "description": "Markdown 内部相对链接验证器",
+      "file_types": [".md", ".mdc"],
+      "fixable": false,
+      "rules": [
+        {"id": "LINK-CHK-001", "severity": "error", "description": "验证内部相对链接目标文件是否存在（支持 README.md 目录回退）", "fixable": false},
+        {"id": "LINK-CHK-002", "severity": "error", "description": "检测 frontmatter 边界污染（正文 ---，与 MD-LINT-005 重复）", "fixable": false},
+        {"id": "LINK-CHK-003", "severity": "none", "description": "目录链接自动解析到 README.md", "fixable": false}
+      ]
+    },
+    {
+      "name": "lint_json",
+      "version": "1.0.0",
+      "module": "lint_json",
+      "tags": ["lint", "json"],
+      "depends": ["core"],
+      "description": "JSON 语法验证器",
+      "file_types": [".json", ".jsonc"],
+      "fixable": false,
+      "rules": [
+        {"id": "LINT-JSON-001", "severity": "error", "description": "json.loads 验证 JSON 语法有效性（含 .jsonc 严格模式）", "fixable": false}
+      ]
+    },
+    {
+      "name": "lint_python",
+      "version": "1.0.0",
+      "module": "lint_python",
+      "tags": ["lint", "python"],
+      "depends": ["core"],
+      "description": "Python 脚本语法验证器",
+      "file_types": [".py"],
+      "fixable": false,
+      "rules": [
+        {"id": "LINT-PY-001", "severity": "error", "description": "py_compile.compile 验证 Python 语法", "fixable": false}
+      ]
+    },
+    {
+      "name": "lint_ps1",
+      "version": "1.0.0",
+      "module": "lint_ps1",
+      "tags": ["lint", "ps1"],
+      "depends": ["core"],
+      "description": "PowerShell 脚本语法验证器",
+      "file_types": [".ps1"],
+      "fixable": false,
+      "rules": [
+        {"id": "LINT-PS1-001", "severity": "error", "description": "PSParser::Tokenize 验证 .ps1 语法（超时 30s）", "fixable": false}
+      ]
+    },
+    {
+      "name": "security_audit",
+      "version": "1.0.0",
+      "module": "security_audit",
+      "tags": ["core", "validation"],
+      "depends": [],
+      "description": "部署前敏感内容扫描审计",
+      "file_types": ["*"],
+      "fixable": false,
+      "rules": [
+        {"id": "SEC-AUDIT-001", "severity": "critical/high", "description": "pattern_scan：10 种敏感模式正则扫描（API Key/GitHub PAT/私钥/AWS Key 等）", "fixable": false},
+        {"id": "SEC-AUDIT-002", "severity": "none", "description": "误报排除规则（6 条内置规则 + 变量名启发式）", "fixable": false},
+        {"id": "SEC-AUDIT-003", "severity": "critical", "description": "git_tracking：验证 8 种敏感文件模式未被 git 追踪", "fixable": false},
+        {"id": "SEC-AUDIT-004", "severity": "info", "description": "summary：汇总报告 overall_status（pass/warn/fail）", "fixable": false}
+      ]
+    }
+  ],
+  "routing": {
+    "ext_to_plugin": {
+      ".py": ["lint_python"],
+      ".ps1": ["lint_ps1"],
+      ".json": ["lint_json"],
+      ".jsonc": ["lint_json"],
+      ".md": ["md_lint", "link_checker"],
+      ".mdc": ["md_lint", "link_checker"]
+    },
+    "encoding_extensions_auto_attach": {
+      "description": "以下扩展名自动附加 lint_encoding，即使不在 EXT_TO_PLUGIN 路由表中",
+      "extensions": [".js", ".ts", ".jsx", ".tsx", ".html", ".css", ".yml", ".yaml", ".toml", ".sh", ".txt", ".ini", ".cfg", ".log"]
+    }
+  },
+  "fix_capabilities": {
+    "fixable_plugins": ["lint_encoding", "md_lint"],
+    "operations": [
+      {"plugin": "lint_encoding", "action": "去 BOM（非 .ps1 文件）", "rule_ids": ["LINT-ENC-003"]},
+      {"plugin": "lint_encoding", "action": "双 BOM → 单 BOM（.ps1 文件）", "rule_ids": ["LINT-ENC-002"]},
+      {"plugin": "lint_encoding", "action": "CRLF → LF（.md/.mdc 文件）", "rule_ids": ["LINT-ENC-005"]},
+      {"plugin": "md_lint", "action": "description/date 行拆分", "rule_ids": ["MD-LINT-004"]},
+      {"plugin": "md_lint", "action": "删除正文 --- 或替换为 ***", "rule_ids": ["MD-LINT-005"]}
+    ]
+  },
+  "cross_references": {
+    "rule_config_file": "scripts/py-sort-rules.json",
+    "entry_point": "scripts/py-tools/run-lint.py",
+    "plugin_dir": "scripts/py-plugins/",
+    "plugin_loader": "scripts/py_lib.py",
+    "source_rules": {
+      "AGENTS.md": "LINT-ENC-001~009（编码/BOM/CRLF 规范）",
+      ".cursor/rules/markdown-docs-format.mdc": "MD-LINT-001~008（frontmatter 格式规范）"
+    },
+    "audit_workflow": "scripts/py-tools/workflow-security-audit.py（安全审计独立入口）"
+  },
+  "summary": {
+    "total_plugins": 7,
+    "total_rules": 29,
+    "fixable_rules": 5,
+    "rule_ids_by_plugin": {
+      "lint_encoding": "LINT-ENC-001 ~ LINT-ENC-009（9 条）",
+      "md_lint": "MD-LINT-001 ~ MD-LINT-008（8 条）",
+      "link_checker": "LINK-CHK-001 ~ LINK-CHK-003（3 条）",
+      "lint_json": "LINT-JSON-001（1 条）",
+      "lint_python": "LINT-PY-001（1 条）",
+      "lint_ps1": "LINT-PS1-001（1 条）",
+      "security_audit": "SEC-AUDIT-001 ~ SEC-AUDIT-004（4 条）"
+    }
+  }
+}

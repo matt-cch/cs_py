@@ -54,6 +54,14 @@
       "confidence": "medium",
       "entry_script": "README.md",
       "description": "不确定走哪个场景，展示 README 场景化决策入口"
+    },
+    {
+      "id": "task-deploy-git-S06",
+      "scenario_name": "全自动 GitHub 部署",
+      "trigger_words": ["发布github", "全自动部署", "auto deploy", "自动发布", "完整流水线", "自动commit+push", "自动提交推送", "发布到github"],
+      "confidence": "high",
+      "entry_script": "scripts/py-tools/workflow-deploy-full.py",
+      "description": "Step 4-9 全自动执行：add → AI 摘要生成 → commit → remote → push → upstream → issue sync。前置验证通过后零干预执行。不传 message 时用 --auto 自动生成。"
     }
   ],
   "conflict_domains": {

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-py_lib.py — Python 插件聚合入口（v1.1.0）
+py_lib.py — Python 插件聚合入口（v1.2.0）
 职责：读取 py-sort-rules.json → 拓扑排序 → 标签筛选 → 动态 import 插件
 
 设计原则：
@@ -23,6 +23,8 @@ import json
 import os
 import sys
 from pathlib import Path
+
+__version__ = "1.2.0"
 
 # 入口文件所在目录（scripts/）
 _SCRIPTS_DIR = Path(__file__).parent.resolve()
@@ -126,14 +128,21 @@ class PluginRegistry:
     提供 devroot 上下文和路径解析工具，供插件访问外部资源。
     """
 
-    def __init__(self, devroot=None):
+    def __init__(self, devroot=None, rules_version=None):
         """
         参数:
             devroot: 开发根路径（核心 cwd 判断基准）。强烈建议传入，用于路径解析和验证。
+            rules_version: py-sort-rules.json 的版本号
         """
         self.devroot = devroot
         self._plugins = {}
         self._modules = {}
+        self._rules_version = rules_version or "unknown"
+
+    @property
+    def rules_version(self) -> str:
+        """返回 py-sort-rules.json 的真源版本号"""
+        return self._rules_version
 
     def resolve_path(self, path_template: str) -> str:
         """
@@ -202,6 +211,12 @@ class PluginRegistry:
         return list(self._plugins.keys())
 
 
+def get_rules_version() -> str:
+    """返回 py-sort-rules.json 的真源版本号"""
+    rules = _load_rules()
+    return rules.get("meta", {}).get("version", "unknown")
+
+
 def list_plugins(tags=None):
     """
     列出 py-sort-rules.json 中定义的可用插件（不加载，只返回元数据）。
@@ -268,9 +283,10 @@ def load_plugins(devroot=None, tags=None, profile="_default"):
 
     # 步骤 1: 加载配置的插件
     rules = _load_rules()
+    rules_ver = rules.get("meta", {}).get("version", "unknown")
     plugins, name_map = _resolve_plugins(rules, tags=tags, profile=profile)
 
-    registry = PluginRegistry(devroot=devroot)
+    registry = PluginRegistry(devroot=devroot, rules_version=rules_ver)
     registry.load(plugins, name_map)
 
     return registry

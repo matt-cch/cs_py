@@ -8,6 +8,7 @@ generate-ai-summary.py — AI 语义摘要生成器（示范脚本）
 
 用法：
     python generate-ai-summary.py --devroot "D:/pjt/cursor/cs_py"
+    python generate-ai-summary.py --cached --message "feat: xxx"
     python generate-ai-summary.py --commit-range "HEAD~1..HEAD" --message "feat: xxx"
 
 输出：
@@ -30,11 +31,16 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 
-def get_git_diff(devroot: Path, commit_range: str = "HEAD~1..HEAD") -> str:
-    """获取指定 commit 范围的 diff 文本"""
+def get_git_diff(devroot: Path, commit_range: str = "HEAD~1..HEAD", cached: bool = False) -> str:
+    """获取 git diff 文本。commit_range 仅当 cached=False 时使用。"""
     git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
+    cmd = [str(git_exe), "-C", str(devroot), "diff"]
+    if cached:
+        cmd.append("--cached")
+    else:
+        cmd.append(commit_range)
     result = subprocess.run(
-        [str(git_exe), "-C", str(devroot), "diff", commit_range],
+        cmd,
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -46,11 +52,16 @@ def get_git_diff(devroot: Path, commit_range: str = "HEAD~1..HEAD") -> str:
     return result.stdout
 
 
-def get_changed_files(devroot: Path, commit_range: str = "HEAD~1..HEAD") -> list[str]:
+def get_changed_files(devroot: Path, commit_range: str = "HEAD~1..HEAD", cached: bool = False) -> list[str]:
     """获取变更文件列表"""
     git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
+    cmd = [str(git_exe), "-C", str(devroot), "diff", "--name-only"]
+    if cached:
+        cmd.append("--cached")
+    else:
+        cmd.append(commit_range)
     result = subprocess.run(
-        [str(git_exe), "-C", str(devroot), "diff", "--name-only", commit_range],
+        cmd,
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -108,12 +119,18 @@ Diff：
     start = time.time()
     try:
         # 显式构造 AgentCore，传入 config.json 的 provider_cfg
+        # 【注意】摘要场景不需要 thinking（deep reasoning），清除 thinking 参数
+        # 否则 reasoning_content 会消耗全部 max_tokens，导致 content 为空
+        clean_cfg = dict(provider_cfg)
+        clean_cfg.pop("thinking", None)
+        # max_tokens 从 provider_cfg 的 output_limit 取（config.json 中配的模型上限）
+        max_output_tokens = clean_cfg.get("output_limit") or 32768
         agent = registry.agent_core.AgentCore(
             model=None,
             temperature=None,  # 使用 provider_cfg 中的 temperature（config.json 已配 1.0）
-            max_tokens=1024,
+            max_tokens=max_output_tokens,
             enable_tools=False,
-            provider_cfg=provider_cfg,
+            provider_cfg=clean_cfg,
         )
         summary = agent.run(
             prompt=prompt,
@@ -132,7 +149,8 @@ Diff：
 def main() -> int:
     parser = argparse.ArgumentParser(description="AI 语义摘要生成器（nanobot Agent 示范）")
     parser.add_argument("--devroot", default=r"D:\pjt\cursor\cs_py", help="Devroot 路径")
-    parser.add_argument("--commit-range", default="HEAD~1..HEAD", help="Git diff 范围")
+    parser.add_argument("--commit-range", default="HEAD~1..HEAD", help="Git diff 范围（仅当未传 --cached 时使用）")
+    parser.add_argument("--cached", action="store_true", help="使用 staged diff（git diff --cached），替代 --commit-range")
     parser.add_argument("--message", default="", help="Commit message（覆盖自动读取）")
     parser.add_argument("--output-dir", default=None, help="输出目录（默认 devroot/venv/tmp）")
     args = parser.parse_args()
@@ -153,9 +171,15 @@ def main() -> int:
         commit_message = result.stdout.strip() or "（无 commit message）"
 
     # 2. 获取 diff 和变更文件
-    print(f"[Diff] 读取范围: {args.commit_range}")
-    diff_text = get_git_diff(devroot, args.commit_range)
-    changed_files = get_changed_files(devroot, args.commit_range)
+    if args.cached:
+        diff_source = "staged (--cached)"
+        diff_text = get_git_diff(devroot, cached=True)
+        changed_files = get_changed_files(devroot, cached=True)
+    else:
+        diff_source = args.commit_range
+        diff_text = get_git_diff(devroot, args.commit_range)
+        changed_files = get_changed_files(devroot, args.commit_range)
+    print(f"[Diff] 读取范围: {diff_source}")
     print(f"[Diff] 变更文件: {len(changed_files)} 个")
 
     if not diff_text.strip():

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-插件：Markdown 内部相对链接验证器（v1.2.0）
+插件：Markdown 内部相对链接验证器（v1.3.0）
 标签：md, validation
 依赖：core, constants
 
@@ -84,13 +84,14 @@ def _resolve_link(source_file: Path, url: str, task_dir: Path) -> Path:
         return source_file.parent / url
 
 
-def validate(task_dir: str = None, devroot: str = None) -> dict:
+def validate(task_dir: str = None, devroot: str = None, dir_path: str = None) -> dict:
     """
     验证指定目录下所有 Markdown 文件的内部相对链接
 
     参数:
-        task_dir: 要验证的 task 目录路径。如未传入，尝试从 __plugin_registry__ 获取 devroot 并拼接。
+        task_dir: 要验证的 task 目录路径。如未传入，尝试从 dir_path 或 __plugin_registry__ 获取。
         devroot: 开发根路径（可选，优先于 registry 中的 devroot）
+        dir_path: 兼容 run-lint 统一调用接口（与 task_dir 同义）
 
     返回:
         {
@@ -121,11 +122,13 @@ def validate(task_dir: str = None, devroot: str = None) -> dict:
 
     # 确定 task_dir
     if not task_dir:
+        task_dir = dir_path
+    if not task_dir:
         if _devroot:
             task_dir = Path(_devroot) / "references" / "tasks" / "deploy-git-isolated"
         else:
             raise ValueError(
-                "task_dir 未传入，且无法从 devroot 推导。"
+                "task_dir 未传入，且无法从 devroot 或 dir_path 推导。"
                 "请传入 task_dir 或确保 py_lib 加载时设置了 devroot。"
             )
 
@@ -185,6 +188,83 @@ def validate(task_dir: str = None, devroot: str = None) -> dict:
         "broken": len(issues),
         "issues": issues,
         "format_violations": format_violations
+    }
+
+
+def validate_file(filepath: str) -> dict:
+    """
+    验证单个 Markdown 文件的内部相对链接（兼容 run-lint --files 路由接口）。
+
+    参数:
+        filepath: 文件路径
+
+    返回 Plugin Result Schema v1.0.0 格式 dict。
+    """
+    fp = Path(filepath)
+    if fp.suffix.lower() not in (".md", ".mdc"):
+        return {
+            "success": True,
+            "schema_version": "1.0.0",
+            "plugin": "link_checker",
+            "files_scanned": 1,
+            "files_with_violations": 0,
+            "violations_found": 0,
+            "violations": [],
+            "metadata": {"checked_links": 0, "broken_links": 0},
+        }
+
+    content = fp.read_text(encoding="utf-8")
+
+    # 确定链接解析根目录
+    task_dir = fp.parent
+    if __plugin_registry__:
+        _devroot = getattr(__plugin_registry__, "devroot", None)
+        if _devroot:
+            task_dir = Path(_devroot)
+
+    issues = []
+    checked = 0
+
+    links = _extract_md_links(content)
+    for text, url in links:
+        if not _is_relative_link(url):
+            continue
+        checked += 1
+        target = _resolve_link(fp, url, task_dir)
+        if target is None:
+            continue
+        if target.suffix == '' and not target.exists():
+            readme_candidate = target / "README.md"
+            if readme_candidate.exists():
+                target = readme_candidate
+        if not target.exists():
+            issues.append({
+                "source": str(fp),
+                "link_text": text,
+                "url": url,
+                "resolved": str(target)
+            })
+
+    violations = []
+    for issue in issues:
+        violations.append({
+            "file": str(fp),
+            "line": None,
+            "context": f"断裂链接: '{issue['link_text']}' → {issue['url']} (解析: {issue['resolved']})"
+        })
+
+    return {
+        "success": True,
+        "schema_version": "1.0.0",
+        "plugin": "link_checker",
+        "files_scanned": 1,
+        "files_with_violations": 1 if violations else 0,
+        "violations_found": len(violations),
+        "violations": violations,
+        "metadata": {
+            "checked_links": checked,
+            "broken_links": len(issues),
+        },
     }
 
 

@@ -18,9 +18,12 @@
       {"version": "0.13.0", "date": "2026-06-20", "note": "task-canonical-baseline.md 新增 8.4.5：文档层面也不暴露插件文件名——禁止在索引/速查表中硬编码插件清单，能力类别由入口 API 动态发现"},
       {"version": "0.14.0", "date": "2026-06-20", "note": "task-canonical-baseline.md 新增 8.5：标准文档与实现代码的真源对齐原则——标准文档（如 .mdc）是唯一真源，实现代码（如 md_lint.py）是忠实实现；冲突时以标准为准，禁止实现自行扩展规则"},
       {"version": "0.15.0", "date": "2026-06-20", "note": "md_lint v1.2.0：docstring 与 mdc 逐条对齐（实现状态矩阵）；新增 frontmatter 必须从第 1 行开始检测；新增代码块内 --- 例外（通过 ``` 配对追踪）；功能测试 4 场景全部通过"},
-      {"version": "0.16.0", "date": "2026-06-22", "note": "新增 update-version.py（py-tools Workflow）：自动发现 venv/version/ 工具、实测本地版本、对比记录版本、更新 .md + 追加 history。依赖 runtime_version 插件（py-plugins/，不暴露）。替代 5 个独立 get-*-version.ps1 脚本。"}
+      {"version": "0.16.0", "date": "2026-06-22", "note": "新增 update-version.py（py-tools Workflow）：自动发现 venv/version/ 工具、实测本地版本、对比记录版本、更新 .md + 追加 history。依赖 runtime_version 插件（py-plugins/，不暴露）。替代 5 个独立 get-*-version.ps1 脚本。"},
+      {"version": "0.17.0", "date": "2026-06-24", "note": "新增 workflow-deploy-full.py（py-tools Workflow）：全链条部署编排 Step 4-9，调用 py-steps 分步执行，支持 --step/--issue 参数。同步更新 README/TASK-TOOLS-INDEX/EXEC-CHEATSHEET 三处联动。"},
+      {"version": "0.18.0", "date": "2026-06-24", "note": "lint 体系全面升级：link_checker v1.3.0（validate_file + dir_path 兼容）、py-sort-rules v1.1.0（lint profile 增加 md tag）、py_lib v1.2.0（__version__/get_rules_version/registry.rules_version）、run-lint.py v1.3.0（--audit 覆盖度审计）、新增 schema/json/lint-rules-manifest.json 全局规则清单。"}
     ],
-    "last_updated": "2026-06-22",
+    "version": "0.18.0",
+    "last_updated": "2026-06-24T18:00:00",
     "source_of_truth": "README.md",
     "trigger_index": "references/tasks/deploy-git-isolated/task-scenario-triggers.json",
     "tools_index": "references/tasks/deploy-git-isolated/TASK-TOOLS-INDEX.md",
@@ -309,7 +312,13 @@
       "prerequisites": [".env 中 GITHUB_PAT", "github-sync-issue-config.json 存在"]
     }
   ],
-  "active_scripts": [
+    "active_scripts": [
+    {
+      "name": "workflow-deploy-full.py",
+      "role": "全链条部署 Workflow：编排 Step 4-9（add→commit→remote→push→upstream→issue sync），调用 py-steps 分步执行，自动生成 AI 摘要和 issue meta",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/workflow-deploy-full.py",
+      "status": "ready"
+    },
     {
       "name": "github-lib.ps1",
       "role": "共享库聚合入口：拓扑排序 + Profile/Include/Exclude 三层筛选 + 依赖自动补齐",
@@ -420,7 +429,7 @@
     },
     {
       "name": "py_lib.py",
-      "role": "Python 插件聚合入口：拓扑排序 + 标签筛选 + 依赖补齐 + devroot 路径解析（对称于 github-lib.ps1）",
+      "role": "Python 插件聚合入口：拓扑排序 + 标签筛选 + 依赖补齐 + devroot 路径解析。v1.2.0，新增 __version__ / get_rules_version() / registry.rules_version 版本管理 API",
       "path": "references/tasks/deploy-git-isolated/scripts/py_lib.py",
       "status": "ready"
     },
@@ -474,7 +483,7 @@
     },
     {
       "name": "run-lint.py",
-      "role": "Workflow：全量 lint + 单文件列表 lint（--files 混合类型自动路由）。通过 py_lib 加载 lint 插件",
+      "role": "Workflow：全量 lint + --files 单文件列表混合路由 + --fix 三阶段闭环 + --audit 覆盖度审计。v1.3.0。通过 py_lib 加载 lint 插件，对照 lint-rules-manifest.json 做交叉校验",
       "path": "references/tasks/deploy-git-isolated/scripts/py-tools/run-lint.py",
       "status": "ready"
     },

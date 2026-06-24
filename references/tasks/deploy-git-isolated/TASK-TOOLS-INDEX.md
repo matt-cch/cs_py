@@ -46,69 +46,64 @@ meta:
 | `github-safety-check.ps1` | 综合安全检查（tracked/staged/敏感文件） | push 前必执行 | ready |
 | `git-verify-isolation.ps1` | 验证隔离效果（独立使用） | 怀疑 PATH 泄漏时 | ready |
 
-### 1.4 Lint 插件体系（新增）
+### 1.4 Lint 插件体系
 
 **可用能力**（由 `py_lib` 插件体系动态提供）：
 
 lint 体系覆盖 JSON / PowerShell / Python / Encoding / Markdown / Link 等验证。具体有哪些插件可用、各自的标签与职责，**通过入口 API 动态发现**，禁止在静态文档中硬编码插件清单。
 
 ```python
-# 发现全部可用插件（正规入口）
 from py_lib import list_plugins
-for p in list_plugins():
-    print(f"{p['name']}: {p['description']} (tags: {p['tags']})")
-
-# 按标签筛选（如只看 lint 相关）
 lint_plugins = list_plugins(tags=["lint"])
 ```
 
-> **铁律**：插件清单的唯一真源是 `py-sort-rules.json`（机器可读）。人类速查表只说明「有哪些能力类别」，不列出具体插件文件名，防止上层调用者越级直接 import。
+> **铁律**：
+> 1. **`run-lint.py` 是 lint 唯一入口**，所有 lint 操作必须通过它。
+> 2. 插件清单的真源是 `py-sort-rules.json`，人类速查只说明能力类别。
+> 3. workflow 层禁止直接 `import` plugin。
 
-**CLI 入口**（`py-tools/`，即 Workflow 层）：
+**CLI 入口**（唯一）：
 
 | 脚本 | 职责 | 典型场景 | 状态 |
 |------|------|---------|------|
-| `run-lint.py` | **Workflow：全量 lint + 单文件列表 lint（`--files` 混合类型自动路由）**。通过 py_lib 加载 lint 插件，统一执行、统一报告 | 脚本交付前全量/按需/单文件 lint | ready |
-| `workflow-lint-amend-lint.py` | **Workflow：编码修复闭环**。通过 py_lib 加载 lint_encoding，完成"检测→修复→验证" | 编码问题发现后的修复闭环 | ready |
+| `run-lint.py` | **Lint 唯一入口**。全量/按 `--profile`/按 `--files` 路由，支持 `--fix` 三阶段闭环、`--audit` 覆盖度审计 | 新建/更新文档后必执行；规则审计时用 `--audit` | ready |
 
-**架构铁律**：
-- workflow 层 **禁止** 直接 `import` plugin
-- 所有能力必须通过 `py_lib.load_plugins()` 获取
-- workflow 只负责步骤编排，不实现检测/修复逻辑
+**覆盖度审计**（新增，规则清单对照）：
 
-**lint + fix 典型工作流**：
 ```powershell
-# Step 1: 全量检测（run-lint workflow → py_lib → plugins）
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint
-
-# Step 1b: 单文件/多文件混合类型检测（自动按扩展名路由到对应插件）
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --files "${devroot}\references\tasks\deploy-git-isolated\scripts\py-plugins\github_api.py"
-
-# Step 2: 对指定目录执行 lint→amend→lint 闭环（workflow → py_lib → lint_encoding）
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-lint-amend-lint.py" --devroot "${devroot}" --dir "references\tasks\deploy-git-isolated"
-
-# Step 3: 重新验证
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint
+# 对照 lint-rules-manifest.json 检查规则覆盖度
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --audit
 ```
 
-**Profile 用法速查**：
-```python
-# 全量 lint（JSON + PS1 + Python + Encoding）
-registry = load_plugins(devroot="...", profile="lint")
+**规则清单真源**：`schema/json/lint-rules-manifest.json`（所有 lint 规则 ID、插件归属、可修复性、文件类型路由）
 
-# 仅 JSON
-registry = load_plugins(devroot="...", profile="lint-json")
+**典型工作流（一步闭环）**：
+```powershell
+# 单文件 lint→amend→lint 闭环（新建/更新文档后）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --files "path/to/file.md" --fix
 
-# 仅编码/BOM
-registry = load_plugins(devroot="...", profile="lint-encoding")
+# 目录全量 lint→amend→lint 闭环
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --fix
 
-# 按标签自由组合
-registry = load_plugins(devroot="...", tags=["lint", "encoding"])
+# 仅检测（不修复）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --files "path/to/file.py"
 ```
 
-> 依赖：`py_lib.py` + `py-sort-rules.json` 拓扑排序加载。插件通过 `__plugin_registry__` 访问 devroot。
-> 与 schema/tool/ 通用 lint 的区别：task 本地 lint 插件集成在 py_lib 插件体系中，可按 profile 按需加载；schema/tool/ 下的 lint-json.py / lint-ps1.ps1 是全局通用工具，不依赖 py_lib。
-> 本 task 新建脚本交付前，**优先使用 task 本地 lint 插件**（通过 run-lint.py 或 py_lib），保持与现有插件体系对齐。
+**文件类型 → 触发插件自动路由**：
+
+| 文件 | 语法检测 | 编码检测 | 链接检测 |
+|------|---------|---------|---------|
+| `.md` / `.mdc` | `md_lint` | `lint_encoding` | `link_checker` |
+| `.py` | `lint_python` | `lint_encoding` | — |
+| `.json` / `.jsonc` | `lint_json` | `lint_encoding` | — |
+| `.ps1` | `lint_ps1` | `lint_encoding` | — |
+| `.js` / `.ts` / 等 | — | `lint_encoding` | — |
+
+**可修复 vs 仅检测**：见 `scripts/EXEC-CHEATSHEET.md` Stage S6 表格。
+
+> 依赖：`py_lib.py`（v1.2.0） + `py-sort-rules.json`（v1.1.0）拓扑排序加载。
+> 版本管理 API：`from py_lib import __version__`（py_lib 自身版本）、`get_rules_version()`（py-sort-rules 版本）、`registry.rules_version`（运行时规则版本）。
+> 插件通过 `__plugin_registry__` 访问 devroot。
 
 ### 1.3 版本记录更新
 
@@ -263,6 +258,59 @@ print(ts["utc_iso"])     # 2026-01-15T01:00:00Z
 > 架构：三层 + 配置契约。Workflow 通过 `py_lib.load_plugins(profile="archive")` 调用 `archive_config` / `archive_scanner` / `archive_compressor` 插件。
 > 配置真源：`py-tools/archive-groups.json`（黑白名单、输出格式）
 
+### 1.7 部署编排 Workflow（Python 版）
+
+Python 版部署流水线，与 PS 版 Step 1-8 功能对等。`workflow-deploy-full.py` 编排 Step 4-9（add → commit → remote → push → upstream → issue sync），按序调用 `py-steps/` 下的独立 step 脚本，任何一步失败立即停止。
+
+**底座脚本**（`py-steps/`，被 workflow 按序调用）：
+
+| 脚本 | 职责 | 对应 PS 版 |
+|------|------|-----------|
+| `step-04-github-deploy-add.py` | 安全 add + 显示 staged | `github-step-04-stage.ps1` |
+| `step-04-github-init-only.py` | 仅 init（部分场景） | — |
+| `step-05-github-commit.py` | git commit | `github-step-05-commit.ps1` |
+| `step-06-github-remote.py` | 添加 remote | `github-step-06-remote.ps1` |
+| `step-07-github-push.py` | git push（从 .env 读取 PAT） | `github-step-07-push.ps1` |
+| `step-08-github-upstream.py` | 设置 upstream | `github-step-08-upstream.ps1` |
+| `step-09-github-sync-issue.py` | Issue 同步 | `github-sync-issue.ps1` |
+
+**编排 Workflow**：
+
+| 脚本 | 职责 | 典型场景 | 状态 |
+|------|------|---------|------|
+| `workflow-deploy-full.py` | **全链条部署 Workflow**：编排 Step 4-9，调用 py-steps 分步执行。支持 `--step` 单步执行、`--message` 自定义提交信息、`--issue` 指定 Issue 编号。自动生成 AI 语义摘要和 Issue comment meta。 | 执行完整 GitHub 部署流水线 | ready |
+
+**架构**：
+```
+workflow-deploy-full.py（Workflow 编排）
+  ├── [Preflight] agent 插件 + .env 前置验证
+  ├── py-steps/step-04-github-deploy-add.py
+  ├── generate-ai-summary.py（Step 4→5 之间，使用 --cached）
+  ├── py-steps/step-05-github-commit.py
+  ├── [更新 meta commit hash]
+  ├── py-steps/step-06-github-remote.py
+  ├── py-steps/step-07-github-push.py
+  ├── py-steps/step-08-github-upstream.py
+  └── py-steps/step-09-github-sync-issue.py（接收 --meta）
+```
+
+**CLI 用法**：
+```powershell
+# 全自动发布（从 staged 文件自动生成 commit message）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --auto
+
+# 完整全链条部署（指定 commit message）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
+
+# 仅执行单步（如仅 push，调试用）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --step 7 --message "feat: xxx"
+
+# 指定 Issue 编号（Step 9 用）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx" --issue 1
+```
+
+> **与 PS 版的关系**：PS 版（`github-step-0N-*.ps1`）为原始实现，功能完备；Python 版（`py-steps/step-0N-*.py` + `workflow-deploy-full.py` 编排）为同能力重构版，提供更灵活的编排参数和自动化（AI 摘要、动态 meta）。**凡涉及 Step 4-9 的操作，必须使用 Python 版 workflow，禁止手动逐条调用 ps-steps。**
+
 
 ## 2. 外部通用工具引用（runtime / schema/tool）
 
@@ -304,6 +352,7 @@ print(ts["utc_iso"])     # 2026-01-15T01:00:00Z
 | 项目归档（venv） | `archive_venv.py`（本地 workflow） | `archive_project.py --group venv` | 禁止裸 `7z`/`zip` 命令归档 |
 | 版本记录更新 | `update-version.py`（本地 workflow） | — | 禁止自行写 `python -c` 测版本 |
 | 获取时间戳 | `get-timestamp.py`（本地 workflow） | — | 禁止内嵌 `Get-Date` 拼文件名 |
+| 全链条部署（Step 4-9） | `workflow-deploy-full.py`（本地 workflow） | PS 版 Step 1-8 | 禁止手动逐条调用 ps-steps |
 
 
 ## 4. 速查命令
@@ -325,6 +374,9 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 
 # 获取 Issue 完整内容（Python 版，含评论）
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\fetch_issue.py" --issue-number 1
+
+# 全链条部署（Python Workflow）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
 ```
 
 > 完整命令见：`scripts/EXEC-CHEATSHEET.md`
@@ -365,6 +417,9 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 
 # 归档全量（主编排层）
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\archive_project.py" --group cs_py venv --stage all --format 7z
+
+# 全链条部署（Python Workflow）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
 ```
 
 
@@ -380,8 +435,10 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 | `scripts/py-tools/run-lint.py` | 统一 lint CLI 入口（JSON/PS1/Python/Encoding，支持 `--files` 单文件列表） |
 | `scripts/py-tools/update-version.py` | 版本记录更新 Workflow（自动发现 → 实测 → 更新 .md + history） |
 | `scripts/py-tools/fetch_issue.py` | 获取 GitHub Issue 完整内容（含评论） |
+| `scripts/py-tools/workflow-deploy-full.py` | **全链条部署 Workflow**：编排 Step 4-9，支持 --step/--issue 参数 |
 | `scripts/py-plugins/lint_*.py` | Lint 插件（json/ps1/python/encoding） |
 | `scripts/py-plugins/github_api.py` | GitHub REST API 封装（Python 插件） |
+| `schema/json/lint-rules-manifest.json` | Lint 规则全局清单（7 插件、27 规则、5 可修复，审计时对照） |
 | `schema/json/plugin-result-schema.json` | 插件返回格式 JSON Schema 真源（v1.0.0） |
 | `schema/docs/plugin-result-schema.md` | 插件返回格式规范文档（人类可读） |
 | `schema/py/models.py` | Pydantic / Dataclass 备选 Model 实现 |
@@ -391,5 +448,5 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 
 *速查表版本: v1.1*  
 *创建时间: 2026-06-16*  
-*更新时间: 2026-06-20*  
+*更新时间: 2026-06-24*  
 *关联全局索引: `references/runtime/verified-task-index.json`*
