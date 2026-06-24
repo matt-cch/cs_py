@@ -73,18 +73,70 @@ subprocess.run(
 - 不影响用户全局设置或其他项目
 - push 不再触发任何认证弹窗
 
-## 完整防护（脚本层）
+## 补充问题一：Step 8 upstream 超时
 
-`step-07-github-push.py` 中保留以下措施，防止其他环境出现 GCM 弹窗：
+### 现象
+
+Step 8 (`step-08-github-upstream.py`) 使用 `git push -u origin <branch>` 设置 upstream，但 origin remote 的 URL 不含 PAT，导致 GCM 再次弹出认证窗口（或超时卡住）。
+
+### 解法
+
+Step 7 已经用含 PAT 的 URL 完成了 push，远程分支已存在。Step 8 只需要建立本地 tracking，不需要再 push：
 
 ```python
-# 1. local 级别覆盖空 helper，阻止 helper 链调用 GCM
+# 旧代码（会触发认证/超时）：
+# result = subprocess.run([git_exe, "-C", devroot, "push", "-u", "origin", branch], ...)
+
+# 新代码（纯本地操作，不触发网络认证）：
+result = subprocess.run(
+    [str(git_exe), "-C", str(devroot), "branch", "--set-upstream-to", f"origin/{branch}", branch],
+    capture_output=True, text=True, encoding="utf-8", errors="replace"
+)
+```
+
+## 补充问题二：workflow 执行后卡住（不退出）
+
+### 现象
+
+`workflow-deploy-full.py` 的 `_run_py_step` 使用 `subprocess.Popen` + `stdout=subprocess.PIPE` + `for line in proc.stdout` 循环读取输出。当子进程输出量大或包含非 UTF-8 字节时，`_readerthread` 线程发生 `UnicodeDecodeError`，导致 `proc.wait()` 永远阻塞。
+
+### 解法
+
+弃用 `Popen` + PIPE，改用 `subprocess.run`（不指定 `capture_output`，让子进程直接继承父进程终端）。优点：
+
+- 实时输出可见
+- 无 `_readerthread`，无解码异常死锁
+- 代码更简洁
+
+```python
+# 旧代码（会死锁）：
+proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, ...)
+for line in proc.stdout:
+    sys.stdout.write(line)
+proc.wait()
+
+# 新代码（不阻塞）：
+result = subprocess.run(cmd, text=True, encoding="utf-8", errors="replace", timeout=30)
+# 子进程 stdout/stderr 直接流入终端，无需手动读取
+```
+
+## 完整防护（脚本层）
+
+### step-07-github-push.py
+
+```python
+import os
+
+# ...
+
+# 【自动部署关键】双重阻断 GCM OAuth 弹窗
+# 第一层：local 级别覆盖空 helper，阻止 helper 链调用 GCM
 subprocess.run(
     [str(git_exe), "-C", str(devroot), "config", "--local", "credential.helper", ""],
     capture_output=True
 )
 
-# 2. 环境变量兜底
+# 第二层：环境变量兜底
 env = os.environ.copy()
 env["GCM_INTERACTIVE"] = "0"
 env["GIT_TERMINAL_PROMPT"] = "0"
@@ -96,11 +148,24 @@ result = subprocess.run(
 )
 ```
 
+### step-08-github-upstream.py
+
+```python
+# 设置 upstream tracking（纯本地，不触发网络认证）
+result = subprocess.run(
+    [str(git_exe), "-C", str(devroot), "branch", "--set-upstream-to", f"origin/{branch}", branch],
+    capture_output=True, text=True, encoding="utf-8", errors="replace"
+)
+```
+
 ## 相关文件
 
 - `references/tasks/deploy-git-isolated/scripts/py-steps/step-07-github-push.py`
+- `references/tasks/deploy-git-isolated/scripts/py-steps/step-08-github-upstream.py`
+- `references/tasks/deploy-git-isolated/scripts/py-tools/workflow-deploy-full.py`
 - `.vscode/settings.json`
 
 ## 时间线
 
 - 2026-06-24：问题发现，三轮排查，最终定位到 Cursor 内置 GitHub 扩展
+- 2026-06-24：补充记录 Step 8 upstream 超时解法 + workflow Popen 死锁解法
