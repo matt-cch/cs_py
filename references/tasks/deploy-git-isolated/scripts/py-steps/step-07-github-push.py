@@ -95,8 +95,10 @@ def main():
     auth_url = f"https://{username}:{pat}@github.com/{repo_path}"
 
     print("正在 push 到 GitHub ...")
+    # 【自动部署关键】禁用 credential helper，防止弹出 OAuth 选账号窗口
+    # 使用 URL 中嵌入的 PAT 直接认证
     result = subprocess.run(
-        [str(git_exe), "-C", str(devroot), "push", auth_url, branch],
+        [str(git_exe), "-C", str(devroot), "-c", "credential.helper=", "push", auth_url, branch],
         capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     print(result.stdout, end="")
