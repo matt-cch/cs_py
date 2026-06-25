@@ -73,6 +73,7 @@ meta: {}
 | [env-migration-deploy-git-auto-deploy-and-auth-fix-2026-06-24-054242.md](env-migration-deploy-git-auto-deploy-and-auth-fix-2026-06-24-054242.md) | deploy-git-isolated 自动部署完善与 GitHub 认证弹窗修复（--auto / GCM 阻断 / Cursor 扩展 / Popen 死锁 / upstream 超时） | 2026-06-24-054242 |
 | [env-migration-archive-cs-py-venv-zip-2026-06-24-175445.md](env-migration-archive-cs-py-venv-zip-2026-06-24-175445.md) | cs_py + venv 归档验证（zip 格式，40635文件381MB + 7252文件25MB 全部通过） | 2026-06-24-175445 |
 | [env-migration-archive-toolchain-enhance-and-7z-revert-2026-06-25-121658.md](env-migration-archive-toolchain-enhance-and-7z-revert-2026-06-25-121658.md) | 归档工具链增强与默认值勘误（7z 回退 + 实时进度 + TOP20 卡点） | 2026-06-25-121658 |
+| [env-migration-workflow-self-contained-execution-2026-06-25-142208.md](env-migration-workflow-self-contained-execution-2026-06-25-142208.md) | Workflow 自闭环执行铁律固化与部署脚本文档增强 | 2026-06-25-142208 |
 
 
 ## 上级导航

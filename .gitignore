@@ -11,6 +11,7 @@
 !/references/tasks/
 /references/tasks/*
 !/references/tasks/deploy-git-isolated/
+!/references/env-migrations/
 
 # ========================================
 # 全局安全屏蔽（始终生效，不受白名单影响）
