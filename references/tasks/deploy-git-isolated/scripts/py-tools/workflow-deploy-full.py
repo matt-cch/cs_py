@@ -1,22 +1,47 @@
 #!/usr/bin/env python3
-"""
+r"""
 workflow-deploy-full.py — deploy-git-isolated 全链条部署 workflow
 标签：py-tools
 版本：v1.2.0 (加 --auto + 前置验证 + add→AI→commit 顺序修正)
 
-职责：编排 Step 4-9，调用 Python step 脚本，分步输出并计时。
-执行顺序：
-  1. [前置验证] agent 插件体系 + .env 配置
-  2. Step 4: git add
-  3. [AI 摘要 + meta 生成] ← 在此处验证，失败只到 staged，可回滚
-  4. Step 5: git commit（使用 --message 或 --auto 自动生成）
-  5. [更新 meta commit hash]
-  6. Step 6-9: remote → push → upstream → issue sync
-  任何一步失败立即停止。
+职责：先执行内置 preflight，再编排 Step 4-9。执行者直接构造入参执行即可，无需预检。
 
-用法：
-    python workflow-deploy-full.py --message "feat: xxx"
-    python workflow-deploy-full.py --auto
+执行顺序：
+  1. Step 0: preflight（内置，检查 .env + config.json）
+  2. Step 4: git add
+  3. AI 摘要 + meta 生成
+  4. Step 5: git commit
+  5. 更新 meta commit hash
+  6. Step 6-9: remote → push → upstream → issue sync
+
+参数：
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| --devroot | str | 否 | D:\pjt\cursor\cs_py | devroot 绝对路径 |
+| --message | str | 否 | None | commit message；与 --auto 互斥 |
+| --auto | flag | 否 | False | 自动生成 commit message；与 --message 互斥 |
+| --step | str | 否 | all | 执行单步：4/5/6/7/8/9/all |
+| --issue | int | 否 | 1 | Step 9 Issue 编号 |
+
+调用示例（Agent 格式，绝对路径）：
+
+  # 全自动模式（推荐）：自动生成 commit message + AI 摘要
+  & "D:\pjt\cursor\cs_py\venv\py\python.exe" "D:\pjt\cursor\cs_py\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --auto
+
+  # 指定 commit message
+  & "D:\pjt\cursor\cs_py\venv\py\python.exe" "D:\pjt\cursor\cs_py\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
+
+  # 仅执行单步（调试用）
+  & "D:\pjt\cursor\cs_py\venv\py\python.exe" "D:\pjt\cursor\cs_py\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --step 7 --message "feat: xxx"
+
+  # 指定 Issue 编号
+  & "D:\pjt\cursor\cs_py\venv\py\python.exe" "D:\pjt\cursor\cs_py\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx" --issue 1
+
+回滚说明：
+  - Step 4 之后、Step 5 之前 AI 摘要失败：文件已 staged，执行 `git reset HEAD` 回滚
+  - Step 5 commit 后：执行 `git reset --soft HEAD~1` 撤销 commit（保留 staged）
+  - Step 7 push 后：需谨慎，可通过 GitHub Web 删除提交或强制推送回滚
 """
 import argparse
 import subprocess
