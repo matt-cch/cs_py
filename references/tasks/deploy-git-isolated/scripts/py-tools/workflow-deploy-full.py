@@ -367,6 +367,23 @@ def main():
     # ========== Step 0: 前置验证 ==========
     _preflight_check(devroot)
 
+    # ========== Step 0b: 空目录保留（在 git add 前执行）==========
+    print(f"\n{'='*50}")
+    print("[Step 0b] Git 空目录保留检查")
+    print(f"{'='*50}")
+    try:
+        registry_git = load_plugins(devroot=str(devroot), tags=["git"])
+        keep_result = registry_git.git_keep_emptydir.ensure_empty_dirs(
+            devroot,
+            ["references/env-migrations", "references/tasks/deploy-git-isolated"]
+        )
+        if keep_result.get("created"):
+            print(f"[OK] 已创建 {len(keep_result['created'])} 个 .gitkeep")
+        else:
+            print("[OK] 无空目录需要处理")
+    except Exception as e:
+        print(f"[WARN] git_keep_emptydir 执行异常: {e}")
+
     # ========== 构建步骤列表 ==========
     steps = []
     if args.step in ("4", "all"):

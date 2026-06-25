@@ -7,6 +7,13 @@
   },
   "plugins": [
     {
+      "name": "git_keep_emptydir",
+      "module": "git_keep_emptydir",
+      "depends": [],
+      "tags": ["git", "core"],
+      "description": "Git 空目录保留：在 stage 前扫描指定目录下的空子目录并自动创建 .gitkeep，防止空目录被 Git 忽略"
+    },
+    {
       "name": "detect_devroot",
       "module": "detect_devroot",
       "depends": [],
