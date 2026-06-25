@@ -236,19 +236,66 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 
 > **铁律**：`.md` / `.json` 文件中的 `date` 字段和文件名时间戳，**必须使用**本工具生成，禁止在 Agent 回复中现写时间字符串。
 
-**默认当前时间：**
+### CLI 参数
+
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| `--format <键名>` | 输出指定格式（默认 `local_iso`） | `--format filename_safe` |
+| `--source <时间>` | 指定时间来源（默认当前时间） | `--source "2026-06-21"` `--source "2026-06-21T14:30:00"` |
+| `--all` | 输出全部格式键值对 | — |
+| `--json` | 以 JSON 输出全部格式 | — |
+
+### 格式键名与输出示例
+
+| 键名 | 说明 | 典型用途 | 示例输出 |
+|------|------|---------|---------|
+| `local_short` | 本地日期 | `.md` frontmatter `date` | `2026-06-25` |
+| `local_long` | 本地时间紧凑 | 文件名（无冒号） | `2026-06-25T162111` |
+| `local_iso` | 本地时间 ISO | `.md` 内联时间戳 | `2026-06-25T16:21:11` |
+| `utc_short` | UTC 日期 | 跨时区日期标记 | `2026-06-25` |
+| `utc_long` | UTC 时间紧凑 | GitHub Release 文件名 | `2026-06-25T082111Z` |
+| `utc_iso` | UTC 时间 ISO | API 时间戳、日志 | `2026-06-25T08:21:11Z` |
+| `filename_safe` | 文件名安全 | env-migration 文件名后缀 | `2026-06-25-162111` |
+
+### 常用命令
+
+**默认当前时间（local_iso）：**
 ```powershell
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --format local_iso
+# → 2026-06-25T16:21:11
 ```
 
-**文件名安全格式：**
+**文件名安全格式（env-migration 命名）：**
 ```powershell
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --format filename_safe
+# → 2026-06-25-162111
 ```
 
-**全部可用格式：**
+**UTC ISO（GitHub / API 用）：**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --format utc_iso
+# → 2026-06-25T08:21:11Z
+```
+
+**指定时间来源：**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --source "2026-06-21" --format utc_short
+# → 2026-06-21
+
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --source "2026-06-21T14:30:00" --format utc_iso
+# → 2026-06-21T06:30:00Z
+```
+
+**全部格式（查看可用键名）：**
 ```powershell
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\get-timestamp.py" --all
+# → local_short=2026-06-25
+# → local_long=2026-06-25T162111
+# → local_iso=2026-06-25T16:21:11
+# → utc_short=2026-06-25
+# → utc_long=2026-06-25T082111Z
+# → utc_iso=2026-06-25T08:21:11Z
+# → filename_safe=2026-06-25-162111
 ```
 
 **JSON 输出（脚本消费）：**

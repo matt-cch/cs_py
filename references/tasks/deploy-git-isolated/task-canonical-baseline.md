@@ -1282,6 +1282,32 @@ Step 9: issue sync（使用 meta 中的 AI 摘要 + 分类信息）
 3. **--auto 不等于无入参**：--auto 模式自动从 staged 文件列表生成 commit message，无需用户指定 --message，但 .env 和 config.json 仍必须提前配置好。
 4. **`py-steps/` 下的脚本仍保留**：作为 `--step N` 单步调试模式的底层调用，但 Agent 禁止直接调用它们来完成全链条部署。
 
+#### 8.7.5 Git 空目录保留规则
+
+> **来源**：用户与 Agent 在 2026-06-25 对话中共同确认。本节记录 Git 空目录问题的根因、解法与架构约束。
+
+**问题根因**：
+Git 的默认行为是**不跟踪空目录**。这意味着即使某目录被 `.gitignore` 白名单显式保留（如 `!/references/env-migrations/`），如果该目录内没有任何文件，Git 仍然不会将其纳入版本管理。这会导致目录结构在克隆/检出后丢失。
+
+**解法**：
+在 `_preflight_check()`（Step 0）内部、**git add 之前**，通过 `py_lib` 统一入口调用 `git_keep_emptydir` 插件，扫描指定目录列表，为空目录自动创建 `.gitkeep` 占位文件。
+
+**架构约束**：
+- **不是独立 Step**：空目录保留是 preflight 的一部分，不存在 "Step 0b" 或同级 Step。禁止将其提升为与 Step 4 并列的独立阶段。
+- **必须通过 py_lib 加载**：`workflow-deploy-full.py` 禁止直接 `import git_keep_emptydir`，必须通过 `load_plugins(devroot=..., tags=["git"])` 获取 registry 后调用。
+- **失败不阻断**：`git_keep_emptydir` 执行异常时输出 `[WARN]`，不调用 `sys.exit(1)`。空目录保留是辅助性检查，不是部署的必要条件。
+- **目录列表内嵌配置**：当前需要保留空目录的目录列表（如 `["references/env-migrations", "references/tasks/deploy-git-isolated"]`）内嵌在 workflow 代码中。未来若配置化，应提取到 `task-config.json` 或同类 Config 契约中，由 workflow 读取后传入插件。
+
+**执行时序**：
+```
+Step 0: _preflight_check()
+  ├── 检查 .env
+  ├── 验证 agent 插件体系（load_plugins profile="agent"）
+  ├── Git 空目录保留（load_plugins tags=["git"] → git_keep_emptydir.ensure_empty_dirs()）
+  └── [Preflight] ✅ 全部通过
+Step 4: git add（此时空目录已有 .gitkeep，可被正常跟踪）
+```
+
 ### 8.8 三类型三层架构的交叉引用与冲突仲裁
 
 > **来源**：用户与 Agent 在 2026-06-24 对话中共同确认。本 task 存在三套平行的三层架构（PS、PY、JS/TS），它们之间天然产生数据面交叉和路由面冲突。随着三侧工具链扩展，仲裁机制会渐进式明晰。
@@ -1341,10 +1367,11 @@ Step 9: issue sync（使用 meta 中的 AI 摘要 + 分类信息）
 > 本条是 §8.8 的**最低可接受标准（Minimum Viable Standard）**。新增冲突场景但未完成上述登记的，视为架构欠债，须在下一次触及该工具时补登。
 
 
-*规范版本: v1.6*  
+*规范版本: v1.7*  
 *模板来源: schema/task-template/task-canonical-baseline.md*  
 *创建时间: 2026-06-16*  
 *本 task 定制内容: 第 3.2/3.3 节（SOP vs TOOLS-INDEX 区分）、第 6.2 节（TASK-TOOLS-INDEX 位置约定）、第 8 节（本 task 特殊约定）*  
-*本次修订: 2026-06-24，新增第 8.6 节（JS 工具链三层架构）、第 8.7 节（全链条部署 Workflow 铁律）、第 8.8 节（三类型三层架构的交叉引用与冲突仲裁）、更新 v1.6*  
+*本次修订: 2026-06-25，新增第 8.7.5 节（Git 空目录保留规则），更新 v1.7*  
+*历史修订: 2026-06-24，新增第 8.6 节（JS 工具链三层架构）、第 8.7 节（全链条部署 Workflow 铁律）、第 8.8 节（三类型三层架构的交叉引用与冲突仲裁）、更新 v1.6*  
 *历史修订: 2026-06-22，新增第 8.4.7 节（工具命名规范）、第 8.4.8 节（产出文件默认落盘）*  
 *历史修订: 2026-06-20，新增第 8.4.5 节（文档不暴露插件文件名）、第 8.5 节（标准文档与实现代码真源对齐）*

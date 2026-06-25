@@ -74,6 +74,7 @@ meta: {}
 | [env-migration-archive-cs-py-venv-zip-2026-06-24-175445.md](env-migration-archive-cs-py-venv-zip-2026-06-24-175445.md) | cs_py + venv 归档验证（zip 格式，40635文件381MB + 7252文件25MB 全部通过） | 2026-06-24-175445 |
 | [env-migration-archive-toolchain-enhance-and-7z-revert-2026-06-25-121658.md](env-migration-archive-toolchain-enhance-and-7z-revert-2026-06-25-121658.md) | 归档工具链增强与默认值勘误（7z 回退 + 实时进度 + TOP20 卡点） | 2026-06-25-121658 |
 | [env-migration-workflow-self-contained-execution-2026-06-25-142208.md](env-migration-workflow-self-contained-execution-2026-06-25-142208.md) | Workflow 自闭环执行铁律固化与部署脚本文档增强 | 2026-06-25-142208 |
+| [env-migration-git-emptydir-preflight-2026-06-25-162358.md](env-migration-git-emptydir-preflight-2026-06-25-162358.md) | Git 空目录保留归并 preflight + get-timestamp 参数勘误 | 2026-06-25-162358 |
 
 
 ## 上级导航
