@@ -316,6 +316,8 @@ def _run_py_step(name: str, script_path: Path, extra_args: list = None) -> tuple
 
     start = time.time()
     try:
+        # 强制刷新父进程 stdout，避免子进程输出先于父进程 print
+        sys.stdout.flush()
         # 不 capture_output，子进程 stdout/stderr 直接继承父进程终端
         # 优点：实时输出 + 无 PIPE 死锁（无 _readerthread）
         result = subprocess.run(
@@ -381,6 +383,7 @@ def main():
     else:
         print("# 模式: 默认消息（未指定 --message 也非 --auto）")
     print(f"{'#'*50}")
+    sys.stdout.flush()
 
     # ========== Step 0: 前置验证 ==========
     _preflight_check(devroot)
