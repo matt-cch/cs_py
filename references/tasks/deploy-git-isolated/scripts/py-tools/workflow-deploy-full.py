@@ -56,6 +56,10 @@ _SCRIPTS_DIR = Path(__file__).parent.parent.resolve()
 _PY_STEPS_DIR = _SCRIPTS_DIR / "py-steps"
 _PY_EXE = Path(__file__).parent.parent.parent.parent.parent.parent / "venv" / "py" / "python.exe"
 
+# py_lib 统一入口（workflow 通过它加载插件）
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
 
 def _preflight_check(devroot: Path) -> None:
     """Step 0: 执行前验证 agent 插件体系、.env 配置。
@@ -99,7 +103,6 @@ def _preflight_check(devroot: Path) -> None:
 
     # 2. 验证 agent 插件体系
     try:
-        sys.path.insert(0, str(_SCRIPTS_DIR))
         from py_lib import load_plugins
         registry = load_plugins(devroot=str(devroot), profile="agent")
         _ = registry.agent_core
@@ -114,6 +117,21 @@ def _preflight_check(devroot: Path) -> None:
         print(f"[FAIL] agent 插件验证失败: {e}")
         print("[FAIL] 请检查 venv/.opencode/config.json 配置是否正确")
         sys.exit(1)
+
+    # 3. Git 空目录保留
+    try:
+        from py_lib import load_plugins
+        registry_git = load_plugins(devroot=str(devroot), tags=["git"])
+        keep_result = registry_git.git_keep_emptydir.ensure_empty_dirs(
+            devroot,
+            ["references/env-migrations", "references/tasks/deploy-git-isolated"]
+        )
+        if keep_result.get("created"):
+            print(f"[OK] 已创建 {len(keep_result['created'])} 个 .gitkeep")
+        else:
+            print("[OK] 无空目录需要处理")
+    except Exception as e:
+        print(f"[WARN] git_keep_emptydir 执行异常: {e}")
 
     print("[Preflight] ✅ 全部通过，开始执行部署\n")
 
@@ -366,23 +384,6 @@ def main():
 
     # ========== Step 0: 前置验证 ==========
     _preflight_check(devroot)
-
-    # ========== Step 0b: 空目录保留（在 git add 前执行）==========
-    print(f"\n{'='*50}")
-    print("[Step 0b] Git 空目录保留检查")
-    print(f"{'='*50}")
-    try:
-        registry_git = load_plugins(devroot=str(devroot), tags=["git"])
-        keep_result = registry_git.git_keep_emptydir.ensure_empty_dirs(
-            devroot,
-            ["references/env-migrations", "references/tasks/deploy-git-isolated"]
-        )
-        if keep_result.get("created"):
-            print(f"[OK] 已创建 {len(keep_result['created'])} 个 .gitkeep")
-        else:
-            print("[OK] 无空目录需要处理")
-    except Exception as e:
-        print(f"[WARN] git_keep_emptydir 执行异常: {e}")
 
     # ========== 构建步骤列表 ==========
     steps = []
