@@ -19,14 +19,38 @@ import time
 from pathlib import Path
 
 
-def heartbeat(stop_event: threading.Event, prefix: str):
-    """每 1 秒打印一次心跳，让用户知道没卡住"""
+def heartbeat(stop_event: threading.Event, prefix: str, progress: dict, total: int):
+    """每 1 秒打印一次心跳，带文件处理进度"""
     count = 0
     while not stop_event.is_set():
         time.sleep(1)
         count += 1
         if not stop_event.is_set():
-            print(f"{prefix} 已运行 {count}s...", flush=True)
+            processed = progress.get("processed", 0)
+            pct = processed / total * 100 if total else 0
+            last = progress.get("last_file", "")
+            if len(last) > 50:
+                last = "..." + last[-47:]
+            print(
+                f"{prefix} 已运行 {count}s... "
+                f"已处理 {processed}/{total} ({pct:.1f}%) {last}",
+                flush=True,
+            )
+
+
+def stdout_consumer(pipe, stop_event: threading.Event, progress: dict, stdout_lines: list):
+    """实时消费 7z stdout，解析 -bb1 输出的 + filename 行"""
+    try:
+        for line in iter(pipe.readline, ""):
+            if stop_event.is_set():
+                break
+            stdout_lines.append(line)
+            stripped = line.strip()
+            if stripped.startswith("+ "):
+                progress["processed"] = progress.get("processed", 0) + 1
+                progress["last_file"] = stripped[2:]
+    finally:
+        pipe.close()
 
 
 def parse_7z_stdout(stdout: str) -> dict:
@@ -90,11 +114,41 @@ def compress_group(cfg: dict, seven_zip: Path, fmt: str = "zip", force: bool = F
         os.remove(alt_path)
         print(f"[compress] 删除旧包: {alt_path}")
 
-    # 读取文件数
+    # 读取文件数 + 大小统计
     file_count = 0
+    total_size = 0
+    file_sizes = []
     if listfile_path.exists():
         with open(listfile_path, "r", encoding="utf-8") as f:
-            file_count = sum(1 for _ in f)
+            for line in f:
+                path_str = line.strip()
+                if not path_str:
+                    continue
+                file_count += 1
+                p = Path(cwd) / path_str
+                if p.exists():
+                    try:
+                        s = p.stat().st_size
+                        total_size += s
+                        file_sizes.append((str(p), s))
+                    except OSError:
+                        pass
+
+    # 大小排序，取 TOP 20 大文件（卡点判断）
+    file_sizes.sort(key=lambda x: x[1], reverse=True)
+    top_n = 20
+    top_files = file_sizes[:top_n]
+    median_size = 0.0
+    avg_size = 0.0
+    if file_sizes:
+        sizes_only = [s for _, s in file_sizes]
+        sizes_only.sort()
+        avg_size = sum(sizes_only) / len(sizes_only)
+        mid = len(sizes_only) // 2
+        if len(sizes_only) % 2 == 0:
+            median_size = (sizes_only[mid - 1] + sizes_only[mid]) / 2
+        else:
+            median_size = sizes_only[mid]
 
     # 7z 类型参数
     type_flag = "-tzip" if fmt == "zip" else "-t7z"
@@ -105,6 +159,7 @@ def compress_group(cfg: dict, seven_zip: Path, fmt: str = "zip", force: bool = F
         type_flag,
         "-scsUTF-8",
         "-mx=5",
+        "-bb1",
         str(zip_path),
         f"@{listfile_path}",
     ]
@@ -114,31 +169,51 @@ def compress_group(cfg: dict, seven_zip: Path, fmt: str = "zip", force: bool = F
     print(f"[compress] 输出文件: {zip_path}")
     print(f"[compress] listfile: {listfile_path}")
     print(f"[compress] 文件数: {file_count}")
+    print(f"[compress] 总原始大小: {total_size / 1024 / 1024:.1f} MB")
+    print(f"[compress] 平均文件大小: {avg_size / 1024:.1f} KB")
+    print(f"[compress] 中位数文件大小: {median_size / 1024:.1f} KB")
+    print(f"[compress] 最大文件 TOP {top_n}（潜在卡点）:")
+    for idx, (fp, fs) in enumerate(top_files, 1):
+        size_str = f"{fs / 1024 / 1024:.1f} MB" if fs >= 1024 * 1024 else f"{fs / 1024:.1f} KB"
+        print(f"[compress]   {idx}. {size_str:>10}  {fp}")
     print(f"[compress] 格式: {fmt}")
     print(f"[compress] 命令: {' '.join(str(c) for c in cmd)}")
     print(f"[compress] 开始压缩（请勿中断）...")
 
+    progress = {"processed": 0, "last_file": ""}
+    stdout_lines = []
+
     stop_event = threading.Event()
-    hb = threading.Thread(target=heartbeat, args=(stop_event, "[compress]"), daemon=True)
+    hb = threading.Thread(target=heartbeat, args=(stop_event, "[compress]", progress, file_count), daemon=True)
     hb.start()
 
     start = time.time()
-    result = subprocess.run(
+    proc = subprocess.Popen(
         cmd,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         cwd=str(cwd),
         text=True,
         encoding="utf-8",
         errors="replace",
     )
+
+    consumer = threading.Thread(target=stdout_consumer, args=(proc.stdout, stop_event, progress, stdout_lines), daemon=True)
+    consumer.start()
+
+    returncode = proc.wait()
+    consumer.join(timeout=5)
     elapsed = time.time() - start
 
     stop_event.set()
     hb.join(timeout=2)
 
-    print(f"[compress] returncode: {result.returncode}")
+    stderr_text = proc.stderr.read() if proc.stderr else ""
+    stdout_text = "".join(stdout_lines)
 
-    stats = parse_7z_stdout(result.stdout)
+    print(f"[compress] returncode: {returncode}")
+
+    stats = parse_7z_stdout(stdout_text)
     for k, v in stats.items():
         if k != "ok":
             print(f"[compress] {v}")
@@ -164,7 +239,7 @@ def compress_group(cfg: dict, seven_zip: Path, fmt: str = "zip", force: bool = F
             zero_byte_count = sum(1 for _ in f if _.strip())
 
     files_read = 0
-    for line in result.stdout.splitlines():
+    for line in stdout_text.splitlines():
         m = __import__("re").search(r"Files read from disk:\s+(\d+)", line)
         if m:
             files_read = int(m.group(1))
@@ -179,19 +254,19 @@ def compress_group(cfg: dict, seven_zip: Path, fmt: str = "zip", force: bool = F
 
     print(f"[compress] 耗时: {elapsed:.2f}s")
 
-    if result.returncode != 0:
+    if returncode != 0:
         print("[compress] WARNINGS:")
-        for line in result.stdout.splitlines():
+        for line in stdout_text.splitlines():
             if "WARNING" in line or "Cannot open" in line or "Error" in line:
                 print(f"  {line.strip()}")
-        for line in result.stderr.splitlines():
+        for line in stderr_text.splitlines():
             if line.strip():
                 print(f"  [stderr] {line.strip()}")
 
     return {
         "zip": zip_path,
         "format": fmt,
-        "returncode": result.returncode,
+        "returncode": returncode,
         "zip_size_mb": size_mb,
         "elapsed": elapsed,
         "stats": stats,

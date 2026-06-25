@@ -71,6 +71,8 @@ meta: {}
 | [env-migration-run-lint-routing-fix-and-archive-timeout-analysis-2026-06-23-180826.md](env-migration-run-lint-routing-fix-and-archive-timeout-analysis-2026-06-23-180826.md) | run-lint.py 路由修复（.md 双重检查）+ docs/ CRLF 批量修复 + archive 超时根因分析 + Agent 目录阅读模式文档 | 2026-06-23-180826 |
 | [env-migration-lint-system-upgrade-2026-06-24-112406.md](env-migration-lint-system-upgrade-2026-06-24-112406.md) | lint 体系升级：link_checker/py-sort-rules/py_lib/run-lint 版本升级、新增 lint-rules-manifest.json、AGENTS.md 思考语言锚定、入口文件修订联动 | 2026-06-24-112406 |
 | [env-migration-deploy-git-auto-deploy-and-auth-fix-2026-06-24-054242.md](env-migration-deploy-git-auto-deploy-and-auth-fix-2026-06-24-054242.md) | deploy-git-isolated 自动部署完善与 GitHub 认证弹窗修复（--auto / GCM 阻断 / Cursor 扩展 / Popen 死锁 / upstream 超时） | 2026-06-24-054242 |
+| [env-migration-archive-cs-py-venv-zip-2026-06-24-175445.md](env-migration-archive-cs-py-venv-zip-2026-06-24-175445.md) | cs_py + venv 归档验证（zip 格式，40635文件381MB + 7252文件25MB 全部通过） | 2026-06-24-175445 |
+| [env-migration-archive-toolchain-enhance-and-7z-revert-2026-06-25-121658.md](env-migration-archive-toolchain-enhance-and-7z-revert-2026-06-25-121658.md) | 归档工具链增强与默认值勘误（7z 回退 + 实时进度 + TOP20 卡点） | 2026-06-25-121658 |
 
 
 ## 上级导航

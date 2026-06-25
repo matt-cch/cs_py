@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "description": "JS 资产注册表。type: browser 为 Playwright 注入脚本，node 为 Node.js CLI，dual 为双模式。js-plugins/ 为可复用模块，js-tools/ 为完整可执行脚本。js_lib.js 为 Node.js 侧入口。",
+    "strategy": "dependency_by_order",
+    "version": "1.2.0"
+  },
+  "plugins": [
+    {
+      "name": "url-utils",
+      "file": "url-utils.js",
+      "type": "dual",
+      "layer": "plugin",
+      "description": "URL 工具集：toAbsoluteURI、guessImageExt、isImageUrl — 受 readability.js toAbsoluteURI 启发"
+    },
+    {
+      "name": "markdown-rules",
+      "file": "markdown-rules.js",
+      "type": "dual",
+      "layer": "plugin",
+      "description": "Turndown 规则预设集：articlePreset、githubPreset、cleanPreset — 受 turndown 规则系统 + extract-article.js 配置启发"
+    }
+  ],
+  "tools": [
+    {
+      "name": "readability",
+      "file": "readability.js",
+      "type": "browser",
+      "layer": "atomic",
+      "description": "Mozilla Readability — 浏览器注入，new Readability(doc).parse()"
+    },
+    {
+      "name": "turndown",
+      "file": "turndown.js",
+      "type": "browser",
+      "layer": "atomic",
+      "description": "Turndown — 浏览器注入，new TurndownService(opts)"
+    },
+    {
+      "name": "extract-article",
+      "file": "extract-article.js",
+      "type": "browser",
+      "layer": "workflow",
+      "depends": ["readability", "turndown"],
+      "description": "文章提取 workflow：浏览器注入，注册 window.__extractArticle()"
+    },
+    {
+      "name": "url-analyze",
+      "file": "url-analyze.js",
+      "type": "dual",
+      "layer": "atomic",
+      "depends": ["url-utils"],
+      "description": "URL 分析工具：isImage、guessImageExt、toAbsoluteURI，CLI 模式通过 js_lib 加载 url-utils"
+    }
+  ]
+}

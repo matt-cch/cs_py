@@ -142,7 +142,7 @@ def main():
     parser = argparse.ArgumentParser(description="项目归档主 CLI（py-lib 入口版）")
     parser.add_argument("--group", nargs="+", required=True, choices=["cs_py", "venv"], help="归档分组")
     parser.add_argument("--stage", default="all", help="执行阶段：scan,compress,verify，逗号分隔或 all")
-    parser.add_argument("--format", default="auto", choices=["zip", "7z", "auto"], help="输出格式")
+    parser.add_argument("--format", default="7z", choices=["zip", "7z", "auto"], help="输出格式")
     parser.add_argument("--force", action="store_true", help="强制覆盖已存在的输出文件")
     parser.add_argument("--devroot", default=None, help="devroot 路径（默认自动探测）")
     args = parser.parse_args()

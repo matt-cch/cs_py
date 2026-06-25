@@ -70,6 +70,20 @@
       "description": "Browser Session 管理器：Chrome 持久化上下文管理（交互式登录 + session 复用截图）"
     },
     {
+      "name": "js_loader",
+      "module": "js_loader",
+      "depends": [],
+      "tags": ["js"],
+      "description": "JS 资产加载器：读取 js-sort-rules.json 按拓扑排序返回注入顺序（JS 侧的 entry 等价物）"
+    },
+    {
+      "name": "article_extractor",
+      "module": "article_extractor",
+      "depends": ["browser_session", "js_loader"],
+      "tags": ["extraction"],
+      "description": "文章正文提取：Playwright 浏览器注入 Readability + Turndown，下载图片并输出 .md"
+    },
+    {
       "name": "archive_config",
       "module": "archive_config",
       "depends": ["constants"],

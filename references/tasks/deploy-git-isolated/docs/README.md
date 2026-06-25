@@ -26,6 +26,7 @@ meta: {}
 | [PLUGIN-ARCHITECTURE.md](PLUGIN-ARCHITECTURE.md) | 根级 | 插件化点源架构设计说明 |
 | [patterns/profile-filter-pattern.md](patterns/profile-filter-pattern.md) | patterns | Profile 筛选模式 |
 | [patterns/manifest-plugin-pattern.md](patterns/manifest-plugin-pattern.md) | patterns | Manifest + Plugins 扩展模式 |
+| [patterns/browser-inject-three-layer-pattern.md](patterns/browser-inject-three-layer-pattern.md) | patterns | 浏览器注入三层架构：JS 资产体系 + Playwright 注入 |
 | [harness/delivery-checklist.md](harness/delivery-checklist.md) | harness | 四步交付流程检查清单 |
 | [playbooks/github-publish-playbook.md](playbooks/github-publish-playbook.md) | playbooks | GitHub 发布操作实录 |
 | [research/scripts-directory-taxonomy-research.md](research/scripts-directory-taxonomy-research.md) | research | scripts/ 目录子分类重构深度研究 |

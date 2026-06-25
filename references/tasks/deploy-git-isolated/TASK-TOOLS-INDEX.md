@@ -3,7 +3,7 @@ title: deploy-git-isolated 可用工具速查表
 description: 本 task 全部可用工具的索引、职责、路径与边界说明。包含本地专属脚本与外部通用工具的引用链路，防止重复造轮子。
 date: 2026-06-20
 meta:
-  version: 1.2
+  version: 1.3
 ---
 
 # deploy-git-isolated 可用工具速查表
@@ -258,7 +258,60 @@ print(ts["utc_iso"])     # 2026-01-15T01:00:00Z
 > 架构：三层 + 配置契约。Workflow 通过 `py_lib.load_plugins(profile="archive")` 调用 `archive_config` / `archive_scanner` / `archive_compressor` 插件。
 > 配置真源：`py-tools/archive-groups.json`（黑白名单、输出格式）
 
-### 1.7 部署编排 Workflow（Python 版）
+### 1.8 JS 工具链 / 文章下载流水线
+
+三层对称架构的 JS 侧：`js_lib.js`（入口）+ `js-sort-rules.json`（配置）+ `js-plugins/`（可复用模块）+ `js-tools/`（完整脚本）。Python 侧通过 `js_loader.py` 桥接。
+
+**JS 入口与配置**：
+
+| 文件 | 职责 | 典型场景 | 状态 |
+|------|------|---------|------|
+| `js_lib.js` | **JS 入口**（对标 `py_lib.py`）：`--list` 列出全部资产、`--resolve <tool>` 输出拓扑排序路径 | Node.js CLI 加载 js-tools 前检查依赖完整性 | ready |
+| `js-sort-rules.json` | JS 资产注册表：含 `type` 字段（`browser`/`node`/`dual`）、依赖拓扑 | 新增 js-plugin/js-tool 后在本文登记 | ready |
+
+**JS 可复用模块（js-plugins/）**：
+
+| 文件 | 职责 | 类型 | 状态 |
+|------|------|------|------|
+| `url-utils.js` | URL 工具集：`toAbsoluteURI`、`guessImageExt`、`isImageUrl`（受 readability.js 启发提取） | dual | ready |
+| `markdown-rules.js` | Turndown 规则预设：`articlePreset`、`githubPreset`、`cleanPreset`（受 turndown 规则系统启发提取） | dual | ready |
+
+**JS 工具脚本（js-tools/）**：
+
+| 文件 | 职责 | 类型 | 典型场景 | 状态 |
+|------|------|------|---------|------|
+| `readability.js` | Mozilla Readability —— 浏览器注入：`new Readability(doc).parse()` | browser | 在 Chrome 中提取文章内容（被 extract-article.js 依赖） | ready |
+| `turndown.js` | Turndown —— 浏览器注入：`new TurndownService(opts)` | browser | HTML → Markdown 转换 | ready |
+| `extract-article.js` | 浏览器注入：注册 `window.__extractArticle()`，内部调用 readability + turndown | browser | 从 URL 提取→解析→转 MD 全流程（被下游 Python CLI 调用） | ready |
+| `url-analyze.js` | URL 分析工具：CLI 模式通过 `js_lib` 加载 `url-utils`；浏览器注入注册 `window.__URL_ANALYZE` | dual | 分析 URL 的绝对地址、图片扩展名、图片类型判定 | ready |
+
+**Python 侧桥接插件（py-plugins/）**：
+
+| 文件 | 职责 | 依赖 | 典型场景 | 状态 |
+|------|------|------|---------|------|
+| `js_loader.py` | **Python 侧 JS 资产发现桥梁**：读取 `js-sort-rules.json` → 拓扑排序 → 返回有序文件绝对路径列表。提供 `resolve()`、`resolve_script_tags()`、`validate()` 接口 | `py_lib` 插件体系（注册在 `py-sort-rules.json`） | Python CLI 调用 extract-article 时先通过 `js_loader.resolve()` 获取 js 文件注入顺序 | ready |
+| `article_extractor.py` | **文章提取编排插件**：调用 `browser_session` 创建 Chrome 上下文 → `js_loader.resolve()` 注入 JS → 执行 `window.__extractArticle()` → 返回 {title, content, excerpt, byline} | `browser_session` + `js_loader` | Python CLI 入口 `download-article.py` 的底层实现 | ready |
+
+**Python CLI 入口（py-tools/）**：
+
+| 脚本 | 职责 | 典型场景 | 状态 |
+|------|------|---------|------|
+| `download-article.py` | **文章下载 CLI 入口**（Layer 3 Workflow）：调用 `article_extractor.py` → 从 URL 提取文章 → 输出 Markdown + 元数据 JSON | 下载在线文章为本地 Markdown 文件 | ready |
+
+**调用链路（用于排查）**：
+```
+download-article.py (py-tools, CLI)
+  → article_extractor.py (py-plugins, 编排)
+    → browser_session.py (py-plugins, Chrome 上下文)
+    → js_loader.py (py-plugins, JS 资产发现)
+      → js-sort-rules.json (拓扑排序)
+        → js-tools/extract-article.js (browser inject)
+          → js-tools/readability.js (parse)
+          → js-tools/turndown.js (html→md)
+  → 输出 Markdown + JSON
+```
+
+### 1.9 部署编排 Workflow（Python 版）
 
 Python 版部署流水线，与 PS 版 Step 1-8 功能对等。`workflow-deploy-full.py` 编排 Step 4-9（add → commit → remote → push → upstream → issue sync），按序调用 `py-steps/` 下的独立 step 脚本，任何一步失败立即停止。
 
@@ -352,6 +405,10 @@ workflow-deploy-full.py（Workflow 编排）
 | 版本记录更新 | `update-version.py`（本地 workflow） | — | 禁止自行写 `python -c` 测版本 |
 | 获取时间戳 | `get-timestamp.py`（本地 workflow） | — | 禁止内嵌 `Get-Date` 拼文件名 |
 | 全链条部署（Step 4-9） | `workflow-deploy-full.py`（本地 workflow） | PS 版 Step 1-8 | 禁止手动逐条调用 ps-steps |
+| 在线文章下载（URL → Markdown） | `download-article.py`（本地 workflow） | — | 禁止自行写 Playwright 下载文章 |
+| URL 分析（isImage/toAbsoluteURI） | `url-analyze.js`（本地 js-tool） | `node url-analyze.js --url ...` | 禁止现写 URL 解析正则 |
+| JS 资产依赖发现 | `js_lib.js`（本地入口） | `node js_lib.js --resolve <tool>` | 禁止手动翻 js-sort-rules.json 拼路径 |
+| 浏览器桥接（Python → JS inject） | `js_loader.py`（本地 py-plugin） | — | 禁止硬编码 JS 文件路径 |
 
 
 ## 4. 速查命令
@@ -376,6 +433,18 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 
 # 全链条部署（Python Workflow）
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
+
+# 文章下载
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-article.py" --url "https://example.com/article"
+
+# JS 资产列表
+"${devroot}\venv\node\node.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\js_lib.js" --list
+
+# JS 资产依赖解析
+"${devroot}\venv\node\node.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\js_lib.js" --resolve extract-article
+
+# URL 分析 CLI
+"${devroot}\venv\node\node.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\js-tools\url-analyze.js" --url "/img/banner.webp" --base "https://site.com/blog/"
 ```
 
 > 完整命令见：`scripts/EXEC-CHEATSHEET.md`
@@ -435,7 +504,18 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 | `scripts/py-tools/update-version.py` | 版本记录更新 Workflow（自动发现 → 实测 → 更新 .md + history） |
 | `scripts/py-tools/fetch_issue.py` | 获取 GitHub Issue 完整内容（含评论） |
 | `scripts/py-tools/workflow-deploy-full.py` | **全链条部署 Workflow**：编排 Step 4-9，支持 --step/--issue 参数 |
+| `scripts/py-tools/download-article.py` | **文章下载 CLI 入口**：URL → Markdown + JSON |
 | `scripts/py-plugins/lint_*.py` | Lint 插件（json/ps1/python/encoding） |
+| `scripts/py-plugins/js_loader.py` | **Python ↔ JS 桥接**：读取 js-sort-rules.json 拓扑排序 |
+| `scripts/py-plugins/article_extractor.py` | **文章提取编排**：browser_session + js_loader → extractArticle |
+| `scripts/js_lib.js` | **JS 入口**（Node.js）：--list/--resolve，对标 py_lib.py |
+| `scripts/js-sort-rules.json` | JS 资产注册表（拓扑 + type 字段） |
+| `scripts/js-plugins/url-utils.js` | JS 可复用模块：URL 工具（dual-mode） |
+| `scripts/js-plugins/markdown-rules.js` | JS 可复用模块：Markdown 规则预设（dual-mode） |
+| `scripts/js-tools/readability.js` | JS browser 工具：文章解析 |
+| `scripts/js-tools/turndown.js` | JS browser 工具：HTML→MD |
+| `scripts/js-tools/extract-article.js` | JS browser 工具：文章提取 workflow |
+| `scripts/js-tools/url-analyze.js` | JS dual 工具：URL 分析 |
 | `scripts/py-plugins/github_api.py` | GitHub REST API 封装（Python 插件） |
 | `schema/json/lint-rules-manifest.json` | Lint 规则全局清单（7 插件、27 规则、5 可修复，审计时对照） |
 | `schema/json/plugin-result-schema.json` | 插件返回格式 JSON Schema 真源（v1.0.0） |
@@ -445,7 +525,7 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 | `DESIGN.md` | 设计决策与踩坑记录 |
 
 
-*速查表版本: v1.1*  
+*速查表版本: v1.3*  
 *创建时间: 2026-06-16*  
 *更新时间: 2026-06-24*  
 *关联全局索引: `references/runtime/verified-task-index.json`*
