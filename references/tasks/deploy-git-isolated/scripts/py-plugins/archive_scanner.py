@@ -248,13 +248,26 @@ def write_csv(entries: dict, csv_path: Path):
             writer.writerow(e)
 
 
-def write_listfile(entries: dict, listfile_path: Path):
+def write_listfile(entries: dict, listfile_path: Path, arcname: str = "", src: Path = None, cwd: Path = None):
     """将文件路径写入 listfile（Win 反斜杠，相对于 cwd），同时保留历史版本"""
-    file_paths = sorted(
-        path.replace("/", "\\")
-        for path, entry in entries.items()
-        if entry["type"] == "FILE"
-    )
+    # 计算磁盘真实前缀（解决 arcname 与磁盘目录名不一致问题）
+    if src and cwd:
+        try:
+            real_prefix = str(src.relative_to(cwd)).replace("/", "\\")
+        except ValueError:
+            real_prefix = str(src).replace("/", "\\")
+    else:
+        real_prefix = arcname
+
+    file_paths = []
+    for path, entry in sorted(entries.items()):
+        if entry["type"] != "FILE":
+            continue
+        # 将 arcname 前缀替换为真实磁盘路径前缀
+        if arcname and path.startswith(arcname + "/"):
+            path = real_prefix + path[len(arcname):]
+        file_paths.append(path.replace("/", "\\"))
+
     listfile_path.parent.mkdir(parents=True, exist_ok=True)
     with open(listfile_path, "w", encoding="utf-8") as f:
         f.write("\n".join(file_paths))
@@ -369,7 +382,9 @@ def scan_group(cfg: dict) -> dict:
     # 4. 填充 .emptydir 到空目录
     placeholders_created = 0
     if empty_dirs:
-        placeholders_created = fill_emptydirs(empty_dirs, src, arcname)
+        # 去掉 arcname 前缀，转为相对于 src 的路径后传给 fill_emptydirs
+        empty_dirs_rel = [path.split("/", 1)[1] if "/" in path else "" for path in empty_dirs]
+        placeholders_created = fill_emptydirs(empty_dirs_rel, src)
         print(f"[scan] 新建占位文件: {placeholders_created} 个")
 
     # 5. 手动把 .emptydir 添加到 entries
@@ -400,7 +415,7 @@ def scan_group(cfg: dict) -> dict:
     write_csv(entries, csv_path)
 
     # 8. 写 listfile
-    file_count = write_listfile(entries, listfile_path)
+    file_count = write_listfile(entries, listfile_path, arcname=arcname, src=src, cwd=cfg.get("cwd"))
 
     dir_count = sum(1 for e in entries.values() if e["type"] == "DIR")
     total_size = sum(int(e["size"]) for e in entries.values() if e["type"] == "FILE")

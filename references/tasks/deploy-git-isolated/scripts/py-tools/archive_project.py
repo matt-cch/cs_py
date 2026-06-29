@@ -53,7 +53,7 @@ def stage_scan(group_name: str, devroot: Path, registry) -> tuple:
     return cfg, result
 
 
-def stage_compress(group_name: str, cfg: dict, fmt: str, force: bool, registry) -> dict:
+def stage_compress(group_name: str, cfg: dict, fmt: str, force: bool, registry, timeout: int = 0) -> dict:
     """执行压缩阶段"""
     print(f"\n{'='*50}")
     print(f"Stage: compress | Group: {group_name} | Format: {fmt}")
@@ -66,7 +66,7 @@ def stage_compress(group_name: str, cfg: dict, fmt: str, force: bool, registry) 
 
     cfg = registry.archive_config.update_zip_extension(cfg, fmt)
     seven_zip = registry.archive_config.find_7z_exe(devroot=cfg["src"].parents[1] if group_name == "cs_py" else cfg["src"].parent)
-    result = registry.archive_compressor.compress_group(cfg, seven_zip, fmt=fmt, force=force)
+    result = registry.archive_compressor.compress_group(cfg, seven_zip, fmt=fmt, force=force, timeout=timeout)
     return result
 
 
@@ -88,7 +88,7 @@ def stage_verify(group_name: str, cfg: dict, scan_result: dict, compress_result:
     return result["pass"]
 
 
-def run_group(group_name: str, devroot: Path, stages: list, fmt: str, force: bool, registry) -> dict:
+def run_group(group_name: str, devroot: Path, stages: list, fmt: str, force: bool, registry, timeout: int = 0) -> dict:
     """执行单个分组的完整流程"""
     total_start = time.time()
 
@@ -106,7 +106,7 @@ def run_group(group_name: str, devroot: Path, stages: list, fmt: str, force: boo
         # scanner 内部已打印详细输出
 
     if "compress" in stages:
-        compress_result = stage_compress(group_name, cfg, fmt, force, registry)
+        compress_result = stage_compress(group_name, cfg, fmt, force, registry, timeout)
 
     if "verify" in stages:
         # verify 可以独立执行：只要压缩包和 listfile 存在即可
@@ -145,6 +145,7 @@ def main():
     parser.add_argument("--format", default="7z", choices=["zip", "7z", "auto"], help="输出格式")
     parser.add_argument("--force", action="store_true", help="强制覆盖已存在的输出文件")
     parser.add_argument("--devroot", default=None, help="devroot 路径（默认自动探测）")
+    parser.add_argument("--timeout", type=int, default=0, help="压缩阶段超时秒数，0 表示无超时")
     args = parser.parse_args()
 
     stages = [s.strip() for s in args.stage.split(",")]
@@ -169,6 +170,7 @@ def main():
     print(f"[archive_project] stages: {stages}")
     print(f"[archive_project] format: {args.format}")
     print(f"[archive_project] force: {args.force}")
+    print(f"[archive_project] timeout: {args.timeout}s")
 
     # 通过 py_lib 统一入口加载 archive 插件
     registry = load_plugins(devroot=str(devroot), profile="archive")
@@ -176,7 +178,7 @@ def main():
 
     all_ok = True
     for group_name in args.group:
-        result = run_group(group_name, devroot, stages, args.format, args.force, registry)
+        result = run_group(group_name, devroot, stages, args.format, args.force, registry, args.timeout)
         if result.get("verify") is False:
             all_ok = False
 

@@ -112,7 +112,7 @@ lint_plugins = list_plugins(tags=["lint"])
 | `update-version.py` | **Workflow：版本记录更新**。自动发现 venv/version/ 下工具 → 调用 runtime_version 插件实测本地版本 → 对比记录版本 → 更新 .md（frontmatter date + version 表格）+ 追加 `*-history.md` | 记一版 version / 更新 venv/version | ready |
 
 > **与 5 个独立 get-*-version.ps1 的区别**：`update-version.py` 是统一 Workflow 入口，自动发现、自动对比、自动更新文件；`schema/tool/get-*-version.ps1` 是单工具实测脚本（遗留，仍可用作 fallback）。
-> **架构**：update-version.py（Workflow）→ py_lib.load_plugins() → runtime_version 插件（detect 接口）→ process_runner（subprocess 封装）。
+> **架构**：update-version.py（Workflow）→ py_lib.load_plugins(tags=["core", "utility"]) → registry.runtime_version.detect() / registry.timestamp.get_now() / registry.detect_devroot.get_devroot()。runtime_version 插件已在 py-sort-rules.json 登记。
 
 **CLI 用法**：
 ```powershell
@@ -126,7 +126,46 @@ lint_plugins = list_plugins(tags=["lint"])
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\update-version.py" --devroot "${devroot}" --dry-run
 ```
 
-### 1.4 安全审计（Security Audit）
+### 1.4 运行时域（Runtime / 真源检测与下载）
+
+**新增架构**：将 `references/runtime/` 下的 `verify-runtime.py` 和 `download-runtime-tool.py` 拆分为 task 原子脚本体系。
+
+| 脚本 | 职责 | 典型场景 | 状态 |
+|------|------|---------|------|
+| `verify-runtime/wf-verify-runtime.py` | **Workflow：真源检测**。编排 detect → query → compare → report | 替代 `references/runtime/verify-runtime.py` | ready |
+| `download-runtime/wf-download-runtime.py` | **Workflow：运行时下载**。编排 detect → query → compare → route → download → extract → backup → replace → cleanup | 替代 `references/runtime/download-runtime-tool.py` | ready |
+| `runtime-common/wf-runtime-full.py` | **Workflow：检测+下载一体化**。串接 detect → query → compare → download → extract verify，全程带时间戳和进度条 | 批量检测+下载 node/opencode 等 | ready |
+| `runtime-common/atomic-detect-local.py` | **公共原子**：本地 exe 检测 + candidate_paths 兜底 + 版本提取 | 被 wf-verify-runtime / wf-download-runtime 调用 | ready |
+| `runtime-common/atomic-query-upstream.py` | **公共原子**：上游版本查询（python/node/opencode/chromium/llama） | 被 wf-verify-runtime / wf-download-runtime 调用 | ready |
+| `runtime-common/atomic-compare-version.py` | **公共原子**：版本对比（up_to_date/outdated/unknown） | 被 wf-verify-runtime / wf-download-runtime 调用 | ready |
+| `runtime-common/atomic-generate-report.py` | **公共原子**：报告生成（stdout 表格 + JSON 落盘） | 被 wf-verify-runtime 调用 | ready |
+| `download-runtime/atomic-01-route-probe.py` | **原子**：HEAD 探测直连+代理，返回最优路由 | 被 wf-download-runtime 调用 | ready |
+| `download-runtime/atomic-02-download-file.py` | **原子**：流式下载 + 进度条 + 代理支持 | 被 wf-download-runtime 调用 | ready |
+| `download-runtime/atomic-03-extract-verify.py` | **原子**：ZIP 解压 + 定位 exe + 版本验证 | 被 wf-download-runtime 调用 | ready |
+| `download-runtime/atomic-04-backup-replace.py` | **原子**：进程检测 + 备份旧版 + 替换新版 | 被 wf-download-runtime 调用 | ready |
+| `download-runtime/atomic-05-cleanup-temp.py` | **原子**：清理解压目录和 ZIP 文件 | 被 wf-download-runtime 调用 | ready |
+
+**CLI 用法**：
+```powershell
+# 真源检测（全量）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\verify-runtime\wf-verify-runtime.py" --devroot "${devroot}"
+
+# 真源检测（单工具）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\verify-runtime\wf-verify-runtime.py" --devroot "${devroot}" --tool node
+
+# 检测+下载一体化（全链路自动，带进度条）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\runtime-common\wf-runtime-full.py" --devroot "${devroot}" --tools node,opencode_cli
+
+# 运行时下载（检测+下载，不替换）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-runtime\wf-download-runtime.py" --devroot "${devroot}" --tool-name node
+
+# 运行时下载（强制替换）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-runtime\wf-download-runtime.py" --devroot "${devroot}" --tool-name node --force
+```
+
+> **目录结构**：`runtime-common/`（公共原子，跨 workflow 复用）、`verify-runtime/`（真源检测编排）、`download-runtime/`（下载编排 + 独有原子）。
+
+### 1.5 安全审计（Security Audit）
 
 | 脚本 | 职责 | 典型场景 | 状态 |
 |------|------|---------|------|

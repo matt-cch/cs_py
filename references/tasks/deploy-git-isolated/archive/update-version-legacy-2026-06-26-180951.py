@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 r"""
-update-version.py — 版本记录更新 CLI（v2.0.0）
-标签：py-tools
-依赖：py_lib 插件体系（runtime_version / timestamp / detect_devroot）
+================================================================================
+[LEGACY] update-version.py — 版本记录更新 CLI（v1.0.0）
+归档时间: 2026-06-26T18:09:51
+状态: 已归档，保留可运行性，仅供历史追溯与审计
+替代版本: scripts/py-tools/update-version.py（架构归一化后，走 py_lib 插件体系）
+================================================================================
 
-改进点（相较 v1.0.0）：
-1. 走 py_lib.load_plugins() 统一入口，遵守 Layer 3 Workflow 禁止直接 import Layer 1 Plugin 的架构铁律
-2. 通过 PluginRegistry 访问底座能力，不越级触碰 py-plugins/
-3. 行为与输出与 v1.0.0 完全兼容，CLI 参数不变
+标签：py-tools
+依赖：py-plugins/runtime_version, py-plugins/timestamp, py-plugins/detect_devroot
 
 职责：
   1. 自动发现 venv/version/ 下需要维护版本记录的工具（扫描 *.md，排除 *-history.md）
@@ -18,9 +19,9 @@ update-version.py — 版本记录更新 CLI（v2.0.0）
   6. 输出摘要
 
 用法：
-    python update-version.py --devroot "D:\pjt\vscode\vsc_py"
-    python update-version.py --devroot "D:\pjt\vscode\vsc_py" --tool node
-    python update-version.py --devroot "D:\pjt\vscode\vsc_py" --dry-run
+    python update-version-legacy-2026-06-26-180951.py --devroot "D:\pjt\vscode\vsc_py"
+    python update-version-legacy-2026-06-26-180951.py --devroot "D:\pjt\vscode\vsc_py" --tool node
+    python update-version-legacy-2026-06-26-180951.py --devroot "D:\pjt\vscode\vsc_py" --dry-run
 """
 import argparse
 import json
@@ -31,15 +32,19 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-# 走 py_lib 统一入口（Layer 2）
+# 引入 py-plugins（归档路径自适应：从 archive/ 回退到 scripts/）
 _SCRIPTS_DIR = Path(__file__).parent.parent.resolve()
-if str(_SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPTS_DIR))
+_PLUGINS_DIR = _SCRIPTS_DIR / "py-plugins"
+# 若从 archive/ 运行，py-plugins 不存在，尝试 task 根下的 scripts/
+if not _PLUGINS_DIR.exists():
+    _SCRIPTS_DIR = _SCRIPTS_DIR / "scripts"
+    _PLUGINS_DIR = _SCRIPTS_DIR / "py-plugins"
+if str(_PLUGINS_DIR) not in sys.path:
+    sys.path.insert(0, str(_PLUGINS_DIR))
 
-from py_lib import load_plugins
-
-# 加载插件（core + utility 覆盖 detect_devroot / runtime_version / timestamp）
-registry = load_plugins(tags=["core", "utility"])
+from detect_devroot import get_devroot
+from runtime_version import detect, resolve_path
+from timestamp import get_now
 
 
 # =============================================================================
@@ -200,14 +205,10 @@ def build_detect_kwargs(tool_config: dict, devroot: str) -> dict:
     if mode == "subprocess-version":
         kwargs["version_arg"] = local.get("version_arg", "--version")
     elif mode == "package-import":
-        kwargs["interpreter"] = registry.runtime_version.resolve_path(
-            local.get("interpreter", "${devroot}\\venv\\py\\python.exe"), devroot
-        )
+        kwargs["interpreter"] = resolve_path(local.get("interpreter", "${devroot}\\venv\\py\\python.exe"), devroot)
         kwargs["package_name"] = local.get("package_name", "")
     elif mode == "python-self":
-        kwargs["interpreter"] = registry.runtime_version.resolve_path(
-            local.get("interpreter", "${devroot}\\venv\\py\\python.exe"), devroot
-        )
+        kwargs["interpreter"] = resolve_path(local.get("interpreter", "${devroot}\\venv\\py\\python.exe"), devroot)
     elif mode == "cursor-special":
         pass
     elif mode == "file-version":
@@ -228,15 +229,12 @@ def main():
     parser.add_argument("--refresh-date", action="store_true", help="版本未变时也刷新 frontmatter date")
     args = parser.parse_args()
 
-    # 获取 devroot（优先命令行参数，否则用 registry 内探测值）
-    if args.devroot:
-        devroot = registry.detect_devroot.validate_devroot(args.devroot)
-    else:
-        devroot = registry.detect_devroot.get_devroot()
+    # 获取 devroot
+    devroot = get_devroot(explicit_devroot=args.devroot) if args.devroot else get_devroot()
     devroot_str = str(devroot)
 
     # 获取今天日期
-    today = registry.timestamp.get_now()["local_short"]  # YYYY-MM-DD
+    today = get_now()["local_short"]  # YYYY-MM-DD
 
     # 发现工具
     tools = discover_tools(devroot)
@@ -285,8 +283,8 @@ def main():
         exe_path = local_cfg.get("exe_path", "")
         kwargs = build_detect_kwargs(tool_cfg, devroot_str)
 
-        # 3. 实测本地版本（通过 registry 调用底座插件）
-        result = registry.runtime_version.detect(exe_path, mode=mode, devroot=devroot_str, **kwargs)
+        # 3. 实测本地版本
+        result = detect(exe_path, mode=mode, devroot=devroot_str, **kwargs)
         actual_ver = result.get("version")
         print(f"  实测版本: {actual_ver} (status: {result['status']}, path: {result['path']})")
 

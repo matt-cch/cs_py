@@ -38,7 +38,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-sys.stdout.reconfigure(encoding="utf-8")
+# 编码由底层 process_runner 统一保障（设置+恢复闭环），本模块不再重复设置
+# process_runner 加载时已执行 sys.stdout/stderr.reconfigure(encoding="utf-8")
 
 # 复用 process_runner 做 subprocess，禁止自行调 subprocess.run
 _SCRIPTS_DIR = Path(__file__).parent.resolve()

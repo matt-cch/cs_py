@@ -69,7 +69,7 @@ def parse_7z_stdout(stdout: str) -> dict:
     return stats
 
 
-def compress_group(cfg: dict, seven_zip: Path, fmt: str = "zip", force: bool = False) -> dict:
+def compress_group(cfg: dict, seven_zip: Path, fmt: str = "zip", force: bool = False, timeout: int = 0) -> dict:
     """
     使用 7z 压缩指定分组的 listfile。
 
@@ -201,7 +201,12 @@ def compress_group(cfg: dict, seven_zip: Path, fmt: str = "zip", force: bool = F
     consumer = threading.Thread(target=stdout_consumer, args=(proc.stdout, stop_event, progress, stdout_lines), daemon=True)
     consumer.start()
 
-    returncode = proc.wait()
+    try:
+        returncode = proc.wait(timeout=timeout if timeout > 0 else None)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        returncode = proc.wait()
+        print(f"[compress] 超时({timeout}s)，已终止7z进程")
     consumer.join(timeout=5)
     elapsed = time.time() - start
 

@@ -59,6 +59,15 @@ async def extract_article(
     devroot = None
     if __plugin_registry__ and hasattr(__plugin_registry__, "devroot"):
         devroot = str(__plugin_registry__.devroot)
+    if not devroot:
+        # 向上探测 devroot（与 browser_session._get_devroot 一致）
+        current = Path(__file__).resolve()
+        while current.parent != current:
+            candidate = current.parent
+            if (candidate / "references" / "runtime" / "verified-runtime-index.json").exists():
+                devroot = str(candidate)
+                break
+            current = candidate
 
     if output_dir is None:
         if devroot:

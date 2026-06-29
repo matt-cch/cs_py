@@ -75,6 +75,10 @@ meta: {}
 | [env-migration-archive-toolchain-enhance-and-7z-revert-2026-06-25-121658.md](env-migration-archive-toolchain-enhance-and-7z-revert-2026-06-25-121658.md) | 归档工具链增强与默认值勘误（7z 回退 + 实时进度 + TOP20 卡点） | 2026-06-25-121658 |
 | [env-migration-workflow-self-contained-execution-2026-06-25-142208.md](env-migration-workflow-self-contained-execution-2026-06-25-142208.md) | Workflow 自闭环执行铁律固化与部署脚本文档增强 | 2026-06-25-142208 |
 | [env-migration-git-emptydir-preflight-2026-06-25-162358.md](env-migration-git-emptydir-preflight-2026-06-25-162358.md) | Git 空目录保留归并 preflight + get-timestamp 参数勘误 | 2026-06-25-162358 |
+| [env-migration-download-article-preflight-2026-06-25-172700.md](env-migration-download-article-preflight-2026-06-25-172700.md) | download-article.py 增加 Preflight 检查与头条 URL 验证 | 2026-06-25-172700 |
+| [env-migration-runtime-atomic-refactor-2026-06-26-231301.md](env-migration-runtime-atomic-refactor-2026-06-26-231301.md) | 运行时域原子脚本重构（verify-runtime / download-runtime-tool → task 插件体系） | 2026-06-26-231301 |
+| [env-migration-lint-toolchain-upgrade-and-feiliks-docs-2026-06-29-151658.md](env-migration-lint-toolchain-upgrade-and-feiliks-docs-2026-06-29-151658.md) | lint 工具链升级（md_lint v1.2.1 + lint_encoding v1.1.0 + lint_ps1 修复）与 FEILIKS 文档沉淀 | 2026-06-29-151658 |
+| [env-migration-feiliks-invoice-csv-toolchain-2026-06-29-145157.md](env-migration-feiliks-invoice-csv-toolchain-2026-06-29-145157.md) | FEILIKS FAPINV 发票 CSV 工具链建设补录（xlsx→csv + 白名单过滤 + 日期更新） | 2026-06-29-145157 |
 
 
 ## 上级导航

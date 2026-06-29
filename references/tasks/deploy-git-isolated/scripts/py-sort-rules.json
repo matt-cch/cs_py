@@ -161,6 +161,13 @@
       "description": "时间戳格式化器：接收 time_source 输出的 datetime，格式化为多种字符串（YYYY-MM-DD、ISO 8601、文件名安全格式）"
     },
     {
+      "name": "runtime_version",
+      "module": "runtime_version",
+      "depends": ["process_runner"],
+      "tags": ["utility"],
+      "description": "运行时工具版本检测器：检测本地可执行文件/工具的实际版本号，供 update-version 等下游工具调用"
+    },
+    {
       "name": "provider_config",
       "module": "provider_config",
       "depends": [],
@@ -201,6 +208,13 @@
       "depends": [],
       "tags": ["core", "validation"],
       "description": "安全审计插件：部署前敏感内容巡检，支持 pattern scan / git tracking / 汇总报告"
+    },
+    {
+      "name": "chrome_session",
+      "module": "chrome_session",
+      "depends": [],
+      "tags": ["browser", "session", "chrome"],
+      "description": "Chrome Session 检测器：读取 Cookies DB，检测登录态标志 cookie 并分析 TTL 有效期"
     }
   ],
   "profiles": {

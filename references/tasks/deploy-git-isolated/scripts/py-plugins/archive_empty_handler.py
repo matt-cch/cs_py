@@ -77,14 +77,13 @@ def write_detail_list(paths: list, out_path: Path) -> int:
     return len(paths)
 
 
-def fill_emptydirs(empty_dirs: list, src_dir: Path, arcname: str) -> int:
+def fill_emptydirs(empty_dirs_rel: list, src_dir: Path) -> int:
     """
     在空目录下创建 .emptydir 占位文件。
 
     参数:
-        empty_dirs: 空目录 archive 路径列表
+        empty_dirs_rel: 空目录的相对路径列表（相对于 src_dir，已去掉 arcname 前缀）
         src_dir: 源目录绝对路径
-        arcname: 归档前缀
 
     返回:
         int: 新建占位文件数量
@@ -92,13 +91,7 @@ def fill_emptydirs(empty_dirs: list, src_dir: Path, arcname: str) -> int:
     src = src_dir.resolve()
     created = 0
 
-    for path in empty_dirs:
-        # 从 archive 路径提取磁盘相对路径
-        if "/" in path:
-            rel = path.split("/", 1)[1]
-        else:
-            rel = ""
-
+    for rel in empty_dirs_rel:
         disk_path = src / rel.replace("/", os.sep) / PLACEHOLDER
         if not disk_path.exists():
             disk_path.write_text("", encoding="utf-8")

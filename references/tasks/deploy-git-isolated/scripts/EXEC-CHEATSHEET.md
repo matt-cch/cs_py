@@ -473,6 +473,34 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 > 优先级：`-Include/-Exclude` > `-Profile` > `_default`（向后兼容，加载全部）
 
 
+## Stage S8: 运行时域（真源检测与下载）
+
+### 真源检测
+
+```powershell
+# 全量检测
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\verify-runtime\wf-verify-runtime.py" --devroot "${devroot}"
+
+# 单工具检测
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\verify-runtime\wf-verify-runtime.py" --devroot "${devroot}" --tool node
+```
+
+### 运行时下载
+
+```powershell
+# 检测+下载一体化（推荐，全程带进度条）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\runtime-common\wf-runtime-full.py" --devroot "${devroot}" --tools node,opencode_cli
+
+# 检测+下载（不替换，默认保留文件）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-runtime\wf-download-runtime.py" --devroot "${devroot}" --tool-name node
+
+# 强制下载并替换（需确认无运行中进程）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-runtime\wf-download-runtime.py" --devroot "${devroot}" --tool-name node --force
+
+# 显示下载进度
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-runtime\wf-download-runtime.py" --devroot "${devroot}" --tool-name node --show-progress
+```
+
 ## CI/CD 自动化调用
 
 ```powershell

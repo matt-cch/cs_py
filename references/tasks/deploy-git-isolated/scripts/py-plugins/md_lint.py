@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-插件：Markdown 格式 Linter（v1.2.0）
+插件：Markdown 格式 Linter（v1.2.1）
 标签：md, validation
 依赖：core
 
@@ -13,6 +13,7 @@
 ├────────┼──────────────────────────────────────────────────────────────┼──────────┤
 │ 1.1    │ 文件开头（第 1 行）必须有 YAML frontmatter（--- 定界）         │ ✅       │
 │ 1.1    │ frontmatter 必须包含 title / description / date / meta        │ ✅       │
+│ 1.1    │ --fix 自动补全缺失的 meta: {}（仅 meta 可自动修复）          │ ✅       │
 │ 1.1    │ date 格式严格为 YYYY-MM-DD                                    │ ✅       │
 │ 1.2    │ 禁止 description 与 date 拼接在同一行                         │ ✅       │
 │ 1.2    │ 正文中严禁使用 --- 水平分隔线（代码块内例外，见下方）           │ ✅       │
@@ -139,14 +140,14 @@ def _check_frontmatter_fields(content: str) -> list:
 
     # 必填字段检查
     required_fields = {
-        "title": "缺少必填字段 title",
-        "description": "缺少必填字段 description",
-        "date": "缺少必填字段 date",
-        "meta": "缺少必填字段 meta（无内容时写 meta: {}）",
+        "title": ("缺少必填字段 title", False),
+        "description": ("缺少必填字段 description", False),
+        "date": ("缺少必填字段 date", False),
+        "meta": ("缺少必填字段 meta（无内容时写 meta: {}）", True),
     }
-    for key, msg in required_fields.items():
+    for key, (msg, fixable) in required_fields.items():
         if key not in keys_found:
-            violations.append({"line": start_line, "context": msg})
+            violations.append({"line": start_line, "context": msg, "fixable": fixable})
 
     # description 与 date 拼接检查
     if description_has_date_glued:
@@ -231,24 +232,47 @@ def _fix_content(content: str, strategy="delete") -> str:
     return result
 
 
-def _fix_frontmatter_fields(content: str) -> str:
+def _fix_frontmatter_fields(content: str, missing_keys: set = None) -> str:
     """
-    自动修复 frontmatter 字段问题（目前只修复 description/date 拼接）。
+    自动修复 frontmatter 字段问题。
+    支持：description/date 拼接拆分、缺失 meta 字段补全。
     """
     lines = content.splitlines()
     new_lines = []
+    in_frontmatter = False
+    frontmatter_end_idx = -1
+    dash_count = 0
+
+    # 先定位 frontmatter 边界
+    for idx, line in enumerate(lines):
+        if line.strip() == "---":
+            dash_count += 1
+            if dash_count == 1:
+                in_frontmatter = True
+            elif dash_count == 2:
+                frontmatter_end_idx = idx
+                break
+
+    # 修复 description/date 拼接
     for line in lines:
-        # 检测 description 行把 date 吸到同一行的情况
         if line.strip().startswith("description:") and "date:" in line.strip():
             parts = line.strip().split("date:", 1)
             desc_part = parts[0].rstrip()
             date_part = "date:" + parts[1].lstrip()
-            # 保留原缩进
             indent = line[:len(line) - len(line.lstrip())]
             new_lines.append(indent + desc_part)
             new_lines.append(indent + date_part)
         else:
             new_lines.append(line)
+
+    # 补全缺失的 meta 字段（在第二个 --- 前插入）
+    if missing_keys and "meta" in missing_keys and frontmatter_end_idx > 0:
+        insert_idx = frontmatter_end_idx
+        indent = ""
+        if new_lines:
+            indent = new_lines[1][:len(new_lines[1]) - len(new_lines[1].lstrip())] if len(new_lines) > 1 else ""
+        new_lines.insert(insert_idx, indent + "meta: {}")
+
     result = "\n".join(new_lines)
     if content.endswith("\n") and not result.endswith("\n"):
         result += "\n"
@@ -274,14 +298,19 @@ def validate_file(filepath: str, fix: bool = False, strategy="delete") -> dict:
         field_v = _check_frontmatter_fields(content)
         if field_v:
             files_with_violations = 1
+            fixable_keys = set()
             for v in field_v:
                 violations.append({
                     "file": str(fp),
                     "line": v["line"],
                     "context": v["context"],
                 })
-            if fix:
-                fixed_content = _fix_frontmatter_fields(fixed_content)
+                if v.get("fixable"):
+                    # 从 context 推断缺失的键名（目前只有 meta 可修）
+                    if "meta" in v["context"]:
+                        fixable_keys.add("meta")
+            if fix and fixable_keys:
+                fixed_content = _fix_frontmatter_fields(fixed_content, fixable_keys)
                 files_fixed = 1
 
     # 2. --- 污染校验（所有文件都检查）
@@ -353,14 +382,18 @@ def scan(dir_path: str = None, fix: bool = False, strategy="delete") -> dict:
             field_v = _check_frontmatter_fields(content)
             if field_v:
                 file_has_v = True
+                fixable_keys = set()
                 for v in field_v:
                     violations.append({
                         "file": rel_path,
                         "line": v["line"],
                         "context": v["context"],
                     })
-                if fix:
-                    fixed_content = _fix_frontmatter_fields(fixed_content)
+                    if v.get("fixable"):
+                        if "meta" in v["context"]:
+                            fixable_keys.add("meta")
+                if fix and fixable_keys:
+                    fixed_content = _fix_frontmatter_fields(fixed_content, fixable_keys)
 
         # 2. --- 污染校验（所有文件都检查）
         dash_v = _check_frontmatter_dashes(fixed_content)

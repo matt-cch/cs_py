@@ -34,6 +34,7 @@ meta: {}
 | [research/workflow-entry-plugins-architecture-research.md](research/workflow-entry-plugins-architecture-research.md) | research | workflow→entry→plugins 三层架构选型演进与反例分析（lint 体系建设 session 共识沉淀） |
 | [research/task-agent-self-explanation-validation.md](research/task-agent-self-explanation-validation.md) | research | Task Agent 自说明能力验证实验 — 从零上下文到自主执行的探索，含知行 gap 分析与改进建议 |
 | [research/agent-directory-reading-pattern.md](research/agent-directory-reading-pattern.md) | research | Agent 目录自然阅读次序模式 — 从目录扫描到意图衔接的五层认知模型 |
+| [research/runtime-atomic-integration-experience.md](research/runtime-atomic-integration-experience.md) | research | 运行时域原子脚本集成经验 — verify-runtime / download-runtime-tool 重构踩坑、决策与修复路径 |
 
 
 *导航版本: v1.2*  

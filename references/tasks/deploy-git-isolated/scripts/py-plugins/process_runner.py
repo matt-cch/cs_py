@@ -17,12 +17,37 @@
     for line in run_streaming_limited(["git", "status"], max_lines=10):
         print(line, end="")
 """
+import atexit
 import subprocess
 import sys
 import time
 from typing import List, Optional
 
+# =============================================================================
+# 编码设置闭环：保存原始值 → 切换 UTF-8 → 注册退出恢复
+# =============================================================================
+_ORIGINAL_STDOUT_ENCODING = sys.stdout.encoding
+_ORIGINAL_STDERR_ENCODING = sys.stderr.encoding
+
+
+def _restore_encoding():
+    """恢复 stdout/stderr 到原始编码。供 atexit 注册，也可显式调用。"""
+    try:
+        if sys.stdout.encoding != _ORIGINAL_STDOUT_ENCODING:
+            sys.stdout.reconfigure(encoding=_ORIGINAL_STDOUT_ENCODING)
+    except Exception:
+        pass
+    try:
+        if sys.stderr.encoding != _ORIGINAL_STDERR_ENCODING:
+            sys.stderr.reconfigure(encoding=_ORIGINAL_STDERR_ENCODING)
+    except Exception:
+        pass
+
+
+atexit.register(_restore_encoding)
+
 sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
 
 
 def run_streaming(

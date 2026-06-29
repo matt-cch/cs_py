@@ -2,6 +2,8 @@
 title: GitHub 认证弹窗排查与解法
 description: deploy-git-isolated 自动部署时，push 阶段弹出的 GitHub 选账号/登录窗口的排查过程与最终解法
 date: 2026-06-24
+meta:
+  version: 1.0.0
 ---
 
 # GitHub 认证弹窗排查与解法

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-插件：文件编码/BOM/行尾符检测器（v1.0.0）
+插件：文件编码/BOM/行尾符/UTF-8完整性检测器（v1.1.0）
 标签：lint, encoding
 依赖：core
 
@@ -8,6 +8,7 @@
   - UTF-8 BOM 头（前3字节 EF BB BF）
   - 双 BOM（前6字节中出现两次 EF BB BF）
   - CRLF（0D 0A）与 LF（0A）行尾符数量
+  - UTF-8 完整性（截断/损坏的多字节序列，所有文本文件适用）
 
 按文件类型区分期望编码（来自 AGENTS.md）：
   - .ps1 含中文 → 期望 UTF-8 with BOM（仅检测双 BOM）
@@ -87,6 +88,19 @@ def _check_encoding(filepath: Path) -> dict:
     if ext in (".md", ".mdc") and crlf > 0:
         violations.append(f"{ext} 文件必须使用 LF 换行符，检测到 {crlf} 处 CRLF")
         fixable = True
+
+    # UTF-8 完整性检测（所有文本文件适用）
+    try:
+        raw.decode("utf-8")
+    except UnicodeDecodeError as e:
+        msg = str(e)
+        if "unexpected end of data" in msg:
+            violations.append(f"UTF-8 序列截断（文件末尾不完整多字节序列）: {msg}")
+        elif "invalid start byte" in msg or "invalid continuation byte" in msg:
+            violations.append(f"UTF-8 编码损坏（中间存在非法字节）: {msg}")
+        else:
+            violations.append(f"UTF-8 编码异常: {msg}")
+        # 不可自动修复，不修改 fixable
 
     return {
         "has_bom": has_bom,

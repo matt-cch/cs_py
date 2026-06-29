@@ -132,7 +132,18 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `scripts/py-steps/step-04-*.py` ~ `step-09-*.py` | Python 版 Step 脚本：add / commit / remote / push / upstream / issue sync | 被 workflow-deploy-full.py 调用 |
 | `scripts/py-tools/run-lint.py` | **Workflow：全量 lint**。--fix 三阶段闭环、--audit 覆盖度审计（对照 lint-rules-manifest.json） | 脚本交付前必执行 |
 | `scripts/py-tools/workflow-lint-amend-lint.py` | **Workflow：编码修复闭环**。通过 py_lib 调用 lint_encoding | 编码问题发现后修复 |
-| `scripts/py-tools/update-version.py` | **Workflow：版本记录更新**。自动发现 → 实测 → 对比 → 更新 .md + history | 记一版 version |
+| `scripts/py-tools/update-version.py` | **Workflow：版本记录更新** v2.0.0。走 py_lib → registry 调用 runtime_version。旧版归档到 `archive/update-version-legacy-*.py` | 记一版 version |
+| `scripts/py-tools/verify-runtime/wf-verify-runtime.py` | **Workflow：真源检测**。编排 detect → query → compare → report，替代 runtime/verify-runtime.py | 执行真源检测 |
+| `scripts/py-tools/download-runtime/wf-download-runtime.py` | **Workflow：运行时下载**。编排 detect → query → compare → route → download → extract → backup → replace → cleanup，替代 runtime/download-runtime-tool.py | 下载/更新运行时 |
+| `scripts/py-tools/runtime-common/atomic-detect-local.py` | **公共原子：本地检测**。exe 存在性 + candidate_paths 兜底 + 版本提取 | 被 wf-verify-runtime / wf-download-runtime 调用 |
+| `scripts/py-tools/runtime-common/atomic-query-upstream.py` | **公共原子：上游查询**。python/node/opencode/chromium/llama 上游版本实时查询 | 被 wf-verify-runtime / wf-download-runtime 调用 |
+| `scripts/py-tools/runtime-common/atomic-compare-version.py` | **公共原子：版本对比**。up_to_date/outdated/unknown 判定 | 被 wf-verify-runtime / wf-download-runtime 调用 |
+| `scripts/py-tools/runtime-common/atomic-generate-report.py` | **公共原子：报告生成**。stdout 表格 + JSON 落盘 | 被 wf-verify-runtime 调用 |
+| `scripts/py-tools/download-runtime/atomic-01-route-probe.py` | **原子：路由探测**。HEAD 探测直连+代理，返回最优路由 | 被 wf-download-runtime 调用 |
+| `scripts/py-tools/download-runtime/atomic-02-download-file.py` | **原子：文件下载**。流式下载 + 进度条 + 代理支持 | 被 wf-download-runtime 调用 |
+| `scripts/py-tools/download-runtime/atomic-03-extract-verify.py` | **原子：解压验证**。ZIP 解压 + 定位 exe + 版本验证 | 被 wf-download-runtime 调用 |
+| `scripts/py-tools/download-runtime/atomic-04-backup-replace.py` | **原子：备份替换**。进程检测 + 备份旧版 + 替换新版 | 被 wf-download-runtime 调用 |
+| `scripts/py-tools/download-runtime/atomic-05-cleanup-temp.py` | **原子：清理临时**。清理解压目录和 ZIP 文件 | 被 wf-download-runtime 调用 |
 | `scripts/py-tools/archive_project.py` | **Workflow：项目归档**。scan → compress → verify 三阶段闭环 | 项目归档（cs_py / venv） |
 | `scripts/py-tools/archive_cs_py.py` | 快捷入口：归档 cs_py 分组 | 调用 archive_project.py --group cs_py |
 | `scripts/py-tools/archive_venv.py` | 快捷入口：归档 venv 分组 | 调用 archive_project.py --group venv |

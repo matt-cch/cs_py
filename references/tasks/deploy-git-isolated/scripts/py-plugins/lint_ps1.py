@@ -41,19 +41,23 @@ def _check_ps1_file(filepath: Path) -> dict:
         result = subprocess.run(
             ["powershell.exe", "-NoProfile", "-Command", ps_cmd],
             capture_output=True,
-            text=True,
+            text=False,
             timeout=30,
-            encoding="utf-8",
         )
-        stdout = result.stdout.strip()
-        if stdout == "OK":
+        # PowerShell 输出编码可能是 GBK(ANSI) 或 UTF-8，用 replace 策略安全解码
+        stdout = result.stdout.decode("utf-8", errors="replace").strip()
+        stderr_text = result.stderr.decode("utf-8", errors="replace").strip() if result.stderr else ""
+        if stdout == "OK" and not stderr_text:
             return {"valid": True, "error": None}
         else:
             # 截断错误信息，避免过长
             lines = stdout.splitlines()
             summary = lines[0] if lines else "未知错误"
             detail = " | ".join(lines[1:4]) if len(lines) > 1 else ""
-            return {"valid": False, "error": f"{summary}; {detail}"}
+            err_msg = f"{summary}; {detail}"
+            if stderr_text:
+                err_msg += f" | stderr: {stderr_text[:200]}"
+            return {"valid": False, "error": err_msg}
     except subprocess.TimeoutExpired:
         return {"valid": False, "error": "PowerShell 执行超时"}
     except Exception as e:

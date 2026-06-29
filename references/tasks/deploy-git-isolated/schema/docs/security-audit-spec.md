@@ -178,6 +178,5 @@ if not audit_ok:
 |------|------|------|
 | 1.0.0 | 2026-06-22 | 初始版本，定义五 Phase 审计流程、敏感模式、严重等级、报告格式 |
 
----
 *规范文档版本: 1.0.0*
 *关联 schema: schema/json/security-audit-schema.json*
