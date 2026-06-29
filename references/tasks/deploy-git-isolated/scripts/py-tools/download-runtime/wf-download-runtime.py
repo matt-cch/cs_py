@@ -31,6 +31,30 @@ def run_atomic(script_path: str, args: list) -> dict:
         return {"error": f"输出不是 JSON: {lines[-1][:100]}"}
 
 
+def _parse_version(v: str) -> tuple:
+    """语义版本号解析，支持 '3.13.14'、'v26.4.0' 等格式。"""
+    import re
+    clean = re.sub(r'^[vV]', '', v)
+    parts = clean.split('.')
+    nums = []
+    for p in parts:
+        m = re.match(r'(\d+)', p)
+        nums.append(int(m.group(1)) if m else 0)
+    while len(nums) < 4:
+        nums.append(0)
+    return tuple(nums)
+
+
+def _version_gte(a: str, b: str) -> bool:
+    """a >= b（语义版本比较）"""
+    return _parse_version(a) >= _parse_version(b)
+
+
+def _version_gt(a: str, b: str) -> bool:
+    """a > b（语义版本比较）"""
+    return _parse_version(a) > _parse_version(b)
+
+
 def get_paths(devroot: str) -> dict:
     root = Path(devroot)
     return {
@@ -51,6 +75,18 @@ def load_tool_config(tools_config_path: str, tool_name: str) -> dict:
         if t["name"] == tool_name:
             return t
     return None
+
+
+def _load_download_template_from_index(index_path: str, tool_name: str) -> str:
+    """从 verified-runtime-index.json 读取 download_url_template（fallback）。"""
+    if not os.path.exists(index_path):
+        return ""
+    try:
+        with open(index_path, "r", encoding="utf-8") as f:
+            idx = json.load(f)
+        return idx.get("toolchain", {}).get(tool_name, {}).get("download_url_template", "")
+    except Exception:
+        return ""
 
 
 def main():
@@ -89,19 +125,21 @@ def main():
     local_version = local_result.get("local_version") or local_result.get("fallback_version")
     print(f"  本地版本: {local_version or 'N/A'}, exe_exists={local_result.get('exe_exists')}")
 
-    # Step 2: 上游查询
+    # Step 2: 上游查询（总是调用 atomic，支持 target_version 验证）
     print("\n[Step 2] 上游查询")
     target_version = args.target_version
-    if not target_version and upstream_cfg.get("enabled", True):
+    if upstream_cfg.get("enabled", True):
         query_param = upstream_cfg.get("query_param", args.tool_name)
         upstream_result = run_atomic(
             os.path.join(paths["common_dir"], "atomic-query-upstream.py"),
             ["--tool-name", args.tool_name,
              "--query-param", query_param,
-             "--target-version", upstream_cfg.get("target_version", "")]
+             "--target-version", target_version]
         )
         if upstream_result.get("error"):
             print(f"  [FAIL] {upstream_result['error']}")
+            if "available_top10" in upstream_result:
+                print(f"  可用版本前 10: {upstream_result['available_top10']}")
             sys.exit(1)
         target_version = upstream_result.get("upstream_version")
         print(f"  上游版本: {target_version}, source={upstream_result.get('upstream_source')}")
@@ -122,12 +160,34 @@ def main():
         print("\n[结果] 无需更新")
         sys.exit(0)
 
+    # Step 3.5: 实测版本约束强制检查
+    constraint = upstream_cfg.get("version_constraint")
+    if constraint:
+        ctype = constraint.get("type", "")
+        cvalue = constraint.get("value", "")
+        creason = constraint.get("reason", "")
+        if ctype == "pin" and target_version != cvalue:
+            print(f"\n[FAIL] 版本约束违反")
+            print(f"  请求版本: {target_version}")
+            print(f"  锁定版本: {cvalue} ({ctype})")
+            print(f"  原因: {creason}")
+            sys.exit(1)
+        elif ctype == "max" and _version_gt(target_version, cvalue):
+            print(f"\n[FAIL] 版本约束违反")
+            print(f"  请求版本: {target_version}")
+            print(f"  最大允许: {cvalue} ({ctype})")
+            print(f"  原因: {creason}")
+            sys.exit(1)
+        print(f"\n[OK] 版本约束检查通过 ({ctype}: {cvalue})")
+
     # Step 4: 路由探测
     print("\n[Step 4] 路由探测")
     asset_url = upstream_result.get("asset_url", "")
     if not asset_url:
-        # 使用模板生成 URL
+        # 使用模板生成 URL（优先 tools_config，fallback 到 index）
         template = tool.get("download_url_template", "")
+        if not template:
+            template = _load_download_template_from_index(paths["index_path"], args.tool_name)
         if template:
             asset_url = template.replace("{version}", target_version)
     if not asset_url:

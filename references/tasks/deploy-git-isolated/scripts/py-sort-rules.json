@@ -215,6 +215,13 @@
       "depends": [],
       "tags": ["browser", "session", "chrome"],
       "description": "Chrome Session 检测器：读取 Cookies DB，检测登录态标志 cookie 并分析 TTL 有效期"
+    },
+    {
+      "name": "list_upstream_versions",
+      "module": "list_upstream_versions",
+      "depends": [],
+      "tags": ["runtime", "upstream"],
+      "description": "上游版本列表查询器：根据 JSON 配置查询上游可用版本列表，支持 html_regex/json_array 解析与 target_version 验证"
     }
   ],
   "profiles": {
