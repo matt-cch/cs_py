@@ -116,7 +116,13 @@ def main():
         print(result.stderr, end="")
 
     if result.returncode != 0:
-        print(f"[FAIL] git push 失败 (exit {result.returncode})")
+        stderr_lower = result.stderr.lower() if result.stderr else ""
+        if "rejected" in stderr_lower or "protected" in stderr_lower or "protected branch" in stderr_lower:
+            print(f"[FAIL] git push 被远程拒绝（分支保护规则）")
+            print(f"[HINT] 当前分支 '{branch}' 可能受保护，请使用 feature 分支 + PR merge 流程")
+            print(f"[HINT] 操作: git checkout -b feat/xxx，然后重新执行 workflow")
+        else:
+            print(f"[FAIL] git push 失败 (exit {result.returncode})")
         sys.exit(1)
 
     print(f"[OK] push 成功: {repo_url} [{branch}]")

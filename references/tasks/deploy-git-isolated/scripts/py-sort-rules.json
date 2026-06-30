@@ -140,6 +140,13 @@
       "description": "文件编码/BOM/行尾符检测器：检测 BOM、双 BOM、CRLF/LF（按 AGENTS.md 规范）"
     },
     {
+      "name": "gh_preflight",
+      "module": "gh_preflight",
+      "depends": ["constants", "env_config"],
+      "tags": ["github", "gh", "preflight"],
+      "description": "gh CLI 前置检测：验证 gh.exe 可用性、GH_CONFIG_DIR 隔离、.env PAT 认证状态，返回 GhContext（含 run_gh 封装）"
+    },
+    {
       "name": "github_api",
       "module": "github_api",
       "depends": ["env_config"],

@@ -101,6 +101,22 @@ def _preflight_check(devroot: Path) -> None:
         sys.exit(1)
     print("[OK] .env 配置完整")
 
+    # 1.5 检测当前分支是否为受保护分支
+    git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
+    if git_exe.exists():
+        result = subprocess.run(
+            [str(git_exe), "-C", str(devroot), "branch", "--show-current"],
+            capture_output=True, text=True, encoding="utf-8"
+        )
+        current_branch = result.stdout.strip()
+        if current_branch == "master":
+            print("[WARN] 当前在 master 分支，直接 push 将被分支保护规则拒绝")
+            print("[WARN] 建议：git checkout -b feat/xxx 后重新执行 workflow")
+            print("[FAIL] Preflight 终止")
+            sys.exit(1)
+        else:
+            print(f"[OK] 当前分支: {current_branch}（非受保护分支）")
+
     # 2. 验证 agent 插件体系
     try:
         from py_lib import load_plugins
