@@ -81,6 +81,7 @@ meta: {}
 | [env-migration-lint-toolchain-upgrade-and-feiliks-docs-2026-06-29-151658.md](env-migration-lint-toolchain-upgrade-and-feiliks-docs-2026-06-29-151658.md) | lint 工具链升级（md_lint v1.2.1 + lint_encoding v1.1.0 + lint_ps1 修复）与 FEILIKS 文档沉淀 | 2026-06-29-151658 |
 | [env-migration-feiliks-invoice-csv-toolchain-2026-06-29-145157.md](env-migration-feiliks-invoice-csv-toolchain-2026-06-29-145157.md) | FEILIKS FAPINV 发票 CSV 工具链建设补录（xlsx→csv + 白名单过滤 + 日期更新） | 2026-06-29-145157 |
 | [env-migration-gh-cli-runtime-toolchain-generalization-2026-06-30-113721.md](env-migration-gh-cli-runtime-toolchain-generalization-2026-06-30-113721.md) | gh_cli 集成与运行时工具链泛化重构（GitHub Release 通用查询 + choices 动态化） | 2026-06-30-113721 |
+| [env-migration-gh-cli-pr-merge-automation-2026-06-30-173228.md](env-migration-gh-cli-pr-merge-automation-2026-06-30-173228.md) | gh CLI 隔离部署与 PR merge 自动化闭环建设（分支保护 + .gitignore 收紧 + autocrlf 修正） | 2026-06-30-173228 |
 
 
 ## 上级导航

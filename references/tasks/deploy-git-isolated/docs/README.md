@@ -35,7 +35,9 @@ meta: {}
 | [research/task-agent-self-explanation-validation.md](research/task-agent-self-explanation-validation.md) | research | Task Agent 自说明能力验证实验 — 从零上下文到自主执行的探索，含知行 gap 分析与改进建议 |
 | [research/agent-directory-reading-pattern.md](research/agent-directory-reading-pattern.md) | research | Agent 目录自然阅读次序模式 — 从目录扫描到意图衔接的五层认知模型 |
 | [research/runtime-atomic-integration-experience.md](research/runtime-atomic-integration-experience.md) | research | 运行时域原子脚本集成经验 — verify-runtime / download-runtime-tool 重构踩坑、决策与修复路径 |
+| [research/git-local-remote-state-timeline-clarification.md](research/git-local-remote-state-timeline-clarification.md) | research | Git 本地/Remote 生效机制时间线 — workflow-deploy 与 workflow-gh 的衔接前提与常见误判 |
+| [research/branch-vs-worktree-equivalence-and-differences.md](research/branch-vs-worktree-equivalence-and-differences.md) | research | Branch 与 Worktree 模式在 PR 闭环中的等价性与差异 |
 
 
-*导航版本: v1.2*  
-*更新时间: 2026-06-19*
+*导航版本: v1.4*  
+*更新时间: 2026-07-01*
