@@ -98,9 +98,16 @@
       "description": "归档配置：GROUPS 定义、7z 路径解析、输出目录（依赖 constants 提供 devroot）"
     },
     {
+      "name": "archive_empty_handler",
+      "module": "archive_empty_handler",
+      "depends": [],
+      "tags": ["archive", "core"],
+      "description": "空目录与零字节文件处理器：检测空目录、零字节文件，创建/清理 .emptydir 占位文件"
+    },
+    {
       "name": "archive_scanner",
       "module": "archive_scanner",
-      "depends": ["archive_config", "core"],
+      "depends": ["archive_config", "core", "archive_empty_handler"],
       "tags": ["archive"],
       "description": "归档扫描器：磁盘扫描、黑白名单过滤、空目录 .emptydir 占位、CSV/listfile 输出"
     },

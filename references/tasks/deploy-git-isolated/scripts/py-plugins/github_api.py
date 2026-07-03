@@ -106,6 +106,7 @@ def invoke_api(
     pat: str,
     body: Optional[Dict[str, Any]] = None,
     timeout: int = 30,
+    return_headers: bool = False,
 ) -> Any:
     """
     通用 GitHub API 调用，自动处理 UTF-8 encoding。
@@ -116,9 +117,10 @@ def invoke_api(
         pat: GitHub PAT
         body: 请求体（dict），自动转为 UTF-8 JSON
         timeout: 超时秒数，默认 30
+        return_headers: 是否同时返回响应头（用于分页 Link 解析）
 
     返回:
-        API 响应对象（已解析 JSON）
+        API 响应对象（已解析 JSON），或 (响应对象, headers) 当 return_headers=True
 
     异常:
         urllib.error.HTTPError: HTTP 错误
@@ -141,7 +143,10 @@ def invoke_api(
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             resp_body = resp.read().decode("utf-8")
-            return json.loads(resp_body) if resp_body else {}
+            result = json.loads(resp_body) if resp_body else {}
+            if return_headers:
+                return result, dict(resp.headers)
+            return result
     except urllib.error.HTTPError as e:
         error_body = e.read().decode("utf-8") if e.fp else ""
         raise urllib.error.HTTPError(
@@ -155,11 +160,59 @@ def get_issue(owner: str, repo: str, number: int, pat: str) -> Dict[str, Any]:
     return invoke_api("GET", uri, pat)
 
 
-def list_comments(owner: str, repo: str, number: int, pat: str) -> List[Dict[str, Any]]:
-    """列出 Issue 下的评论。"""
+def list_comments(
+    owner: str, repo: str, number: int, pat: str,
+    per_page: int = 100, since: Optional[str] = None, page: Optional[int] = None
+) -> List[Dict[str, Any]]:
+    """列出 Issue 下的评论。支持分页、时间筛选。"""
+    params = []
+    if per_page:
+        params.append(f"per_page={per_page}")
+    if since:
+        params.append(f"since={since}")
+    if page:
+        params.append(f"page={page}")
+
     uri = f"https://api.github.com/repos/{owner}/{repo}/issues/{number}/comments"
+    if params:
+        uri += "?" + "&".join(params)
+
     result = invoke_api("GET", uri, pat)
     return result if isinstance(result, list) else []
+
+
+def _parse_next_link(link_header: str) -> Optional[str]:
+    """从 Link header 中提取 next 页面的 URL。"""
+    if not link_header:
+        return None
+    for part in link_header.split(","):
+        match = re.search(r'<([^>]+)>;\s*rel="next"', part.strip())
+        if match:
+            return match.group(1)
+    return None
+
+
+def list_comments_all(owner: str, repo: str, number: int, pat: str) -> List[Dict[str, Any]]:
+    """列出 Issue 下的所有评论（自动遍历分页）。"""
+    all_comments: List[Dict[str, Any]] = []
+    uri = f"https://api.github.com/repos/{owner}/{repo}/issues/{number}/comments?per_page=100"
+
+    while uri:
+        result, headers = invoke_api("GET", uri, pat, return_headers=True)
+        if isinstance(result, list):
+            all_comments.extend(result)
+
+        link_header = headers.get("Link", "")
+        uri = _parse_next_link(link_header)
+
+    return all_comments
+
+
+def get_comment(owner: str, repo: str, comment_id: int, pat: str) -> Dict[str, Any]:
+    """通过 comment_id 精准获取单条评论。"""
+    uri = f"https://api.github.com/repos/{owner}/{repo}/issues/comments/{comment_id}"
+    result = invoke_api("GET", uri, pat)
+    return result if isinstance(result, dict) else {}
 
 
 def create_issue(

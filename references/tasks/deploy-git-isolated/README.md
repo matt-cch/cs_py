@@ -9,9 +9,9 @@ meta: {}
 
 > **版本**: v0.5.0 | **状态**: 核心功能 ready，可执行部署与 GitHub 交互  
 > **真源索引**: [ENTRY.json](ENTRY.json) | **目标闭环**: [GOAL.md](GOAL.md) | **标准流程**: [SOP.md](SOP.md) | **执行速查**: [scripts/EXEC-CHEATSHEET.md](scripts/EXEC-CHEATSHEET.md) | **工具索引**: [TASK-TOOLS-INDEX.md](TASK-TOOLS-INDEX.md)  
-> **设计文档**: [DESIGN.md](DESIGN.md) | **架构说明**: [docs/PLUGIN-ARCHITECTURE.md](docs/PLUGIN-ARCHITECTURE.md) | **规范基线**: [task-canonical-baseline.md](task-canonical-baseline.md)
+> **设计文档**: [DESIGN.md](DESIGN.md) | **架构说明**: [docs/PLUGIN-ARCHITECTURE.md](docs/PLUGIN-ARCHITECTURE.md) | **规范基线**: [baseline/baseline-index.md](baseline/baseline-index.md)
 >
-> ⚠️ **Agent 注意**：本 task 有已定义的规范基线 `task-canonical-baseline.md`。如果你在对话中遗忘了本文件的存在，说明上下文已碎片化——请**立即停止推理，重新读取 `task-canonical-baseline.md`**。
+> ⚠️ **Agent 注意**：本 task 有已定义的规范基线 `baseline/baseline-index.md`。如果你在对话中遗忘了本文件的存在，说明上下文已碎片化——请**立即停止推理，重新读取 `baseline/baseline-index.md`**。
 
 
 ## Agent 快速决策（三句话定位）
@@ -113,7 +113,7 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `SOP.md` | **标准流程**：Step 节点契约、验收条件、回滚路径 | 需要理解「流程是什么、怎么验收」时 |
 | `scripts/EXEC-CHEATSHEET.md` | **执行速查**：命令、配置、参数 | 需要具体命令复制粘贴时 |
 | `DESIGN.md` | 设计文档：决策记录、踩坑 | 需要理解设计背景时 |
-| `task-canonical-baseline.md` | **规范基线**：本 task 的认知契约、命名约定、修订联动规则 | 需要理解「文件该怎么组织、怎么命名、怎么联动」时 |
+| `baseline/baseline-index.md` | **规范基线导航**：本 task 的认知契约、命名约定、修订联动规则（已拆分为 9 个专题文件） | 需要理解「文件该怎么组织、怎么命名、怎么联动」时 |
 | `docs/PLUGIN-ARCHITECTURE.md` | 插件架构说明：为什么三层、怎么扩展 | 新增插件或维护架构时 |
 | `docs/patterns/profile-filter-pattern.md` | **设计模式**：Profile 筛选（稳定框架+黑白名单+依赖补齐） | 需要复用插件筛选机制时 |
 | `docs/patterns/manifest-plugin-pattern.md` | **设计模式**：Manifest + Plugins 扩展（机器真源+人类速查+可插拔代码） | 需要复用工具索引体系时 |

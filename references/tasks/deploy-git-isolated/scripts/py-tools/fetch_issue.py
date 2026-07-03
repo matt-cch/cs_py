@@ -40,6 +40,30 @@ def main():
         "--output",
         help="输出文件路径（直接写入 UTF-8，避免 stdout 编码问题）"
     )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="获取所有评论（自动遍历分页，默认只返回最新 100 条）"
+    )
+    parser.add_argument(
+        "--since",
+        help="只获取该时间之后的评论（ISO 8601 格式，如 2026-07-03T00:00:00Z）"
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        help="限制返回的评论数量（取最后 N 条，与 --all 或默认列表配合使用）"
+    )
+    parser.add_argument(
+        "--latest",
+        action="store_true",
+        help="只获取最新一条评论（快捷方式，等效于 --all --limit 1）"
+    )
+    parser.add_argument(
+        "--comment-id",
+        type=int,
+        help="通过评论 ID 精准获取单条评论"
+    )
     args = parser.parse_args()
 
     # 加载 github_api 插件
@@ -63,19 +87,43 @@ def main():
     lines.append("")
     lines.append("========== COMMENTS ==========")
 
-    # 获取评论列表
-    comments = api.list_comments(
-        owner=creds["owner"],
-        repo=creds["repo"],
-        number=args.issue_number,
-        pat=creds["pat"]
-    )
+    # 精准单条模式
+    if args.comment_id:
+        comment = api.get_comment(creds["owner"], creds["repo"], args.comment_id, creds["pat"])
+        comments = [comment] if comment else []
+        lines.append(f"[模式] 精准单条查询 (comment_id={args.comment_id})")
+    else:
+        # 快捷模式：--latest 等效于 --all --limit 1
+        if args.latest:
+            args.all = True
+            args.limit = 1
+
+        if args.all:
+            comments = api.list_comments_all(creds["owner"], creds["repo"], args.issue_number, creds["pat"])
+            lines.append(f"[模式] 全量遍历 (共 {len(comments)} 条)")
+        elif args.since:
+            comments = api.list_comments(
+                creds["owner"], creds["repo"], args.issue_number, creds["pat"],
+                per_page=100, since=args.since
+            )
+            lines.append(f"[模式] since 筛选 (since={args.since}, 返回 {len(comments)} 条)")
+        else:
+            comments = api.list_comments(
+                creds["owner"], creds["repo"], args.issue_number, creds["pat"],
+                per_page=100
+            )
+            lines.append(f"[模式] 默认最新 100 条 (返回 {len(comments)} 条)")
+
+        if args.limit and comments:
+            comments = comments[-args.limit:]
+            lines.append(f"[限制] 取最后 {len(comments)} 条")
 
     for i, c in enumerate(comments, 1):
         user = c.get("user", {}).get("login", "unknown")
         created = c.get("created_at", "")
         body = c.get("body", "")
-        lines.append(f"----- Comment #{i} by {user} at {created} -----")
+        cid = c.get("id", "")
+        lines.append(f"----- Comment #{i} (ID: {cid}) by {user} at {created} -----")
         lines.append(body)
         lines.append("")
 

@@ -86,6 +86,8 @@ meta: {}
 | [env-migration-runtime-verify-download-entry-alignment-2026-07-02-173105.md](env-migration-runtime-verify-download-entry-alignment-2026-07-02-173105.md) | 运行时检测/下载全局入口对齐（mdc → task 原子脚本体系） | 2026-07-02-173105 |
 | [env-migration-runtime-naming-plugin-2026-07-03-124427.md](env-migration-runtime-naming-plugin-2026-07-03-124427.md) | 运行时下载工具链命名真源改造（新建 runtime_naming 插件） | 2026-07-03-124427 |
 | [env-migration-encoding-fix-ai-summary-stderr-subprocess-2026-07-03-140004.md](env-migration-encoding-fix-ai-summary-stderr-subprocess-2026-07-03-140004.md) | 编码修复：AI 摘要生成 stderr 乱码与 subprocess 解码错误 | 2026-07-03-140004 |
+| [env-migration-github-api-pagination-issue-comment-precision-2026-07-03-144237.md](env-migration-github-api-pagination-issue-comment-precision-2026-07-03-144237.md) | GitHub API 分页与 Issue 评论精准定位能力增强 | 2026-07-03-144237 |
+| [env-migration-baseline-split-monolithic-to-modular-2026-07-03-160917.md](env-migration-baseline-split-monolithic-to-modular-2026-07-03-160917.md) | task-canonical-baseline.md 拆分重构（1600+ 行 → 9 个专题文件 + 导航索引） | 2026-07-03-160917 |
 
 
 ## 上级导航

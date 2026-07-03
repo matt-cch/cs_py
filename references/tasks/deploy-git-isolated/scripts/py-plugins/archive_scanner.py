@@ -21,13 +21,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from archive_empty_handler import (
-    cleanup_emptydirs,
-    detect_empty_dirs,
-    detect_zero_byte_files,
-    fill_emptydirs,
-    write_detail_list,
-)
+from pathlib import Path
+
+__plugin_registry__ = None
 
 PLACEHOLDER = ".emptydir"
 
@@ -319,7 +315,7 @@ def scan_group(cfg: dict) -> dict:
     start = time.time()
 
     # 1. 清理旧的 .emptydir（避免上一次 run 的残留影响本次 scan）
-    removed = cleanup_emptydirs(src)
+    removed = __plugin_registry__.archive_empty_handler.cleanup_emptydirs(src)
     if removed:
         print(f"[scan] 清理旧占位文件: {removed} 个")
 
@@ -374,9 +370,9 @@ def scan_group(cfg: dict) -> dict:
                     pass
 
     # 3. 检测空目录
-    empty_dirs = detect_empty_dirs(entries)
+    empty_dirs = __plugin_registry__.archive_empty_handler.detect_empty_dirs(entries)
     empty_dirs_path = listfile_path.parent / f"empty-dirs-{group_name}.txt"
-    write_detail_list(empty_dirs, empty_dirs_path)
+    __plugin_registry__.archive_empty_handler.write_detail_list(empty_dirs, empty_dirs_path)
     print(f"[scan] 空目录: {len(empty_dirs)} 个 → {empty_dirs_path}")
 
     # 4. 填充 .emptydir 到空目录
@@ -384,7 +380,7 @@ def scan_group(cfg: dict) -> dict:
     if empty_dirs:
         # 去掉 arcname 前缀，转为相对于 src 的路径后传给 fill_emptydirs
         empty_dirs_rel = [path.split("/", 1)[1] if "/" in path else "" for path in empty_dirs]
-        placeholders_created = fill_emptydirs(empty_dirs_rel, src)
+        placeholders_created = __plugin_registry__.archive_empty_handler.fill_emptydirs(empty_dirs_rel, src)
         print(f"[scan] 新建占位文件: {placeholders_created} 个")
 
     # 5. 手动把 .emptydir 添加到 entries
@@ -406,9 +402,9 @@ def scan_group(cfg: dict) -> dict:
                 pass
 
     # 6. 检测 0 字节文件（此时包含 .emptydir）
-    zero_byte_files = detect_zero_byte_files(entries)
+    zero_byte_files = __plugin_registry__.archive_empty_handler.detect_zero_byte_files(entries)
     zero_byte_path = listfile_path.parent / f"zero-byte-files-{group_name}.txt"
-    write_detail_list(zero_byte_files, zero_byte_path)
+    __plugin_registry__.archive_empty_handler.write_detail_list(zero_byte_files, zero_byte_path)
     print(f"[scan] 0 字节文件: {len(zero_byte_files)} 个 → {zero_byte_path}")
 
     # 7. 写 CSV
@@ -451,7 +447,7 @@ def cleanup_placeholders(src_dir) -> int:
     返回:
         int: 删除的 .emptydir 数量
     """
-    removed = cleanup_emptydirs(Path(src_dir))
+    removed = __plugin_registry__.archive_empty_handler.cleanup_emptydirs(Path(src_dir))
     if removed:
         print(f"[cleanup] 删除占位文件: {removed} 个")
     return removed
