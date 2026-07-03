@@ -16,10 +16,16 @@
       "arcname": "venv",
       "whitelist": [".opencode/", "data-opencode/", "data-git/", "version/"],
       "blacklist": [
+        "data-opencode/cache/",
+        "data-opencode/cache-test/",
         "data-opencode/opencode/log/*",
         "data-opencode/opencode/opencode.db",
         "data-opencode/opencode/opencode.db-shm",
-        "data-opencode/opencode/opencode.db-wal"
+        "data-opencode/opencode/opencode.db-wal",
+        "data-opencode/opencode/snapshot/",
+        "data-opencode/opencode/storage/",
+        "data-opencode/opencode/tool-output/",
+        "data-opencode/opentui/"
       ],
       "cwd_parent_level": 0,
       "zip_name": "venv"
