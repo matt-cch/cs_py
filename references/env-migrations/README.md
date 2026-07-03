@@ -85,6 +85,7 @@ meta: {}
 | [env-migration-runtime-version-detection-fix-2026-07-02-170804.md](env-migration-runtime-version-detection-fix-2026-07-02-170804.md) | 运行时检测工具链修复（query_param 映射 + package-import 版本检测） | 2026-07-02-170804 |
 | [env-migration-runtime-verify-download-entry-alignment-2026-07-02-173105.md](env-migration-runtime-verify-download-entry-alignment-2026-07-02-173105.md) | 运行时检测/下载全局入口对齐（mdc → task 原子脚本体系） | 2026-07-02-173105 |
 | [env-migration-runtime-naming-plugin-2026-07-03-124427.md](env-migration-runtime-naming-plugin-2026-07-03-124427.md) | 运行时下载工具链命名真源改造（新建 runtime_naming 插件） | 2026-07-03-124427 |
+| [env-migration-encoding-fix-ai-summary-stderr-subprocess-2026-07-03-140004.md](env-migration-encoding-fix-ai-summary-stderr-subprocess-2026-07-03-140004.md) | 编码修复：AI 摘要生成 stderr 乱码与 subprocess 解码错误 | 2026-07-03-140004 |
 
 
 ## 上级导航

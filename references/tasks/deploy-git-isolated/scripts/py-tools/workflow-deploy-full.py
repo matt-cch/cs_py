@@ -106,7 +106,7 @@ def _preflight_check(devroot: Path) -> None:
     if git_exe.exists():
         result = subprocess.run(
             [str(git_exe), "-C", str(devroot), "branch", "--show-current"],
-            capture_output=True, text=True, encoding="utf-8"
+            capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         current_branch = result.stdout.strip()
         if current_branch == "master":
@@ -157,7 +157,7 @@ def _auto_generate_message(devroot: Path) -> str:
     git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
     result = subprocess.run(
         [str(git_exe), "-C", str(devroot), "diff", "--cached", "--name-only"],
-        capture_output=True, text=True, encoding="utf-8"
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     files = [f.strip() for f in result.stdout.strip().splitlines() if f.strip()]
     if not files:
@@ -184,7 +184,7 @@ def _generate_ai_summary(devroot: Path, message: str, cached: bool = False) -> s
     print("[AI Summary] 正在生成语义摘要...")
     start = time.time()
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=300)
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
         elapsed = time.time() - start
         if result.returncode != 0:
             print(f"[AI Summary] 生成失败 (耗时 {elapsed:.2f}s)")
@@ -227,7 +227,7 @@ def _generate_meta_before_commit(devroot: Path, message: str) -> Path:
     # 1. 获取 staged 文件列表（--name-status）
     result = subprocess.run(
         [str(git_exe), "-C", str(devroot), "diff", "--cached", "--name-status"],
-        capture_output=True, text=True, encoding="utf-8"
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     changes = {"A": [], "M": [], "D": [], "R": []}
     for line in result.stdout.strip().splitlines():
@@ -311,7 +311,7 @@ def _update_meta_commit_hash(devroot: Path, meta_path: Path) -> None:
     git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
     result = subprocess.run(
         [str(git_exe), "-C", str(devroot), "rev-parse", "--short", "HEAD"],
-        capture_output=True, text=True, encoding="utf-8"
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     commit_hash = result.stdout.strip()
     meta = json.loads(meta_path.read_text(encoding="utf-8"))

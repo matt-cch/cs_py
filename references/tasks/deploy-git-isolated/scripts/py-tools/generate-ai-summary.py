@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
 
 # 确保 scripts/ 在 path 中
 _SCRIPTS_DIR = Path(__file__).parent.parent.resolve()
