@@ -16,9 +16,34 @@ import os
 import re
 import subprocess
 import sys
+import atexit
 from pathlib import Path
 
+# 编码处理闭环：保存原始编码 → 切换 UTF-8 → 退出时恢复
+_original_stdout_encoding = sys.stdout.encoding
+_original_stderr_encoding = sys.stderr.encoding
+
+def _restore_encoding():
+    try:
+        if sys.stdout.encoding != _original_stdout_encoding:
+            sys.stdout.reconfigure(encoding=_original_stdout_encoding)
+    except Exception:
+        pass
+    try:
+        if sys.stderr.encoding != _original_stderr_encoding:
+            sys.stderr.reconfigure(encoding=_original_stderr_encoding)
+    except Exception:
+        pass
+
+atexit.register(_restore_encoding)
 sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
+
+# 引入 task 本地 runtime_version 插件（消除对 schema/ 层工具的默认依赖）
+# atomic-detect-local.py 在 py-tools/runtime-common/ 下，py-plugins 需上两级到 scripts/
+_PLUGIN_DIR = str(Path(__file__).resolve().parents[2] / "py-plugins")
+if _PLUGIN_DIR not in sys.path:
+    sys.path.insert(0, _PLUGIN_DIR)
 
 
 # =============================================================================
@@ -117,11 +142,25 @@ def detect_local(config: dict, devroot: str, tool_name: str, index_path: str = "
         return result
 
     # 3. 检测版本
+    # 优先级：用户自定义脚本（扩展点）> 本地 runtime_version 插件 > fallback 正则
     version = None
     if get_version_script and mode:
+        # 用户显式传入自定义检测脚本（扩展点，保持向后兼容）
         version = _get_version_via_script(devroot, get_version_script, mode, actual_exe,
                                           version_arg=config.get("version_arg", "--version"),
                                           interpreter=resolve_path(config.get("interpreter", ""), devroot) if config.get("interpreter") else "")
+    elif mode:
+        # 默认走本地 runtime_version 插件，消除对 schema/ 层工具的耦合
+        import runtime_version
+        rv_result = runtime_version.detect(
+            exe_path=actual_exe,
+            mode=mode,
+            devroot=devroot,
+            version_arg=config.get("version_arg", "--version"),
+            interpreter=resolve_path(config.get("interpreter", ""), devroot) if config.get("interpreter") else "",
+            package_name=config.get("package_name", "")
+        )
+        version = rv_result.get("version")
 
     # 4. 兜底
     if not version:

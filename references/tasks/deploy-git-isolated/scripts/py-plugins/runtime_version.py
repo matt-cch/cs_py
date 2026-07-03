@@ -15,7 +15,7 @@ r"""
 │ file-version     │ Windows PE 文件版本（纯 Python ctypes）         │
 │ cursor-special   │ cursor.cmd → package.json → file-version       │
 │ package-import   │ python -c "import pkg; print(pkg.__version__)" │
-│ python-self      │ 调用 get-runtime-version.py --mode python-self │
+│ python-self      │ interpreter --version（subprocess-version 特例）│
 └──────────────────┴────────────────────────────────────────────────┘
 
 用法（通过 py_lib 加载）：
@@ -136,12 +136,12 @@ def detect(
             ver = _detect_cursor_special(resolved)
         elif mode == "package-import":
             ver = _detect_package_import(
-                kwargs.get("interpreter", resolved),
+                kwargs.get("interpreter") or resolved,
                 kwargs.get("package_name", ""),
                 devroot
             )
         elif mode == "python-self":
-            ver = _detect_python_self(kwargs.get("interpreter", resolved), devroot)
+            ver = _detect_subprocess_version(kwargs.get("interpreter") or resolved, "--version")
         else:
             result["error"] = f"未知的检测模式: {mode}"
             return result
@@ -167,8 +167,8 @@ def _detect_subprocess_version(exe: str, version_arg: str = "--version") -> Opti
     output = proc.stdout.strip() or proc.stderr.strip()
     if not output:
         return None
-    match = re.search(r"v?(\d+(?:\.\d+)+(?:[-\w.]*))?", output)
-    return match.group(1) if match and match.group(1) else None
+    match = re.search(r"v?(\d+(?:\.\d+)+(?:[-\w.]*))", output)
+    return match.group(1) if match else None
 
 
 def _detect_file_version(exe: str) -> Optional[str]:
@@ -271,33 +271,41 @@ def _detect_cursor_special(exe: str) -> Optional[str]:
     return _detect_file_version(exe)
 
 
+def _detect_package_import_whl(package: str, devroot: str) -> Optional[str]:
+    """从 whl 文件名正则提取版本号，作为兜底。"""
+    toolchainroot = os.environ.get("TOOLCHAINROOT", "D:\\download")
+    import glob
+    patterns = [
+        os.path.join(toolchainroot, f"{package}-*", "*.whl"),
+        os.path.join(toolchainroot, f"{package}", "*.whl"),
+    ]
+    for pattern in patterns:
+        for whl_path in glob.glob(pattern):
+            basename = os.path.basename(whl_path)
+            match = re.search(rf"{re.escape(package)}-(\d+\.\d+\.\d+)", basename)
+            if match:
+                return match.group(1)
+    return None
+
+
 def _detect_package_import(interpreter: str, package: str, devroot: str) -> Optional[str]:
-    """python -c 'import pkg; print(pkg.__version__)'"""
+    """
+    检测 Python 包版本。
+    优先直接在当前进程中 import（同进程，无 subprocess，无临时文件），
+    失败时 fallback 到 whl 文件名正则提取。
+    """
     if not package:
         return None
-    script = f"import {package}; print({package}.__version__)"
-    proc = run_simple(
-        [interpreter, "-c", script],
-        label=f"package-import: {package}"
-    )
-    output = proc.stdout.strip()
-    return output if output else None
-
-
-def _detect_python_self(interpreter: str, devroot: str) -> Optional[str]:
-    """调用 get-runtime-version.py --mode python-self"""
-    get_version_script = resolve_path("${devroot}\\schema\\tool\\get-runtime-version.py", devroot)
-    if not os.path.exists(get_version_script):
-        return None
-    proc = run_simple(
-        [interpreter, get_version_script, "--mode", "python-self", "--interpreter", interpreter, "--target", "python"],
-        label="python-self"
-    )
     try:
-        data = json.loads(proc.stdout.strip())
-        return data.get("version") if data.get("success") else None
+        mod = __import__(package)
+        ver = getattr(mod, '__version__', None)
+        if ver:
+            return ver
+        import importlib.metadata
+        return importlib.metadata.version(package)
     except Exception:
-        return None
+        pass
+    return _detect_package_import_whl(package, devroot)
 
 
 # =============================================================================

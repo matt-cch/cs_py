@@ -5,18 +5,47 @@ runtime-common/wf-runtime-full.py — 运行时检测+下载整体 Workflow（v1
 职责：检测工具链状态 → 对 outdated 工具自动下载，全程带进度条
 
 用法：
-    python wf-runtime-full.py --devroot "D:\\pjt\\vscode\\vsc_py" --tools node,opencode_cli
+    python wf-runtime-full.py --tools node,opencode_cli
 """
 import argparse
 import json
 import os
 import subprocess
 import sys
+import atexit
 import time
 from datetime import datetime
 from pathlib import Path
 
+# 编码处理闭环：保存原始编码 → 切换 UTF-8 → 退出时恢复
+_original_stdout_encoding = sys.stdout.encoding
+_original_stderr_encoding = sys.stderr.encoding
+
+def _restore_encoding():
+    try:
+        if sys.stdout.encoding != _original_stdout_encoding:
+            sys.stdout.reconfigure(encoding=_original_stdout_encoding)
+    except Exception:
+        pass
+    try:
+        if sys.stderr.encoding != _original_stderr_encoding:
+            sys.stderr.reconfigure(encoding=_original_stderr_encoding)
+    except Exception:
+        pass
+
+atexit.register(_restore_encoding)
 sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
+
+
+# =============================================================================
+# devroot 探测（复用本地插件）
+# =============================================================================
+_PLUGIN_DIR = str(Path(__file__).resolve().parents[1] / "py-plugins")
+if _PLUGIN_DIR not in sys.path:
+    sys.path.insert(0, _PLUGIN_DIR)
+
+from detect_devroot import get_devroot
 
 
 def ts() -> str:
@@ -64,7 +93,6 @@ def get_paths(devroot: str) -> dict:
         "devroot": str(root),
         "tools_config": str(root / "references" / "runtime" / "runtime_config" / "tools_config.json"),
         "index_path": str(root / "references" / "runtime" / "verified-runtime-index.json"),
-        "get_version_script": str(root / "schema" / "tool" / "get-runtime-version.py"),
         "common_dir": str(Path(__file__).parent),
         "download_dir": "D:\\download",
     }
@@ -85,8 +113,7 @@ def detect_tool(paths: dict, tool: dict) -> dict:
         ["--config-json", json.dumps(local_cfg, ensure_ascii=False),
          "--devroot", paths["devroot"],
          "--tool-name", tool["name"],
-         "--index-path", paths["index_path"],
-         "--get-version-script", paths["get_version_script"]]
+         "--index-path", paths["index_path"]]
     )
 
 
@@ -94,11 +121,17 @@ def query_upstream(tool: dict) -> dict:
     upstream_cfg = tool.get("upstream", {})
     if not upstream_cfg.get("enabled", True):
         return {"disabled": True, "reason": upstream_cfg.get("reason", "上游查询已禁用")}
+    args = [
+        "--tool-name", tool["name"],
+        "--query-param", upstream_cfg.get("query_param", tool["name"]),
+        "--target-version", upstream_cfg.get("target_version", "")
+    ]
+    constraint = upstream_cfg.get("version_constraint")
+    if constraint:
+        args.extend(["--constraint-json", json.dumps(constraint, ensure_ascii=False)])
     return run_atomic_capture_json(
         os.path.join(Path(__file__).parent, "atomic-query-upstream.py"),
-        ["--tool-name", tool["name"],
-         "--query-param", upstream_cfg.get("query_param", tool["name"]),
-         "--target-version", upstream_cfg.get("target_version", "")]
+        args
     )
 
 
@@ -116,23 +149,23 @@ def probe_route(url: str, proxy: str = "") -> dict:
     )
 
 
-def extract_verify(zip_file: str, tool_name: str, config_json: str, devroot: str, get_version_script: str) -> dict:
+def extract_verify(zip_file: str, tool_name: str, config_json: str, devroot: str) -> dict:
     return run_atomic_capture_json(
         os.path.join(Path(__file__).parent.parent, "download-runtime", "atomic-03-extract-verify.py"),
         ["--zip-file", zip_file, "--tool-name", tool_name,
-         "--config-json", config_json, "--devroot", devroot,
-         "--get-version-script", get_version_script]
+         "--config-json", config_json, "--devroot", devroot]
     )
 
 
 def main():
     parser = argparse.ArgumentParser(description="运行时检测+下载整体 Workflow")
-    parser.add_argument("--devroot", required=True, help="devroot 绝对路径")
+    parser.add_argument("--devroot", default="", help="devroot 绝对路径（默认自动探测）")
     parser.add_argument("--tools", default="", help="逗号分隔的工具名，如 node,opencode_cli")
     parser.add_argument("--force", "-f", action="store_true", help="强制下载（忽略版本对比）")
     args = parser.parse_args()
 
-    paths = get_paths(args.devroot)
+    devroot = str(get_devroot(args.devroot or None))
+    paths = get_paths(devroot)
     tool_names = [n.strip() for n in args.tools.split(",") if n.strip()] if args.tools else []
     tools = load_tools(paths["tools_config"], tool_names)
 
@@ -213,12 +246,12 @@ def main():
         if not dl.get("success"):
             log(f"  [FAIL] 下载失败: {dl.get('error')}")
             continue
-        log(f"  [download] 完成: {dl.get('size_mb')} MB, {dl.get('elapsed_sec')}s")
+        # 下载详情已由 atomic-02-download-file.py 输出到 stderr
 
         # 解压验证
         log(f"  [extract] 解压验证 ...")
         cfg = {**tool.get("local", {}), "upstream_version": upstream_ver, "package_type": tool.get("package_type", "")}
-        ev = extract_verify(zip_file, name, json.dumps(cfg, ensure_ascii=False), paths["devroot"], paths["get_version_script"])
+        ev = extract_verify(zip_file, name, json.dumps(cfg, ensure_ascii=False), paths["devroot"])
         if ev.get("error"):
             log(f"  [FAIL] 解压验证失败: {ev.get('error')}")
             continue

@@ -384,6 +384,11 @@ def main():
         print(f"[ERROR] devroot 不存在: {devroot}")
         sys.exit(1)
 
+    # 显式切换进程 CWD 到目标目录，确保所有相对路径和 . 指向 devroot
+    import os
+    os.chdir(devroot)
+    print(f"[OK] 工作目录已切换: {devroot}")
+
     # --auto 模式：忽略 --message，后续自动生成
     auto_mode = args.auto
     user_message = args.message  # None 表示未传

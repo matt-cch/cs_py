@@ -15,8 +15,27 @@ import json
 import os
 import shutil
 import sys
+import atexit
 
+# 编码处理闭环：保存原始编码 → 切换 UTF-8 → 退出时恢复
+_original_stdout_encoding = sys.stdout.encoding
+_original_stderr_encoding = sys.stderr.encoding
+
+def _restore_encoding():
+    try:
+        if sys.stdout.encoding != _original_stdout_encoding:
+            sys.stdout.reconfigure(encoding=_original_stdout_encoding)
+    except Exception:
+        pass
+    try:
+        if sys.stderr.encoding != _original_stderr_encoding:
+            sys.stderr.reconfigure(encoding=_original_stderr_encoding)
+    except Exception:
+        pass
+
+atexit.register(_restore_encoding)
 sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
 
 
 def cleanup(extract_dir: str, zip_file: str, keep_zip: bool = False) -> dict:

@@ -80,6 +80,27 @@ def parse_json_array(text: str, field_path: str) -> list:
     return [str(v) for v in versions if v]
 
 
+def parse_json_field(text: str, field_path: str):
+    """
+    从 JSON 对象中提取**单个标量值**（非数组）。
+    field_path 用 '.' 分隔嵌套路径，如 "channels.Stable.version"。
+    返回值直接包装为单元素列表，以便与现有版本列表接口兼容。
+    """
+    data = json.loads(text)
+    parts = field_path.split(".")
+    current = data
+    for part in parts:
+        if isinstance(current, dict):
+            current = current.get(part)
+        elif isinstance(current, list) and part.isdigit():
+            current = current[int(part)]
+        else:
+            return []
+        if current is None:
+            return []
+    return [str(current)] if current is not None else []
+
+
 def transform_versions(versions: list, transform: str) -> list:
     if transform == "strip_v_prefix":
         return [v.lstrip("v") for v in versions]
@@ -111,6 +132,8 @@ def query(config: dict, target_version: str = "") -> dict:
         versions = parse_html_regex(fetched["text"], parser_config.get("pattern", ""))
     elif parser_type == "json_array":
         versions = parse_json_array(fetched["text"], parser_config.get("field_path", ""))
+    elif parser_type == "json_field":
+        versions = parse_json_field(fetched["text"], parser_config.get("field_path", ""))
     else:
         return {"versions": [], "error": f"未知 parser_type: {parser_type}"}
 

@@ -228,7 +228,14 @@
       "module": "list_upstream_versions",
       "depends": [],
       "tags": ["runtime", "upstream"],
-      "description": "上游版本列表查询器：根据 JSON 配置查询上游可用版本列表，支持 html_regex/json_array 解析与 target_version 验证"
+      "description": "上游版本列表查询器：根据 JSON 配置查询上游可用版本列表，支持 html_regex/json_array/json_field 解析与 target_version 验证"
+    },
+    {
+      "name": "runtime_naming",
+      "module": "runtime_naming",
+      "depends": [],
+      "tags": ["runtime", "naming", "core"],
+      "description": "运行时产物命名唯一真源：集中管理 ZIP/解压目录/文件名的生成规则，下游消费不各自拼接"
     }
   ],
   "profiles": {

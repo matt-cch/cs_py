@@ -95,14 +95,18 @@ def main():
     else:
         ts = ts_plugin.get_now()
 
+    # 别名映射（避免反复踩坑）
+    format_map = {"local_compact": "filename_safe"}
+    target_format = format_map.get(args.format, args.format)
+
     if args.json:
         print(json.dumps(ts, ensure_ascii=False))
     elif args.all:
         for key, value in ts.items():
             print(f"{key}={value}")
     else:
-        if args.format in ts:
-            print(ts[args.format])
+        if target_format in ts:
+            print(ts[target_format])
         else:
             print(f"[ERROR] 未知格式: {args.format}", file=sys.stderr)
             print(f"可用格式: {', '.join(ts.keys())}", file=sys.stderr)

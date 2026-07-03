@@ -81,6 +81,10 @@ meta: {}
 | [env-migration-lint-toolchain-upgrade-and-feiliks-docs-2026-06-29-151658.md](env-migration-lint-toolchain-upgrade-and-feiliks-docs-2026-06-29-151658.md) | lint 工具链升级（md_lint v1.2.1 + lint_encoding v1.1.0 + lint_ps1 修复）与 FEILIKS 文档沉淀 | 2026-06-29-151658 |
 | [env-migration-feiliks-invoice-csv-toolchain-2026-06-29-145157.md](env-migration-feiliks-invoice-csv-toolchain-2026-06-29-145157.md) | FEILIKS FAPINV 发票 CSV 工具链建设补录（xlsx→csv + 白名单过滤 + 日期更新） | 2026-06-29-145157 |
 | [env-migration-gh-cli-runtime-toolchain-generalization-2026-06-30-113721.md](env-migration-gh-cli-runtime-toolchain-generalization-2026-06-30-113721.md) | gh_cli 集成与运行时工具链泛化重构（GitHub Release 通用查询 + choices 动态化） | 2026-06-30-113721 |
+| [env-migration-gh-cli-pr-merge-automation-2026-06-30-173228.md](env-migration-gh-cli-pr-merge-automation-2026-06-30-173228.md) | gh CLI 隔离部署与 PR merge 自动化闭环建设（分支保护 + .gitignore 收紧 + autocrlf 修正） | 2026-06-30-173228 |
+| [env-migration-runtime-version-detection-fix-2026-07-02-170804.md](env-migration-runtime-version-detection-fix-2026-07-02-170804.md) | 运行时检测工具链修复（query_param 映射 + package-import 版本检测） | 2026-07-02-170804 |
+| [env-migration-runtime-verify-download-entry-alignment-2026-07-02-173105.md](env-migration-runtime-verify-download-entry-alignment-2026-07-02-173105.md) | 运行时检测/下载全局入口对齐（mdc → task 原子脚本体系） | 2026-07-02-173105 |
+| [env-migration-runtime-naming-plugin-2026-07-03-124427.md](env-migration-runtime-naming-plugin-2026-07-03-124427.md) | 运行时下载工具链命名真源改造（新建 runtime_naming 插件） | 2026-07-03-124427 |
 
 
 ## 上级导航

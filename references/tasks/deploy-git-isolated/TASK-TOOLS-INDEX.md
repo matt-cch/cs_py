@@ -424,8 +424,8 @@ workflow-deploy-full.py（Workflow 编排）
 | **lint-ps1.ps1** | `schema/tool/lint-ps1.ps1` | `verified-task-index.json` → `lint-ps1` | 验证本 task 下所有 `.ps1` 脚本语法 | PS 语法检查是通用能力 |
 | **check-file-encoding.ps1** | `schema/tool/check-file-encoding.ps1` | `verified-task-index.json` → `check-file-encoding` | 检查所有落盘文件的 BOM/CRLF/LF | 编码检查统一走此工具 |
 | **file-write-helper.py** | `schema/tool/file-write-helper.py` | `verified-task-index.json` → `file-write-helper` | 写入含中文的 `.ps1` 时处理 UTF-8 BOM | 文件写入 helper 是通用能力 |
-| **verify-runtime.ps1** | `references/runtime/verify-runtime.ps1` | `verified-task-index.json` → `verify-runtime` | 真源检测时扫描 `venv/git/` 是否存在 | 运行时真源检测是全局能力 |
-| **download-runtime-tool.py** | `references/runtime/download-runtime-tool.py` | `verified-task-index.json` → `download-runtime-tool` | 如需升级 MinGit 版本时使用 | 运行时下载是全局能力，本 task 只消费 |
+| **wf-verify-runtime.py** | `references/tasks/deploy-git-isolated/scripts/py-tools/verify-runtime/wf-verify-runtime.py` | `verified-task-index.json` → `wf-verify-runtime` | 真源检测时扫描 `venv/git/` 是否存在 | 运行时真源检测能力已迁入 task 原子脚本体系 |
+| **wf-download-runtime.py** | `references/tasks/deploy-git-isolated/scripts/py-tools/download-runtime/wf-download-runtime.py` | `verified-task-index.json` → `wf-download-runtime` | 如需升级 MinGit 版本时使用 | 运行时下载能力已迁入 task 原子脚本体系 |
 | **trigger-index** | `references/runtime/verified-trigger-index.json` | `verified-task-index.json` → `trigger-index` | 查询 trigger 归属、注册新 trigger | trigger 治理是全局能力 |
 
 > **铁律**：以上工具已存在且已登记，本 task 禁止自行实现同类功能。新增需求时先查 `verified-task-index.json` → `available_scripts_and_tools`。
@@ -444,8 +444,8 @@ workflow-deploy-full.py（Workflow 编排）
 | git init / push | `github-step-01/07.ps1`（本地） | — | 禁止裸命令操作 Git |
 | push 前安全检查 | `github-safety-check.ps1`（本地） | — | 禁止跳过安全检查直接 push |
 | 日常 git 操作 | `git-isolated.ps1`（本地） | — | 禁止裸 `git` 调用（可能命中系统版） |
-| 真源扫描 | `verify-runtime.ps1`（通用） | — | 禁止自行实现文件存在性扫描 |
-| 下载 MinGit | `download-runtime-tool.py`（通用） | — | 禁止自行写 `curl`/`Invoke-WebRequest` 下载 |
+| 真源扫描 | `wf-verify-runtime.py`（本地 workflow） | — | 禁止自行实现文件存在性扫描 |
+| 下载 MinGit | `wf-download-runtime.py`（本地 workflow） | — | 禁止自行写 `curl`/`Invoke-WebRequest` 下载 |
 | Issue 同步（create/update/comment） | `github-sync-issue.ps1`（本地） | — | 禁止裸 API 调用，禁止重复造轮子 |
 | Issue 内容查看（body + 评论） | `fetch_issue.py`（本地，py_lib 插件） | `github-sync-issue.ps1 -Mode get-issue/list-comments` | 禁止裸 API 调用 |
 | 插件筛选加载 | `github-lib.ps1` -Profile（本地） | — | 禁止全量加载冗余插件 |

@@ -15,5 +15,6 @@ meta: {}
 |------|------|---------|------|
 | [forget-task-canonical-baseline.md](forget-task-canonical-baseline.md) | 高 | Agent 行为 / 上下文管理 | 2026-06-16 |
 | [browser-add-init-script-scope-isolation.md](browser-add-init-script-scope-isolation.md) | 高 | Playwright JS 注入 / 浏览器 CSP | 2026-06-24 |
+| [git-cwd-devroot-mismatch-trap.md](git-cwd-devroot-mismatch-trap.md) | 高 | Git CWD / workflow 跨目录执行 | 2026-07-01 |
 
-*创建时间: 2026-06-24*
+*更新时间: 2026-07-01*

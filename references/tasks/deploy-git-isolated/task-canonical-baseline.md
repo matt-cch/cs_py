@@ -183,6 +183,33 @@ Agent：构造入参 → 执行 workflow-deploy-full.py --auto → 等待结果
 详见 **1.3 Workflow 与 SKILL.md 的本质区别**。
 
 
+### 0.7 显式优于隐含（Explicit over Implicit）
+
+> **来源**：用户明确确认（2026-07-01）。本节定义所有脚本执行时的路径与上下文管理铁律。
+
+**核心原则**：绝不依赖任何默认行为、隐式解析、或当前环境的"恰好正确"。一切执行上下文必须显式设定、显式验证。
+
+**为什么必须显式**：
+- 默认行为会随调用环境（shell CWD、PATH、终端编码）变化，不可预期
+- 隐式解析（如 `git add .` 的 `.`、相对路径的基准点）在跨目录调用时必然出错
+- 显式设定使行为可审计、可复现、可跨 session 一致
+
+**铁律**：
+
+| 场景 | 隐含做法（禁止） | 显式做法（必须） |
+|------|---------------|---------------|
+| 指定执行目录 | `git add .`（依赖 shell CWD） | `os.chdir(devroot)` + `git add -A`；或 `git -C <absolute_path> add -A` |
+| 调用解释器 | `python script.py`（依赖 PATH） | `absolute_path/python.exe absolute_path/script.py` |
+| 指定工作目录 | `--devroot` 参数但不切换 CWD | `--devroot` + 入口处显式 `chdir` |
+| 路径解析 | 相对路径 `./xxx` | 绝对路径拼接 `devroot / "subdir" / "file"` |
+| 验证执行环境 | 假设当前目录正确 | `assert Path.cwd() == devroot` 或等价验证 |
+
+**对 workflow 的要求**：
+- 所有 workflow 脚本（`workflow-*.py`）的 `main()` 入口必须在参数解析后立即执行 `os.chdir(devroot)`，确保整个进程 CWD 与 `--devroot` 一致
+- 所有 step 脚本在执行文件操作前，必须显式传入绝对路径或使用 `-C` 切换目录
+- 禁止在任何脚本中使用裸 `./` 或 `.` 指代目标目录
+
+
 ## 1. 语义定义
 
 ### 1.1 什么是 Task

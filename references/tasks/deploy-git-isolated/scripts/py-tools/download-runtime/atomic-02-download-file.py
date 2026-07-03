@@ -14,11 +14,30 @@ import argparse
 import json
 import os
 import sys
+import atexit
 import time
 
 import requests
 
+# 编码处理闭环：保存原始编码 → 切换 UTF-8 → 退出时恢复
+_original_stdout_encoding = sys.stdout.encoding
+_original_stderr_encoding = sys.stderr.encoding
+
+def _restore_encoding():
+    try:
+        if sys.stdout.encoding != _original_stdout_encoding:
+            sys.stdout.reconfigure(encoding=_original_stdout_encoding)
+    except Exception:
+        pass
+    try:
+        if sys.stderr.encoding != _original_stderr_encoding:
+            sys.stderr.reconfigure(encoding=_original_stderr_encoding)
+    except Exception:
+        pass
+
+atexit.register(_restore_encoding)
 sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
 
 
 def download_file(url: str, out_file: str, proxy: str = "", show_progress: bool = False) -> dict:
@@ -28,8 +47,13 @@ def download_file(url: str, out_file: str, proxy: str = "", show_progress: bool 
 
     if proxy:
         conn_timeout, read_timeout = 60, 900
+        mode = f"代理: {proxy}"
     else:
         conn_timeout, read_timeout = 30, 300
+        mode = "直连"
+
+    sys.stderr.write(f"  下载模式: {mode}, 目标: {url[:60]}...\n")
+    sys.stderr.flush()
 
     try:
         start = time.time()
@@ -63,13 +87,19 @@ def download_file(url: str, out_file: str, proxy: str = "", show_progress: bool 
 
         elapsed = time.time() - start
         file_size = os.path.getsize(out_file)
-        avg_speed = (file_size / 1024 / elapsed) if elapsed > 0 else 0
+        avg_speed_kbps = (file_size / 1024 / elapsed) if elapsed > 0 else 0
+        avg_speed_mbps = (file_size / (1024 * 1024) / elapsed) if elapsed > 0 else 0
+        size_mb = round(file_size / (1024 * 1024), 2)
+        sys.stderr.write(f"  下载完成: {size_mb} MB, {round(elapsed, 1)}s, 速度: {round(avg_speed_mbps, 2)} MB/s ({mode})\n")
+        sys.stderr.flush()
         return {
             "success": True,
             "out_file": out_file,
-            "size_mb": round(file_size / (1024 * 1024), 2),
+            "size_mb": size_mb,
             "elapsed_sec": round(elapsed, 1),
-            "speed_kbps": round(avg_speed, 1),
+            "speed_kbps": round(avg_speed_kbps, 1),
+            "speed_mbps": round(avg_speed_mbps, 2),
+            "proxy": proxy,
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
