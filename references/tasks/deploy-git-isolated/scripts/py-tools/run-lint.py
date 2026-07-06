@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-run-lint.py — 统一 lint CLI 入口（v1.3.0）
+run-lint.py — 统一 lint CLI 入口（v1.4.0）
 标签：py-tools
 
 职责：通过 py_lib 加载 lint 插件，聚合执行全量/指定类型/指定文件的 lint 检查。
@@ -47,6 +47,7 @@ EXT_TO_PLUGIN = {
     ".ps1": ["lint_ps1"],
     ".json": ["lint_json"],
     ".jsonc": ["lint_json"],
+    ".code-workspace": ["lint_json"],
     ".md": ["md_lint", "link_checker"],
     ".mdc": ["md_lint", "link_checker"],
 }
@@ -216,17 +217,75 @@ def run_files_via_py_lib(devroot: str, files: list, fix: bool = False):
     print(f"{'=' * 50}")
     results, has_error = _run_file_plugins(registry, plugin_files, "Phase 1")
 
-    # 输出 Phase 1 明细
+    # 输出 Phase 1 明细（按插件分组，展示检测细项）
+    # 按 (filepath, plugin) 组织展示
+    _file_plugin_results = {}
     for r in results:
         if "result" in r:
-            v_found = r["result"].get("violations_found", 0)
-            fpath = r["file"]
-            if r["result"].get("violations"):
-                print(f"  ❌ {fpath} — {v_found} 处违规")
-                for v in r["result"]["violations"]:
-                    _print_violation(v)
+            fp = r["file"]
+            pn = r["name"]
+            _file_plugin_results.setdefault(fp, {})[pn] = r["result"]
+
+    for fpath in sorted(_file_plugin_results.keys()):
+        plugin_results = _file_plugin_results[fpath]
+        print(f"\n  📄 {fpath}")
+        for pname in sorted(plugin_results.keys()):
+            pr = plugin_results[pname]
+            v_found = pr.get("violations_found", 0)
+            print(f"    └─ [{pname}]")
+            if pname == "lint_json":
+                if v_found == 0:
+                    print(f"       ✅ JSON 语法解析 — 通过")
+                else:
+                    print(f"       ❌ JSON 语法解析 — {v_found} 处错误")
+            elif pname == "lint_encoding":
+                details = pr.get("metadata", {}).get("check_details", {})
+                bom_status = "✅ 无" if not details.get("has_bom") else "⚠️ 有"
+                if details.get("has_double_bom"):
+                    bom_status = "❌ 双 BOM"
+                print(f"       {bom_status} UTF-8 BOM 头检测")
+                print(f"       {'✅ 无' if not details.get('has_double_bom') else '❌ 有'} 双 BOM 检测")
+                crlf = details.get("crlf_count", 0)
+                lf = details.get("lf_count", 0)
+                print(f"       {'✅' if crlf == 0 else '❌'} CRLF 行尾符 — {crlf} 处")
+                print(f"       ✅ LF 行尾符 — {lf} 处")
+                utf8_ok = details.get("utf8_valid", True)
+                print(f"       {'✅' if utf8_ok else '❌'} UTF-8 完整性检测")
+            elif pname == "lint_python":
+                if v_found == 0:
+                    print(f"       ✅ Python 语法解析（py_compile）— 通过")
+                else:
+                    print(f"       ❌ Python 语法解析（py_compile）— {v_found} 处错误")
+            elif pname == "lint_ps1":
+                if v_found == 0:
+                    print(f"       ✅ PowerShell 语法解析（PSParser::Tokenize）— 通过")
+                else:
+                    print(f"       ❌ PowerShell 语法解析（PSParser::Tokenize）— {v_found} 处错误")
+            elif pname == "md_lint":
+                details = pr.get("metadata", {}).get("check_details", {})
+                # 例外文件（SKILL.md / AGENTS.md / .mdc）不检查 frontmatter
+                fp_obj = Path(fpath)
+                is_excluded = fp_obj.name in ("SKILL.md", "AGENTS.md") or fp_obj.suffix == ".mdc"
+                if is_excluded:
+                    print(f"       ⏭️  元文档/规则文件，frontmatter 检查豁免")
+                else:
+                    print(f"       {'✅' if details.get('frontmatter_exists') else '❌'} frontmatter 存在性检测")
+                    print(f"       {'✅' if details.get('frontmatter_start_line_1') else '❌'} frontmatter 必须从第 1 行开始")
+                    print(f"       {'✅' if details.get('has_title') else '❌'} 必填字段 title")
+                    print(f"       {'✅' if details.get('has_description') else '❌'} 必填字段 description")
+                    print(f"       {'✅' if details.get('has_date') else '❌'} 必填字段 date")
+                    print(f"       {'✅' if details.get('has_meta') else '❌'} 必填字段 meta")
+                    print(f"       {'✅' if details.get('date_format_valid') else '❌'} date 格式 YYYY-MM-DD")
+                    print(f"       {'✅' if details.get('description_date_not_glued') else '❌'} description 与 date 未拼接")
+                print(f"       {'✅' if details.get('no_dash_pollution') else '❌'} 正文无 --- 污染")
             else:
-                print(f"  ✅ {fpath}")
+                if v_found == 0:
+                    print(f"       ✅ 通过")
+                else:
+                    print(f"       ❌ {v_found} 处违规")
+            if pr.get("violations"):
+                for v in pr["violations"]:
+                    _print_violation(v)
 
     # Phase 2: 修复
     fixed_any = False
@@ -248,17 +307,74 @@ def run_files_via_py_lib(devroot: str, files: list, fix: bool = False):
         print(f"{'=' * 50}")
         results, has_error = _run_file_plugins(registry, plugin_files, "Phase 3")
 
-        # 输出 Phase 3 明细
+        # 输出 Phase 3 明细（按插件分组，展示检测细项）
+        _file_plugin_results_p3 = {}
         for r in results:
             if "result" in r:
-                v_found = r["result"].get("violations_found", 0)
-                fpath = r["file"]
-                if r["result"].get("violations"):
-                    print(f"  ❌ {fpath} — {v_found} 处违规")
-                    for v in r["result"]["violations"]:
-                        _print_violation(v)
+                fp = r["file"]
+                pn = r["name"]
+                _file_plugin_results_p3.setdefault(fp, {})[pn] = r["result"]
+
+        for fpath in sorted(_file_plugin_results_p3.keys()):
+            plugin_results = _file_plugin_results_p3[fpath]
+            print(f"\n  📄 {fpath}")
+            for pname in sorted(plugin_results.keys()):
+                pr = plugin_results[pname]
+                v_found = pr.get("violations_found", 0)
+                print(f"    └─ [{pname}]")
+                if pname == "lint_json":
+                    if v_found == 0:
+                        print(f"       ✅ JSON 语法解析 — 通过")
+                    else:
+                        print(f"       ❌ JSON 语法解析 — {v_found} 处错误")
+                elif pname == "lint_encoding":
+                    details = pr.get("metadata", {}).get("check_details", {})
+                    bom_status = "✅ 无" if not details.get("has_bom") else "⚠️ 有"
+                    if details.get("has_double_bom"):
+                        bom_status = "❌ 双 BOM"
+                    print(f"       {bom_status} UTF-8 BOM 头检测")
+                    print(f"       {'✅ 无' if not details.get('has_double_bom') else '❌ 有'} 双 BOM 检测")
+                    crlf = details.get("crlf_count", 0)
+                    lf = details.get("lf_count", 0)
+                    print(f"       {'✅' if crlf == 0 else '❌'} CRLF 行尾符 — {crlf} 处")
+                    print(f"       ✅ LF 行尾符 — {lf} 处")
+                    utf8_ok = details.get("utf8_valid", True)
+                    print(f"       {'✅' if utf8_ok else '❌'} UTF-8 完整性检测")
+                elif pname == "lint_python":
+                    if v_found == 0:
+                        print(f"       ✅ Python 语法解析（py_compile）— 通过")
+                    else:
+                        print(f"       ❌ Python 语法解析（py_compile）— {v_found} 处错误")
+                elif pname == "lint_ps1":
+                    if v_found == 0:
+                        print(f"       ✅ PowerShell 语法解析（PSParser::Tokenize）— 通过")
+                    else:
+                        print(f"       ❌ PowerShell 语法解析（PSParser::Tokenize）— {v_found} 处错误")
+                elif pname == "md_lint":
+                    details = pr.get("metadata", {}).get("check_details", {})
+                    # 例外文件（SKILL.md / AGENTS.md / .mdc）不检查 frontmatter
+                    fp_obj = Path(fpath)
+                    is_excluded = fp_obj.name in ("SKILL.md", "AGENTS.md") or fp_obj.suffix == ".mdc"
+                    if is_excluded:
+                        print(f"       ⏭️  元文档/规则文件，frontmatter 检查豁免")
+                    else:
+                        print(f"       {'✅' if details.get('frontmatter_exists') else '❌'} frontmatter 存在性检测")
+                        print(f"       {'✅' if details.get('frontmatter_start_line_1') else '❌'} frontmatter 必须从第 1 行开始")
+                        print(f"       {'✅' if details.get('has_title') else '❌'} 必填字段 title")
+                        print(f"       {'✅' if details.get('has_description') else '❌'} 必填字段 description")
+                        print(f"       {'✅' if details.get('has_date') else '❌'} 必填字段 date")
+                        print(f"       {'✅' if details.get('has_meta') else '❌'} 必填字段 meta")
+                        print(f"       {'✅' if details.get('date_format_valid') else '❌'} date 格式 YYYY-MM-DD")
+                        print(f"       {'✅' if details.get('description_date_not_glued') else '❌'} description 与 date 未拼接")
+                    print(f"       {'✅' if details.get('no_dash_pollution') else '❌'} 正文无 --- 污染")
                 else:
-                    print(f"  ✅ {fpath}")
+                    if v_found == 0:
+                        print(f"       ✅ 通过")
+                    else:
+                        print(f"       ❌ {v_found} 处违规")
+                if pr.get("violations"):
+                    for v in pr["violations"]:
+                        _print_violation(v)
 
     if skipped:
         print(f"\n[WARN] 跳过未识别的文件类型 ({len(skipped)} 个):")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-插件：文件编码/BOM/行尾符/UTF-8完整性检测器（v1.1.0）
+插件：文件编码/BOM/行尾符/UTF-8完整性检测器（v1.2.0）
 标签：lint, encoding
 依赖：core
 
@@ -236,6 +236,13 @@ def validate_file(filepath: str, fix: bool = False) -> dict:
         "metadata": {
             "files_fixed": files_fixed,
             "fixed_files": fixed_files,
+            "check_details": {
+                "has_bom": result["has_bom"],
+                "has_double_bom": result["has_double_bom"],
+                "crlf_count": result["crlf"],
+                "lf_count": result["lf"],
+                "utf8_valid": not any("UTF-8" in v and "截断" in v or "损坏" in v or "异常" in v for v in result["violations"]),
+            },
         },
     }
 

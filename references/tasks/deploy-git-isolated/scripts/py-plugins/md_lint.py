@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-插件：Markdown 格式 Linter（v1.2.1）
+插件：Markdown 格式 Linter（v1.3.0）
 标签：md, validation
 依赖：core
 
@@ -331,6 +331,39 @@ def validate_file(filepath: str, fix: bool = False, strategy="delete") -> dict:
     if fix and files_fixed:
         fp.write_text(fixed_content, encoding="utf-8")
 
+    # 构建 check_details 供逐项展示
+    check_details = {
+        "frontmatter_exists": True,
+        "frontmatter_start_line_1": True,
+        "has_title": True,
+        "has_description": True,
+        "has_date": True,
+        "has_meta": True,
+        "date_format_valid": True,
+        "description_date_not_glued": True,
+        "no_dash_pollution": True,
+    }
+    for v in violations:
+        ctx = v.get("context", "")
+        if "缺少 YAML frontmatter" in ctx:
+            check_details["frontmatter_exists"] = False
+        elif "必须从第 1 行开始" in ctx:
+            check_details["frontmatter_start_line_1"] = False
+        elif "缺少必填字段 title" in ctx:
+            check_details["has_title"] = False
+        elif "缺少必填字段 description" in ctx:
+            check_details["has_description"] = False
+        elif "缺少必填字段 date" in ctx:
+            check_details["has_date"] = False
+        elif "缺少必填字段 meta" in ctx:
+            check_details["has_meta"] = False
+        elif "date 格式错误" in ctx:
+            check_details["date_format_valid"] = False
+        elif "description 行末尾拼接了 date" in ctx:
+            check_details["description_date_not_glued"] = False
+        elif "正文出现 ---" in ctx:
+            check_details["no_dash_pollution"] = False
+
     return {
         "success": True,
         "schema_version": "1.0.0",
@@ -341,6 +374,7 @@ def validate_file(filepath: str, fix: bool = False, strategy="delete") -> dict:
         "violations": violations,
         "metadata": {
             "files_fixed": files_fixed,
+            "check_details": check_details,
         },
     }
 

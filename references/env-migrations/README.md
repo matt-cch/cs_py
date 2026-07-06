@@ -88,6 +88,10 @@ meta: {}
 | [env-migration-encoding-fix-ai-summary-stderr-subprocess-2026-07-03-140004.md](env-migration-encoding-fix-ai-summary-stderr-subprocess-2026-07-03-140004.md) | 编码修复：AI 摘要生成 stderr 乱码与 subprocess 解码错误 | 2026-07-03-140004 |
 | [env-migration-github-api-pagination-issue-comment-precision-2026-07-03-144237.md](env-migration-github-api-pagination-issue-comment-precision-2026-07-03-144237.md) | GitHub API 分页与 Issue 评论精准定位能力增强 | 2026-07-03-144237 |
 | [env-migration-baseline-split-monolithic-to-modular-2026-07-03-160917.md](env-migration-baseline-split-monolithic-to-modular-2026-07-03-160917.md) | task-canonical-baseline.md 拆分重构（1600+ 行 → 9 个专题文件 + 导航索引） | 2026-07-03-160917 |
+| [env-migration-polyrepo-workspace-setup-2026-07-06-125559.md](env-migration-polyrepo-workspace-setup-2026-07-06-125559.md) | Polyrepo Workspace 改造第一步 — cs-py.code-workspace 创建与验证 | 2026-07-06-125559 |
+| [env-migration-polyrepo-workspace-terminal-env-fix-2026-07-06-160818.md](env-migration-polyrepo-workspace-terminal-env-fix-2026-07-06-160818.md) | Polyrepo Workspace terminal.env 注入修复（.code-workspace 级别 settings 生效验证） | 2026-07-06-160818 |
+| [env-migration-run-lint-detailed-reporting-2026-07-06-162922.md](env-migration-run-lint-detailed-reporting-2026-07-06-162922.md) | run-lint 插件逐项展示增强（md/py/ps1/json/encoding 全覆盖） | 2026-07-06-162922 |
+| [env-migration-polyrepo-jywl-lab-clone-2026-07-06-164910.md](env-migration-polyrepo-jywl-lab-clone-2026-07-06-164910.md) | jywl-lab 外部仓库 clone 与 Workspace 注册 | 2026-07-06-164910 |
 
 
 ## 上级导航
