@@ -381,12 +381,17 @@ Python 版部署流水线，与 PS 版 Step 1-8 功能对等。`workflow-deploy-
 | 脚本 | 职责 | 典型场景 | 状态 |
 |------|------|---------|------|
 | `workflow-deploy-full.py` | **全链条部署 Workflow**：编排 Step 4-9，调用 py-steps 分步执行。支持 `--step` 单步执行、`--message` 自定义提交信息、`--issue` 指定 Issue 编号。自动生成 AI 语义摘要和 Issue comment meta。 | 执行完整 GitHub 部署流水线 | ready |
+| `atomic-git-preflight.py` | **原子：Git 前置验证**。整合 git_env + git_security 插件，提供 check()/verify() + GitContext（含 run_git）。可独立执行或被子 workflow 调用。 | 任何 git 业务脚本开头的前置验证 | ready |
+| `atomic-deploy-preflight.py` | **原子：部署特有前置验证**。验证 .env PAT、分支保护、agent 插件加载、git 空目录保留。workflow 的 Step 0b。 | workflow-deploy-full 部署前验证 | ready |
+| `atomic-check-staged-after-add.py` | **原子：Staged 内容安全扫描**。必须在 git add 后执行，强制扫描 staged 文件敏感模式。无 staged 文件时报错。 | workflow Step 4.5（add 后 commit 前） | ready |
 
 **架构**：
 ```
 workflow-deploy-full.py（Workflow 编排）
-  ├── [Preflight] agent 插件 + .env 前置验证
+  ├── [Step 0a] atomic-git-preflight.py（通用 git 验证）
+  ├── [Step 0b] atomic-deploy-preflight.py（部署特有验证）
   ├── py-steps/step-04-github-deploy-add.py
+  ├── [Step 4.5] atomic-check-staged-after-add.py（staged 内容扫描）
   ├── generate-ai-summary.py（Step 4→5 之间，使用 --cached）
   ├── py-steps/step-05-github-commit.py
   ├── [更新 meta commit hash]
@@ -396,19 +401,19 @@ workflow-deploy-full.py（Workflow 编排）
   └── py-steps/step-09-github-sync-issue.py（接收 --meta）
 ```
 
-**CLI 用法**：
+**CLI 用法**（显式传 `--devroot`，禁止省略）：
 ```powershell
 # 全自动发布（从 staged 文件自动生成 commit message）
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --auto
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --auto
 
 # 完整全链条部署（指定 commit message）
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --message "feat: xxx"
 
 # 仅执行单步（如仅 push，调试用）
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --step 7 --message "feat: xxx"
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --step 7 --message "feat: xxx"
 
 # 指定 Issue 编号（Step 9 用）
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx" --issue 1
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --message "feat: xxx" --issue 1
 ```
 
 > **与 PS 版的关系**：PS 版（`github-step-0N-*.ps1`）为原始实现，功能完备；Python 版（`py-steps/step-0N-*.py` + `workflow-deploy-full.py` 编排）为同能力重构版，提供更灵活的编排参数和自动化（AI 摘要、动态 meta）。**凡涉及 Step 4-9 的操作，必须使用 Python 版 workflow，禁止手动逐条调用 ps-steps。**
@@ -481,7 +486,7 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\fetch_issue.py" --issue-number 1
 
 # 全链条部署（Python Workflow）
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --message "feat: xxx"
 
 # 文章下载
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-article.py" --url "https://example.com/article"
@@ -536,7 +541,7 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\archive_project.py" --group cs_py venv --stage all --format 7z
 
 # 全链条部署（Python Workflow）
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --message "feat: xxx"
 ```
 
 

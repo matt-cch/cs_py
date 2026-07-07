@@ -48,3 +48,53 @@ ENV_FILE = _lazy_path(".env")
 TASK_DIR = _TASK_DIR
 SCRIPTS_DIR = _SCRIPTS_DIR
 PY_PLUGINS_DIR = _PY_PLUGINS_DIR
+
+
+# ========== 敏感内容扫描唯一真源 ==========
+import re
+
+# 敏感内容正则（staged 文件内容扫描）
+SENSITIVE_PATTERNS = [
+    (r"ghp_[a-zA-Z0-9]{36}", "GitHub PAT"),
+    (r"sk-[a-zA-Z0-9]{48}", "OpenAI API Key"),
+    (r"-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----", "私钥"),
+    (r"AKIA[0-9A-Z]{16}", "AWS Access Key"),
+    (r"api[_-]?key\s*[:=]\s*['\"]?[a-zA-Z0-9]{20,}", "API Key"),
+]
+
+
+def _is_placeholder_token(token: str) -> bool:
+    """判断 token 是否为占位符形式（如 ghp_xxxxxxxx...、sk-xxxxxxxx...）。"""
+    if token.startswith(("ghp_", "sk-")):
+        sep = "_" if "_" in token else "-"
+        suffix = token.split(sep, 1)[1] if sep in token else token
+        return set(suffix) <= {"x", "X", "0"}
+    return False
+
+
+def scan_sensitive_content(content: str, filepath: str = "") -> list:
+    """
+    扫描文本内容中的敏感模式。
+
+    参数:
+        content: 文件内容字符串
+        filepath: 文件路径（用于生成 violation 信息）
+
+    返回:
+        violations 列表，每项格式："filepath:line_num: 发现 类型 — 行内容"
+    """
+    violations = []
+    for pattern, desc in SENSITIVE_PATTERNS:
+        for match in re.finditer(pattern, content):
+            token = match.group(0)
+            if _is_placeholder_token(token):
+                continue
+            line_num = content[:match.start()].count("\n") + 1
+            lines = content.splitlines()
+            line_text = lines[line_num - 1] if line_num <= len(lines) else ""
+            line_text = line_text.strip()
+            if len(line_text) > 80:
+                line_text = line_text[:77] + "..."
+            prefix = f"{filepath}:" if filepath else ""
+            violations.append(f"{prefix}{line_num}: 发现 {desc} — {line_text}")
+    return violations

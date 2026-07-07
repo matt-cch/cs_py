@@ -217,7 +217,7 @@ meta: {}
 | 契约项 | 定义 |
 |--------|------|
 | **Input** | `.env` 中已配置 `GIT_USER_NAME`、`GIT_USER_EMAIL`、`GITHUB_REPO_URL`、`GITHUB_PAT`；`venv/.opencode/config.json` 已配置 LLM provider |
-| **Process** | 执行 `workflow-deploy-full.py --auto`（全自动模式）或 `--message "feat: xxx"`（指定提交信息） |
+| **Process** | 执行 `workflow-deploy-full.py --devroot "${devroot}" --auto`（全自动模式）或 `--devroot "${devroot}" --message "feat: xxx"`（指定提交信息） |
 | **Output** | Step 4-9 依次完成：文件 staged → commit 提交 → remote 配置 → push 到 GitHub → upstream 设置 → Issue comment 追加（含 AI 语义摘要） |
 | **Validation** | workflow 内部每步独立验证；最终输出 [SUCCESS] 和总耗时 |
 | **Audit Trail** | 日志：`venv/tmp/workflow-meta-{ts}.json`（含 commit hash、变更分类、AI 摘要） |

@@ -200,6 +200,41 @@ Agent：构造入参 → 执行 workflow-deploy-full.py --auto → 等待结果
 - 所有 workflow 脚本（`workflow-*.py`）的 `main()` 入口必须在参数解析后立即执行 `os.chdir(devroot)`，确保整个进程 CWD 与 `--devroot` 一致
 - 所有 step 脚本在执行文件操作前，必须显式传入绝对路径或使用 `-C` 切换目录
 - 禁止在任何脚本中使用裸 `./` 或 `.` 指代目标目录
+- **多端多 devroot 支持**：`--devroot` 默认值必须是 `Path.cwd()`（或等效机制），禁止硬编码为任何固定路径。同一套 workflow 工具链必须能通过 `--devroot` 切换服务于多个独立仓库（polyrepo）
+- **文档示例必须显式传 `--devroot`**：所有命令示例包含 `--devroot "${devroot}"`，禁止展示省略简写形式，防止 Agent 或用户因 CWD 不同而操作错误仓库
+
+### 0.7.1 多端多 devroot 多 polyrepo 架构
+
+> **来源**：用户明确确认（2026-07-07）。本节是"显式优于隐含"原则在 workflow 工具层面的具体化。
+
+**三层约束**：
+
+| 层级 | 规则 | 原因 |
+|------|------|------|
+| **代码实现** | `--devroot` 默认值必须是 `Path.cwd()`，禁止硬编码 | 支持多端执行：用户在任意目录打开终端，workflow 自动操作当前目录的仓库 |
+| **CLI 调用** | 实际执行时必须显式传入 `--devroot` | 贯彻"显式优于隐含"，避免 CWD 与预期不一致导致的隐式错误 |
+| **文档示例** | 所有命令示例必须包含 `--devroot "${devroot}"` | 防止 Agent 或用户复制命令时因 CWD 不同而操作错误仓库 |
+
+**多 polyrepo 支持**：
+同一套 workflow 工具链可服务于多个独立仓库，只需通过 `--devroot` 切换目标仓库。Agent 在 workspace 模式下必须显式指定 `--devroot`，禁止依赖 IDE 隐式工作目录。
+
+**错误示例**：
+```powershell
+# ❌ 硬编码 devroot（禁止）
+python workflow-deploy-full.py --auto
+
+# ❌ 依赖 CWD 隐式解析（文档示例中禁止）
+python workflow-deploy-full.py --message "feat: xxx"
+```
+
+**正确示例**：
+```powershell
+# ✅ 显式传入 devroot
+python workflow-deploy-full.py --devroot "${devroot}" --auto
+
+# ✅ 指向另一个 polyrepo
+python workflow-deploy-full.py --devroot "D:\workspace\other-repo" --auto
+```
 
 
 ***

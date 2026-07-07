@@ -82,7 +82,7 @@ timestamp = ts_proc.stdout.strip()
 
 ```powershell
 # Agent 直接调用编排型 workflow
-& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --message "feat: xxx"
 ```
 
 **JSON 配置需求**：当步骤列表/顺序/策略可能变动时，**必须外化**。

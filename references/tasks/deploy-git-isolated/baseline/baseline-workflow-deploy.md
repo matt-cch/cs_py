@@ -169,17 +169,19 @@ result = await page.evaluate("window.__extractArticle()")
 
 | 场景 | 命令 |
 |------|------|
-| 全自动发布（不关心 commit message） | `python workflow-deploy-full.py --auto` |
-| 发布并指定 commit message | `python workflow-deploy-full.py --message "feat: xxx"` |
-| 仅执行单步（调试用） | `python workflow-deploy-full.py --step 7 --message "feat: xxx"` |
+| 全自动发布（不关心 commit message） | `python workflow-deploy-full.py --devroot "${devroot}" --auto` |
+| 发布并指定 commit message | `python workflow-deploy-full.py --devroot "${devroot}" --message "feat: xxx"` |
+| 仅执行单步（调试用） | `python workflow-deploy-full.py --devroot "${devroot}" --step 7 --message "feat: xxx"` |
 
 ### 8.7.3 执行顺序（不可更改）
 
 ```
-Step 0: 前置验证（agent 插件 + .env 配置）→ 失败则停止，不执行后续
+Step 0a: atomic-git-preflight（通用 git 环境验证）→ 失败则停止
+Step 0b: atomic-deploy-preflight（部署特有验证：PAT/分支/agent）→ 失败则停止
 Step 4: git add
+Step 4.5: atomic-check-staged-after-add（staged 内容安全扫描）→ 失败则停止（可 git reset HEAD 回滚）
 Step 4→5 之间: 生成 AI 摘要 + meta（使用 staged diff）
-                → 失败则报错停止（文件已 staged 但未 commit，可 git reset HEAD 回滚）
+                 → 失败则报错停止（文件已 staged 但未 commit，可 git reset HEAD 回滚）
 Step 5: git commit（使用 --message 或 --auto 自动生成）
 更新 meta commit hash
 Step 6: remote
@@ -203,22 +205,32 @@ Step 9: issue sync（使用 meta 中的 AI 摘要 + 分类信息）
 Git 的默认行为是**不跟踪空目录**。这意味着即使某目录被 `.gitignore` 白名单显式保留（如 `!/references/env-migrations/`），如果该目录内没有任何文件，Git 仍然不会将其纳入版本管理。这会导致目录结构在克隆/检出后丢失。
 
 **解法**：
-在 `_preflight_check()`（Step 0）内部、**git add 之前**，通过 `py_lib` 统一入口调用 `git_keep_emptydir` 插件，扫描指定目录列表，为空目录自动创建 `.gitkeep` 占位文件。
+在 `atomic-deploy-preflight.py`（Step 0b）内部，通过 `py_lib` 统一入口调用 `git_keep_emptydir` 插件，扫描指定目录列表，为空目录自动创建 `.gitkeep` 占位文件。
 
 **架构约束**：
-- **不是独立 Step**：空目录保留是 preflight 的一部分，不存在 "Step 0b" 或同级 Step。禁止将其提升为与 Step 4 并列的独立阶段。
-- **必须通过 py_lib 加载**：`workflow-deploy-full.py` 禁止直接 `import git_keep_emptydir`，必须通过 `load_plugins(devroot=..., tags=["git"])` 获取 registry 后调用。
+- **不是独立 Step**：空目录保留是 `atomic-deploy-preflight` 的一部分，不存在独立的 "Step 0c"。禁止将其提升为与 Step 4 并列的独立阶段。
+- **必须通过 py_lib 加载**：`atomic-deploy-preflight.py` 禁止直接 `import git_keep_emptydir`，必须通过 `load_plugins(devroot=..., tags=["git"])` 获取 registry 后调用。
 - **失败不阻断**：`git_keep_emptydir` 执行异常时输出 `[WARN]`，不调用 `sys.exit(1)`。空目录保留是辅助性检查，不是部署的必要条件。
-- **目录列表内嵌配置**：当前需要保留空目录的目录列表（如 `["references/env-migrations", "references/tasks/deploy-git-isolated"]`）内嵌在 workflow 代码中。未来若配置化，应提取到 `task-config.json` 或同类 Config 契约中，由 workflow 读取后传入插件。
+- **目录列表内嵌配置**：当前需要保留空目录的目录列表（如 `["references/env-migrations", "references/tasks/deploy-git-isolated"]`）内嵌在 atomic-deploy-preflight 代码中。未来若配置化，应提取到 `task-config.json` 或同类 Config 契约中，由 atomic 脚本读取后传入插件。
 
 **执行时序**：
 ```
-Step 0: _preflight_check()
-  ├── 检查 .env
-  ├── 验证 agent 插件体系（load_plugins profile="agent"）
+Step 0a: atomic-git-preflight.py
+  ├── 检查 git.exe、身份配置、分支、working tree 状态
+  └── [OK] 通过
+
+Step 0b: atomic-deploy-preflight.py
+  ├── 检查 .env（PAT、repo URL）
+  ├── 验证分支保护（禁止 master 直接 push）
+  ├── 验证 agent 插件体系（config.json api_key）
   ├── Git 空目录保留（load_plugins tags=["git"] → git_keep_emptydir.ensure_empty_dirs()）
-  └── [Preflight] ✅ 全部通过
+  └── [OK] 通过
+
 Step 4: git add（此时空目录已有 .gitkeep，可被正常跟踪）
+
+Step 4.5: atomic-check-staged-after-add.py
+  ├── 扫描 staged 文件内容敏感模式
+  └── [OK] 无敏感内容
 ```
 
 

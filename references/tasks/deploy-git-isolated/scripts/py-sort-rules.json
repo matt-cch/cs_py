@@ -14,6 +14,34 @@
       "description": "Git 空目录保留：在 stage 前扫描指定目录下的空子目录并自动创建 .gitkeep，防止空目录被 Git 忽略"
     },
     {
+      "name": "git_env",
+      "module": "git_env",
+      "depends": [],
+      "tags": ["git", "core"],
+      "description": "Git 环境基础检测：exe 存在性、身份配置、当前分支、工作区状态"
+    },
+    {
+      "name": "git_security",
+      "module": "git_security",
+      "depends": [],
+      "tags": ["git", "validation"],
+      "description": "Git 安全扫描：.gitignore 生效验证、敏感文件追踪检测、staged 内容 pattern scan"
+    },
+    {
+      "name": "git_preflight",
+      "module": "git_preflight",
+      "depends": ["git_env", "git_security", "env_config"],
+      "tags": ["git", "preflight"],
+      "description": "Git Preflight 编排：整合环境检测 + 安全扫描，提供 check()/verify() + GitContext（含 run_git）"
+    },
+    {
+      "name": "git_staged_scan",
+      "module": "git_staged_scan",
+      "depends": [],
+      "tags": ["git", "validation"],
+      "description": "Git Staged 内容扫描：扫描已 staged 文件中的敏感模式（API key、PAT、私钥等）"
+    },
+    {
       "name": "detect_devroot",
       "module": "detect_devroot",
       "depends": [],

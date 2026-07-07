@@ -51,7 +51,7 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 
 # Step 4-9: 全链条部署（add → commit → push → issue sync）
 # 【铁律】必须使用 workflow-deploy-full.py，禁止手动逐条调用 ps-steps
-& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --auto
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --auto
 ```
 
 **人类终端等价格式**：把 `powershell -ExecutionPolicy Bypass -File` 换成 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\`，路径改用相对路径。
@@ -112,6 +112,8 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `TASK-TOOLS-INDEX.md` | **工具速查表**：本 task 全部可用工具索引（本地+外部引用+边界矩阵） | 想知道「有什么工具、该调哪个、边界在哪」时 |
 | `SOP.md` | **标准流程**：Step 节点契约、验收条件、回滚路径 | 需要理解「流程是什么、怎么验收」时 |
 | `scripts/EXEC-CHEATSHEET.md` | **执行速查**：命令、配置、参数 | 需要具体命令复制粘贴时 |
+| `scripts/README.md` | **scripts 目录索引**：串接 PS / Python / JS 三层工具链入口 | 需要概览 scripts/ 全部资产时 |
+| `scripts/py-tools/README.md` | **py-tools 目录索引**：全部 Python Workflow 脚本与 py-plugins 插件清单 | 需要查看 Python 侧可用工具时 |
 | `DESIGN.md` | 设计文档：决策记录、踩坑 | 需要理解设计背景时 |
 | `baseline/baseline-index.md` | **规范基线导航**：本 task 的认知契约、命名约定、修订联动规则（已拆分为 9 个专题文件） | 需要理解「文件该怎么组织、怎么命名、怎么联动」时 |
 | `docs/PLUGIN-ARCHITECTURE.md` | 插件架构说明：为什么三层、怎么扩展 | 新增插件或维护架构时 |
@@ -147,6 +149,9 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `scripts/py-tools/archive_project.py` | **Workflow：项目归档**。scan → compress → verify 三阶段闭环 | 项目归档（cs_py / venv） |
 | `scripts/py-tools/archive_cs_py.py` | 快捷入口：归档 cs_py 分组 | 调用 archive_project.py --group cs_py |
 | `scripts/py-tools/archive_venv.py` | 快捷入口：归档 venv 分组 | 调用 archive_project.py --group venv |
+| `scripts/py-tools/atomic-git-preflight.py` | **原子：Git 前置验证**。通过 py_lib 加载 git_preflight 插件，执行环境检测 + 安全扫描，返回 GitContext | 任何 git 业务脚本开头的前置验证 |
+| `scripts/py-tools/atomic-deploy-preflight.py` | **原子：部署特有前置验证**。验证 .env PAT、分支保护、agent 插件、git 空目录保留 | workflow-deploy-full 部署前验证 |
+| `scripts/py-tools/atomic-check-staged-after-add.py` | **原子：Staged 内容安全扫描**。必须在 git add 后执行，强制扫描 staged 文件敏感模式 | add 后 commit 前的安全卡点 |
 | `schema/json/lint-rules-manifest.json` | **Lint 规则全局清单**。7 插件 27 条规则，供 audit 巡检对照 | 审计时对照、新增规则后同步更新 |
 | `schema/docs/lint-rules-manifest.md` | 清单结构说明、规则 ID 命名约定、联动义务 | 理解 manifest 格式时查阅 |
 | `scripts/py_lib.py` | **统一入口**。v1.2.0，新增 __version__ / get_rules_version() / registry.rules_version | 禁止越级直接 import plugin |

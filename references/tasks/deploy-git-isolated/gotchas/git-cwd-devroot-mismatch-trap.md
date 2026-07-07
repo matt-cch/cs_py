@@ -53,7 +53,7 @@ subprocess.run([git_exe, "add", "."])
 ```powershell
 # 最保险：先 cd，让 CWD 和 --devroot 一致
 cd D:\pjt\cursor\cs_py-feat-xxx
-python workflow-deploy-full.py --auto
+python workflow-deploy-full.py --devroot "D:\pjt\cursor\cs_py-feat-xxx" --auto
 ```
 
 > 方式 3 是推荐实践。即使脚本有 bug（漏了 `-C`），cd 后 `git add .` 的 `.` 也必然指向正确目录。

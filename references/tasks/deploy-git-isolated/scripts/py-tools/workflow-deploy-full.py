@@ -2,41 +2,43 @@
 r"""
 workflow-deploy-full.py — deploy-git-isolated 全链条部署 workflow
 标签：py-tools
-版本：v1.2.0 (加 --auto + 前置验证 + add→AI→commit 顺序修正)
+版本：v1.3.0 (纯编排器：preflight 抽离为 atomic 脚本)
 
-职责：先执行内置 preflight，再编排 Step 4-9。执行者直接构造入参执行即可，无需预检。
+职责：纯编排器，按序调用 atomic 工具与 py-steps 脚本，自身不内嵌业务逻辑。
 
 执行顺序：
-  1. Step 0: preflight（内置，检查 .env + config.json）
-  2. Step 4: git add
-  3. AI 摘要 + meta 生成
-  4. Step 5: git commit
-  5. 更新 meta commit hash
-  6. Step 6-9: remote → push → upstream → issue sync
+  1. Step 0a: atomic-git-preflight（通用 git 环境验证）
+  2. Step 0b: atomic-deploy-preflight（部署特有验证：PAT/分支/agent）
+  3. Step 4: git add
+  4. Step 4.5: atomic-check-staged-after-add（staged 内容安全扫描）
+  5. AI 摘要 + meta 生成
+  6. Step 5: git commit
+  7. 更新 meta commit hash
+  8. Step 6-9: remote → push → upstream → issue sync
 
 参数：
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| --devroot | str | 否 | D:\pjt\cursor\cs_py | devroot 绝对路径 |
+| --devroot | str | 否 | 当前工作目录 | devroot 绝对路径（推荐显式传入） |
 | --message | str | 否 | None | commit message；与 --auto 互斥 |
 | --auto | flag | 否 | False | 自动生成 commit message；与 --message 互斥 |
 | --step | str | 否 | all | 执行单步：4/5/6/7/8/9/all |
 | --issue | int | 否 | 1 | Step 9 Issue 编号 |
 
-调用示例（Agent 格式，绝对路径）：
+调用示例（Agent 格式，绝对路径，显式传 --devroot）：
 
   # 全自动模式（推荐）：自动生成 commit message + AI 摘要
-  & "D:\pjt\cursor\cs_py\venv\py\python.exe" "D:\pjt\cursor\cs_py\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --auto
+  & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --auto
 
   # 指定 commit message
-  & "D:\pjt\cursor\cs_py\venv\py\python.exe" "D:\pjt\cursor\cs_py\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
+  & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --message "feat: xxx"
 
   # 仅执行单步（调试用）
-  & "D:\pjt\cursor\cs_py\venv\py\python.exe" "D:\pjt\cursor\cs_py\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --step 7 --message "feat: xxx"
+  & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --step 7 --message "feat: xxx"
 
   # 指定 Issue 编号
-  & "D:\pjt\cursor\cs_py\venv\py\python.exe" "D:\pjt\cursor\cs_py\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx" --issue 1
+  & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --message "feat: xxx" --issue 1
 
 回滚说明：
   - Step 4 之后、Step 5 之前 AI 摘要失败：文件已 staged，执行 `git reset HEAD` 回滚
@@ -54,102 +56,22 @@ sys.stdout.reconfigure(encoding="utf-8")
 # 路径常量
 _SCRIPTS_DIR = Path(__file__).parent.parent.resolve()
 _PY_STEPS_DIR = _SCRIPTS_DIR / "py-steps"
+_PY_TOOLS_DIR = _SCRIPTS_DIR / "py-tools"
 _PY_EXE = Path(__file__).parent.parent.parent.parent.parent.parent / "venv" / "py" / "python.exe"
+
+# atomic 脚本路径
+_ATOMIC_GIT_PREFLIGHT = _PY_TOOLS_DIR / "atomic-git-preflight.py"
+_ATOMIC_DEPLOY_PREFLIGHT = _PY_TOOLS_DIR / "atomic-deploy-preflight.py"
+_ATOMIC_CHECK_STAGED = _PY_TOOLS_DIR / "atomic-check-staged-after-add.py"
 
 # py_lib 统一入口（workflow 通过它加载插件）
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 
-def _preflight_check(devroot: Path) -> None:
-    """Step 0: 执行前验证 agent 插件体系、.env 配置。
-    任何失败直接 exit，不执行后续步骤。
-    """
-    print(f"\n{'='*50}")
-    print("[Preflight] 前置验证")
-    print(f"{'='*50}")
-
-    # 1. 检查 .env
-    env_path = devroot / ".env"
-    if not env_path.exists():
-        print("[FAIL] .env 文件不存在")
-        print("[FAIL] 请先创建 .env 并配置 GIT_USER_NAME、GIT_USER_EMAIL、GITHUB_REPO_URL、GITHUB_PAT")
-        sys.exit(1)
-
-    env = {}
-    with open(env_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, val = line.split("=", 1)
-            env[key] = val
-
-    required = ["GIT_USER_NAME", "GIT_USER_EMAIL"]
-    for key in required:
-        if not env.get(key, "").strip():
-            print(f"[FAIL] .env 中 {key} 未配置")
-            sys.exit(1)
-
-    repo_url = env.get("GITHUB_REPO_URL", "").strip()
-    pat = env.get("GITHUB_PAT", "").strip()
-    if not repo_url:
-        print("[FAIL] .env 中 GITHUB_REPO_URL 未配置")
-        sys.exit(1)
-    if not pat or pat == "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx":
-        print("[FAIL] .env 中 GITHUB_PAT 未配置或仍是占位符")
-        sys.exit(1)
-    print("[OK] .env 配置完整")
-
-    # 1.5 检测当前分支是否为受保护分支
-    git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
-    if git_exe.exists():
-        result = subprocess.run(
-            [str(git_exe), "-C", str(devroot), "branch", "--show-current"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace"
-        )
-        current_branch = result.stdout.strip()
-        if current_branch == "master":
-            print("[WARN] 当前在 master 分支，直接 push 将被分支保护规则拒绝")
-            print("[WARN] 建议：git checkout -b feat/xxx 后重新执行 workflow")
-            print("[FAIL] Preflight 终止")
-            sys.exit(1)
-        else:
-            print(f"[OK] 当前分支: {current_branch}（非受保护分支）")
-
-    # 2. 验证 agent 插件体系
-    try:
-        from py_lib import load_plugins
-        registry = load_plugins(devroot=str(devroot), profile="agent")
-        _ = registry.agent_core
-        provider_cfg = registry.provider_config.get_provider(source="config_json")
-        model = provider_cfg.get("model", "(未知)")
-        api_key = provider_cfg.get("api_key", "")
-        if not api_key:
-            print("[FAIL] config.json 中未配置 api_key，Agent 摘要功能不可用")
-            sys.exit(1)
-        print(f"[OK] agent 插件体系加载成功，model={model}")
-    except Exception as e:
-        print(f"[FAIL] agent 插件验证失败: {e}")
-        print("[FAIL] 请检查 venv/.opencode/config.json 配置是否正确")
-        sys.exit(1)
-
-    # 3. Git 空目录保留
-    try:
-        from py_lib import load_plugins
-        registry_git = load_plugins(devroot=str(devroot), tags=["git"])
-        keep_result = registry_git.git_keep_emptydir.ensure_empty_dirs(
-            devroot,
-            ["references/env-migrations", "references/tasks/deploy-git-isolated"]
-        )
-        if keep_result.get("created"):
-            print(f"[OK] 已创建 {len(keep_result['created'])} 个 .gitkeep")
-        else:
-            print("[OK] 无空目录需要处理")
-    except Exception as e:
-        print(f"[WARN] git_keep_emptydir 执行异常: {e}")
-
-    print("[Preflight] ✅ 全部通过，开始执行部署\n")
+# py_lib 统一入口（workflow 通过它加载插件）
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
 
 
 def _auto_generate_message(devroot: Path) -> str:
@@ -364,7 +286,7 @@ def _run_py_step(name: str, script_path: Path, extra_args: list = None) -> tuple
 
 def main():
     parser = argparse.ArgumentParser(description="deploy-git-isolated 全链条部署 workflow")
-    parser.add_argument("--devroot", default=r"D:\pjt\cursor\cs_py", help="Devroot 路径")
+    parser.add_argument("--devroot", default=None, help="Devroot 路径（默认使用当前工作目录）")
     parser.add_argument("--message", default=None, help="Commit message（不传时使用默认消息，--auto 模式下自动生成）")
     parser.add_argument(
         "--auto", action="store_true",
@@ -379,7 +301,7 @@ def main():
     parser.add_argument("--issue", type=int, default=1, help="Issue 编号 (Step 9 用, 默认 1)")
     args = parser.parse_args()
 
-    devroot = Path(args.devroot)
+    devroot = Path(args.devroot) if args.devroot else Path.cwd()
     if not devroot.exists():
         print(f"[ERROR] devroot 不存在: {devroot}")
         sys.exit(1)
@@ -406,8 +328,29 @@ def main():
     print(f"{'#'*50}")
     sys.stdout.flush()
 
-    # ========== Step 0: 前置验证 ==========
-    _preflight_check(devroot)
+    # ========== Step 0a: 通用 git preflight ==========
+    if not _ATOMIC_GIT_PREFLIGHT.exists():
+        print(f"[ERROR] atomic-git-preflight 不存在: {_ATOMIC_GIT_PREFLIGHT}")
+        sys.exit(1)
+    result = subprocess.run(
+        [str(_PY_EXE), str(_ATOMIC_GIT_PREFLIGHT), "--devroot", str(devroot)],
+        capture_output=False, text=True, encoding="utf-8", errors="replace"
+    )
+    if result.returncode != 0:
+        print("[FAIL] Step 0a: atomic-git-preflight 失败，终止部署")
+        sys.exit(1)
+
+    # ========== Step 0b: 部署特有 preflight ==========
+    if not _ATOMIC_DEPLOY_PREFLIGHT.exists():
+        print(f"[ERROR] atomic-deploy-preflight 不存在: {_ATOMIC_DEPLOY_PREFLIGHT}")
+        sys.exit(1)
+    result = subprocess.run(
+        [str(_PY_EXE), str(_ATOMIC_DEPLOY_PREFLIGHT), "--devroot", str(devroot)],
+        capture_output=False, text=True, encoding="utf-8", errors="replace"
+    )
+    if result.returncode != 0:
+        print("[FAIL] Step 0b: atomic-deploy-preflight 失败，终止部署")
+        sys.exit(1)
 
     # ========== 构建步骤列表 ==========
     steps = []
@@ -454,6 +397,20 @@ def main():
                 step5_message = user_message
             else:
                 step5_message = "init: empty scaffold with safety gitignore"
+
+            # Step 4.5: staged 内容安全扫描（必须在 add 后、commit 前）
+            if not _ATOMIC_CHECK_STAGED.exists():
+                print(f"[ERROR] atomic-check-staged-after-add 不存在: {_ATOMIC_CHECK_STAGED}")
+                all_ok = False
+                break
+            result = subprocess.run(
+                [str(_PY_EXE), str(_ATOMIC_CHECK_STAGED), "--devroot", str(devroot)],
+                capture_output=False, text=True, encoding="utf-8", errors="replace"
+            )
+            if result.returncode != 0:
+                print("[FAIL] Step 4.5: staged 内容安全扫描失败，终止部署")
+                all_ok = False
+                break
 
             # Step 4 完成后立即生成 meta（使用 staged diff）
             meta_path = _generate_meta_before_commit(devroot, step5_message)

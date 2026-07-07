@@ -22,10 +22,11 @@
       {"version": "0.17.0", "date": "2026-06-24", "note": "新增 workflow-deploy-full.py（py-tools Workflow）：全链条部署编排 Step 4-9，调用 py-steps 分步执行，支持 --step/--issue 参数。同步更新 README/TASK-TOOLS-INDEX/EXEC-CHEATSHEET 三处联动。"},
       {"version": "0.18.0", "date": "2026-06-24", "note": "lint 体系全面升级：link_checker v1.3.0（validate_file + dir_path 兼容）、py-sort-rules v1.1.0（lint profile 增加 md tag）、py_lib v1.2.0（__version__/get_rules_version/registry.rules_version）、run-lint.py v1.3.0（--audit 覆盖度审计）、新增 schema/json/lint-rules-manifest.json 全局规则清单。"},
       {"version": "0.19.0", "date": "2026-06-26", "note": "update-version.py 架构归一化：旧版 v1.0.0 归档到 archive/update-version-legacy-2026-06-26-180951.py（保留可运行性）；新版 v2.0.0 走 py_lib.load_plugins() → registry 调用 runtime_version/timestamp/detect_devroot，删除直接 import plugin 的越级路径。同步补登记 runtime_version 到 py-sort-rules.json。修订联动 ENTRY/README/TASK-TOOLS-INDEX/archive-README。"},
-      {"version": "0.20.0", "date": "2026-06-26", "note": "运行时域集成：将 references/runtime/ 下的 verify-runtime.py 和 download-runtime-tool.py 拆分为 task 插件体系。新增 runtime-common/ 公共原子（detect-local/query-upstream/compare-version/generate-report），新增 verify-runtime/wf-verify-runtime.py 编排入口，新增 download-runtime/ 原子步骤（01-route-probe/02-download-file/03-extract-verify/04-backup-replace/05-cleanup-temp）+ wf-download-runtime.py 编排入口。process_runner.py 新增 stderr UTF-8 编码闭环（保存→切换→恢复）。修订联动 ENTRY/README/TASK-TOOLS-INDEX。"}
+      {"version": "0.20.0", "date": "2026-06-26", "note": "运行时域集成：将 references/runtime/ 下的 verify-runtime.py 和 download-runtime-tool.py 拆分为 task 插件体系。新增 runtime-common/ 公共原子（detect-local/query-upstream/compare-version/generate-report），新增 verify-runtime/wf-verify-runtime.py 编排入口，新增 download-runtime/ 原子步骤（01-route-probe/02-download-file/03-extract-verify/04-backup-replace/05-cleanup-temp）+ wf-download-runtime.py 编排入口。process_runner.py 新增 stderr UTF-8 编码闭环（保存→切换→恢复）。修订联动 ENTRY/README/TASK-TOOLS-INDEX。"},
+      {"version": "0.21.0", "date": "2026-07-07", "note": "Preflight 抽离为 atomic 脚本：新增 git_env/git_security/git_preflight/git_staged_scan 四个 py-plugins（Layer 1），新增 atomic-git-preflight/atomic-deploy-preflight/atomic-check-staged-after-add 三个 py-tools 原子 CLI。workflow-deploy-full.py 移除内嵌 _preflight_check()，改为纯编排器调用 atomic 脚本。新增 Step 4.5（staged 内容安全扫描，强制在 add 后 commit 前执行）。修订联动 ENTRY/py-sort-rules/README/EXEC-CHEATSHEET。"}
     ],
-    "version": "0.20.0",
-    "last_updated": "2026-06-26T21:46:10",
+    "version": "0.21.0",
+    "last_updated": "2026-07-07T06:45:27",
     "source_of_truth": "README.md",
     "trigger_index": "references/tasks/deploy-git-isolated/task-scenario-triggers.json",
     "tools_index": "references/tasks/deploy-git-isolated/TASK-TOOLS-INDEX.md",
@@ -541,6 +542,48 @@
       "name": "link_checker.py",
       "role": "Python 插件：Markdown 内部相对链接验证",
       "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/link_checker.py",
+      "status": "ready"
+    },
+    {
+      "name": "git_env.py",
+      "role": "Python 插件：Git 环境基础检测（exe/身份/分支/工作区状态）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/git_env.py",
+      "status": "ready"
+    },
+    {
+      "name": "git_security.py",
+      "role": "Python 插件：Git 安全扫描（.gitignore 生效验证 / 敏感文件追踪 / staged 内容 pattern scan）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/git_security.py",
+      "status": "ready"
+    },
+    {
+      "name": "git_preflight.py",
+      "role": "Python 插件：Git Preflight 编排。整合 git_env + git_security，提供 check()/verify() + GitContext（含 run_git）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/git_preflight.py",
+      "status": "ready"
+    },
+    {
+      "name": "atomic-git-preflight.py",
+      "role": "原子：Git 前置验证 CLI 入口。通过 py_lib 加载 git_preflight 插件执行统一验证",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/atomic-git-preflight.py",
+      "status": "ready"
+    },
+    {
+      "name": "atomic-deploy-preflight.py",
+      "role": "原子：部署特有前置验证 CLI 入口。验证 .env PAT/分支保护/agent 插件/git 空目录保留",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/atomic-deploy-preflight.py",
+      "status": "ready"
+    },
+    {
+      "name": "atomic-check-staged-after-add.py",
+      "role": "原子：Staged 内容安全扫描 CLI 入口。必须在 git add 后执行，强制扫描 staged 文件敏感模式",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/atomic-check-staged-after-add.py",
+      "status": "ready"
+    },
+    {
+      "name": "git_staged_scan.py",
+      "role": "Python 插件：Staged 内容扫描。扫描已 staged 文件中的敏感模式（API key、PAT、私钥等）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/git_staged_scan.py",
       "status": "ready"
     }
   ],

@@ -178,25 +178,25 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 **Agent:**
 ```powershell
 # 全自动发布（从 staged 文件自动生成 commit message，推荐日常用）
-& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --auto
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --auto
 
 # 完整部署（指定 commit message）
-& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --message "feat: xxx"
 
 # 仅执行单步（如仅 push，调试用）
-& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --step 7 --message "feat: xxx"
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --step 7 --message "feat: xxx"
 
 # 指定 Issue 编号（Step 9 同步用）
-& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx" --issue 1
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --message "feat: xxx" --issue 1
 ```
 
 **终端:**
 ```powershell
 # 全自动发布
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --auto
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --auto
 
 # 完整部署
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --message "feat: xxx"
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "${devroot}" --message "feat: xxx"
 ```
 
 > 前置：`.env` 中已配置 `GIT_USER_NAME`、`GIT_USER_EMAIL`、`GITHUB_REPO_URL`、`GITHUB_PAT`
@@ -403,6 +403,56 @@ py-plugins/*         → 底座层（具体检测/修复能力）
 # 仅编码/BOM/CRLF
 & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-encoding
 ```
+
+
+## Stage S6: Git 前置验证（Preflight）
+
+### 执行 Git Preflight 验证
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-git-preflight.py"
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-git-preflight.py"
+```
+
+> 前置：`.env` 中已配置 `GIT_USER_NAME` 和 `GIT_USER_EMAIL`
+> 职责：验证 git.exe 可用性、身份配置、当前分支、working tree 状态、.gitignore 安全屏蔽
+
+
+### 执行部署特有 Preflight 验证
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-deploy-preflight.py"
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-deploy-preflight.py"
+```
+
+> 前置：`.env` 中已配置 `GITHUB_REPO_URL` 和 `GITHUB_PAT`
+> 职责：验证 .env 部署配置、分支保护（禁止 master 直接 push）、agent 插件加载、git 空目录保留
+
+
+### 执行 Staged 内容安全扫描（必须在 git add 后）
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-check-staged-after-add.py"
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-check-staged-after-add.py"
+```
+
+> 前置：已执行 `git add`
+> 职责：强制扫描 staged 文件内容中的敏感模式（API key、PAT、私钥等）。无 staged 文件时报错。
 
 
 ### 可修复 vs 仅检测
