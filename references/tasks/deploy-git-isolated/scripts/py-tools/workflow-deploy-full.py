@@ -15,6 +15,7 @@ workflow-deploy-full.py — deploy-git-isolated 全链条部署 workflow
   6. Step 5: git commit
   7. 更新 meta commit hash
   8. Step 6-9: remote → push → upstream → issue sync
+  9. Step 10: 获取 remote 最新 comment 落盘（用于后续内容验证）
 
 参数：
 
@@ -63,6 +64,7 @@ _PY_EXE = Path(__file__).parent.parent.parent.parent.parent.parent / "venv" / "p
 _ATOMIC_GIT_PREFLIGHT = _PY_TOOLS_DIR / "atomic-git-preflight.py"
 _ATOMIC_DEPLOY_PREFLIGHT = _PY_TOOLS_DIR / "atomic-deploy-preflight.py"
 _ATOMIC_CHECK_STAGED = _PY_TOOLS_DIR / "atomic-check-staged-after-add.py"
+_FETCH_ISSUE = _PY_TOOLS_DIR / "fetch_issue.py"
 
 # py_lib 统一入口（workflow 通过它加载插件）
 if str(_SCRIPTS_DIR) not in sys.path:
@@ -294,7 +296,7 @@ def main():
     )
     parser.add_argument(
         "--step",
-        choices=["4", "5", "6", "7", "8", "9", "all"],
+        choices=["4", "5", "6", "7", "8", "9", "10", "all"],
         default="all",
         help="执行单步或全部 (默认 all)"
     )
@@ -373,13 +375,22 @@ def main():
         steps.append(("Step 7: push", _PY_STEPS_DIR / "step-07-github-push.py", ["--devroot", str(devroot)]))
     if args.step in ("8", "all"):
         steps.append(("Step 8: upstream", _PY_STEPS_DIR / "step-08-github-upstream.py", ["--devroot", str(devroot)]))
-    if args.step in ("9", "all"):
-        steps.append(("Step 9: issue sync", _PY_STEPS_DIR / "step-09-github-sync-issue.py", ["--devroot", str(devroot), "--issue", str(args.issue)]))
+    if args.step in ("9", "10", "all"):
+        # Step 9 生成 comment 后保存 summary 到文件（供 Step 10 验证用）
+        summary_path = devroot / "venv" / "tmp" / f"sent-summary-{int(time.time())}.txt"
+        steps.append(("Step 9: issue sync", _PY_STEPS_DIR / "step-09-github-sync-issue.py", ["--devroot", str(devroot), "--issue", str(args.issue), "--save-summary", str(summary_path)]))
+
+    if args.step in ("10", "all"):
+        # Step 10: 获取 remote 最新 comment 落盘
+        remote_comment_path = devroot / "venv" / "tmp" / f"remote-latest-comment-{int(time.time())}.txt"
+        steps.append(("Step 10: fetch latest comment", None, ["--devroot", str(devroot), "--issue", str(args.issue), "--output", str(remote_comment_path)]))
 
     # ========== 顺序执行 ==========
     all_ok = True
     meta_path = None
     commit_executed = False
+    summary_path = None  # Step 10 验证用
+    remote_comment_path = None  # Step 10 验证用
 
     for idx, (name, script, extra) in enumerate(steps):
         # Step 4 执行后、Step 5 之前：生成 meta + AI 摘要
@@ -450,6 +461,62 @@ def main():
                         new_extra.extend(["--meta", str(meta_path)])
                         steps[j] = (steps[j][0], steps[j][1], new_extra)
                         break
+            continue
+
+        # Step 10：获取 remote 最新 comment 落盘
+        if name.startswith("Step 10:"):
+            if not _FETCH_ISSUE.exists():
+                print(f"[ERROR] fetch_issue.py 不存在: {_FETCH_ISSUE}")
+                all_ok = False
+                break
+            ok, _ = _run_py_step(name, _FETCH_ISSUE, extra + ["--latest"])
+            if not ok:
+                all_ok = False
+                break
+            # 从 extra 中提取 output 路径
+            if "--output" in extra:
+                remote_comment_path = Path(extra[extra.index("--output") + 1])
+            print(f"[OK] Remote 最新评论已落盘")
+
+            # ====== Step 10.5: 内容比对验证 ======
+            if summary_path and summary_path.exists() and remote_comment_path and remote_comment_path.exists():
+                print(f"\n{'='*50}")
+                print("[Step 10.5: 评论内容比对验证]")
+                print(f"{'='*50}")
+                try:
+                    sent = summary_path.read_text(encoding="utf-8")
+                    remote = remote_comment_path.read_text(encoding="utf-8")
+                    if sent.strip() in remote.strip():
+                        print(f"[OK] 内容验证通过：sent-summary 已完整出现在 remote comment 中")
+                        print(f"  本地摘要: {len(sent)} 字符")
+                        print(f"  Remote 评论: {len(remote)} 字符")
+                    else:
+                        print(f"[FAIL] 内容验证失败：sent-summary 未在 remote comment 中找到")
+                        print(f"  本地摘要前 80 字符: {sent[:80]}...")
+                        print(f"  Remote 评论前 80 字符: {remote[:80]}...")
+                        all_ok = False
+                        break
+                except Exception as e:
+                    print(f"[FAIL] 内容比对异常: {e}")
+                    all_ok = False
+                    break
+            else:
+                print(f"[WARN] 缺少比对文件，跳过内容验证")
+                if summary_path:
+                    print(f"  summary_path: {summary_path} (exists={summary_path.exists()})")
+                if remote_comment_path:
+                    print(f"  remote_comment_path: {remote_comment_path} (exists={remote_comment_path.exists()})")
+            continue
+
+        # Step 9：执行 issue sync 时保存 summary 路径
+        if name.startswith("Step 9:"):
+            ok, _ = _run_py_step(name, script, extra)
+            if not ok:
+                all_ok = False
+                break
+            # 从 extra 中提取 save-summary 路径
+            if "--save-summary" in extra:
+                summary_path = Path(extra[extra.index("--save-summary") + 1])
             continue
 
         ok, _ = _run_py_step(name, script, extra)

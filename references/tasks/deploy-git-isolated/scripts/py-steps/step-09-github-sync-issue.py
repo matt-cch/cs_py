@@ -113,6 +113,7 @@ def main():
     parser.add_argument("--body", default=None, help="自定义评论内容（覆盖全部自动生成）")
     parser.add_argument("--summary", default=None, help="变更摘要（语义化描述，支持 \\n 换行）。如未传入，优先从 --meta 文件读取，最后 fallback 到 commit message")
     parser.add_argument("--meta", default=None, help="外部 JSON 配置文件路径（默认使用 schema/json/issue-comment-meta-template.json）")
+    parser.add_argument("--save-summary", default=None, help="将变更摘要保存到指定文件路径（用于后续验证）")
     args = parser.parse_args()
 
     registry = load_plugins(devroot=args.devroot, tags=["core"])
@@ -184,6 +185,12 @@ def main():
         for sline in summary_text.splitlines():
             lines.append(sline)
         lines.append("")
+
+        # 保存变更摘要到文件（用于后续验证）
+        if args.save_summary:
+            summary_path = Path(args.save_summary)
+            summary_path.write_text(summary_text, encoding="utf-8")
+            print(f"[OK] 变更摘要已保存: {summary_path}")
 
         # AI 语义摘要（来自 meta.ai_summary）
         ai_summary = meta_data.get("ai_summary", "")

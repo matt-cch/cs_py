@@ -93,6 +93,7 @@ meta: {}
 | [env-migration-run-lint-detailed-reporting-2026-07-06-162922.md](env-migration-run-lint-detailed-reporting-2026-07-06-162922.md) | run-lint 插件逐项展示增强（md/py/ps1/json/encoding 全覆盖） | 2026-07-06-162922 |
 | [env-migration-polyrepo-jywl-lab-clone-2026-07-06-164910.md](env-migration-polyrepo-jywl-lab-clone-2026-07-06-164910.md) | jywl-lab 外部仓库 clone 与 Workspace 注册 | 2026-07-06-164910 |
 | [env-migration-deploy-git-tools-index-and-link-fix-eval-2026-07-07-111204.md](env-migration-deploy-git-tools-index-and-link-fix-eval-2026-07-07-111204.md) | deploy-git-isolated 工具索引补全与 link_checker 修复方案评估 | 2026-07-07-111204 |
+| [env-migration-deploy-git-preflight-atomic-extraction-2026-07-07-153838.md](env-migration-deploy-git-preflight-atomic-extraction-2026-07-07-153838.md) | deploy-git-isolated Preflight 抽离为 Atomic 脚本体系（新增 Step 4.5 安全门禁 + 多端多 devroot 规则） | 2026-07-07-153838 |
 
 
 ## 上级导航
