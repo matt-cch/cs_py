@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-run-lint.py — 统一 lint CLI 入口（v1.4.0）
+run-lint.py — 统一 lint CLI 入口（v1.5.0）
 标签：py-tools
 
 职责：通过 py_lib 加载 lint 插件，聚合执行全量/指定类型/指定文件的 lint 检查。
@@ -135,11 +135,43 @@ def run_via_py_lib(devroot: str, profile: str = "lint", tags: list = None, fix: 
         print("[Phase 2] 执行修复（lint_encoding + md_lint）")
         print(f"{'=' * 50}")
         fix_results, _ = _run_plugins("Phase 2", run_fix=True)
-        # 汇总修复结果
+        # 汇总修复结果与明细
         total_fixed = 0
+        file_fix_map: dict = {}  # filepath -> [{plugin, actions}, ...]
         for r in fix_results:
-            if "result" in r:
-                total_fixed += r["result"].get("metadata", {}).get("files_fixed", 0)
+            if "result" not in r:
+                continue
+            meta = r["result"].get("metadata", {})
+            total_fixed += meta.get("files_fixed", 0)
+            pn = r.get("name")
+            fix_details = meta.get("fix_details")
+            if fix_details and pn:
+                if isinstance(fix_details, list):
+                    for fd in fix_details:
+                        fp = fd.get("file")
+                        actions = fd.get("actions", [])
+                        if fp and actions:
+                            if fp not in file_fix_map:
+                                file_fix_map[fp] = []
+                            file_fix_map[fp].append({"plugin": pn, "details": actions})
+
+        if file_fix_map:
+            print("\n【待修复文件】")
+            for fp in sorted(file_fix_map.keys()):
+                plugins_involved = ", ".join(
+                    sorted(set(item["plugin"] for item in file_fix_map[fp]))
+                )
+                print(f"  {fp} — 涉及插件: {plugins_involved}")
+
+            print("\n【修复明细】")
+            for fp in sorted(file_fix_map.keys()):
+                print(f"\n  📄 {fp}")
+                for item in file_fix_map[fp]:
+                    pn = item["plugin"]
+                    for action in item["details"]:
+                        detail_text = action.get("detail", str(action))
+                        print(f"    └─ [{pn}] {detail_text}")
+
         print(f"\n  ✅ 修复完成，共修复 {total_fixed} 个文件")
         fixed_any = total_fixed > 0
 
@@ -294,10 +326,48 @@ def run_files_via_py_lib(devroot: str, files: list, fix: bool = False):
         print("[Phase 2] 执行修复（lint_encoding + md_lint）")
         print(f"{'=' * 50}")
         fix_results, _ = _run_file_plugins(registry, plugin_files, "Phase 2", fix=True)
+
+        # 汇总修复统计与明细
         total_fixed = 0
+        file_fix_map: dict = {}  # filepath -> [{plugin, actions}, ...]
         for r in fix_results:
-            if "result" in r:
-                total_fixed += r["result"].get("metadata", {}).get("files_fixed", 0)
+            if "result" not in r:
+                continue
+            meta = r["result"].get("metadata", {})
+            total_fixed += meta.get("files_fixed", 0)
+            fp = r.get("file")
+            pn = r.get("name")
+            fix_details = meta.get("fix_details")
+            if fix_details and fp:
+                if fp not in file_fix_map:
+                    file_fix_map[fp] = []
+                file_fix_map[fp].append({"plugin": pn, "details": fix_details})
+
+        # 输出待修复文件列表
+        if file_fix_map:
+            print("\n【待修复文件】")
+            for fp in sorted(file_fix_map.keys()):
+                plugins_involved = ", ".join(
+                    sorted(set(item["plugin"] for item in file_fix_map[fp]))
+                )
+                print(f"  {fp} — 涉及插件: {plugins_involved}")
+
+            # 输出修复明细（按文件分组）
+            print("\n【修复明细】")
+            for fp in sorted(file_fix_map.keys()):
+                print(f"\n  📄 {fp}")
+                for item in file_fix_map[fp]:
+                    pn = item["plugin"]
+                    details = item["details"]
+                    if isinstance(details, list):
+                        for action in details:
+                            detail_text = action.get("detail", str(action))
+                            print(f"    └─ [{pn}] {detail_text}")
+                    elif isinstance(details, dict) and "actions" in details:
+                        for action in details["actions"]:
+                            detail_text = action.get("detail", str(action))
+                            print(f"    └─ [{pn}] {detail_text}")
+
         print(f"\n  ✅ 修复完成，共修复 {total_fixed} 个文件")
         fixed_any = total_fixed > 0
 

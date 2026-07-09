@@ -98,6 +98,45 @@ references/tasks/deploy-git-isolated/
 | `docs/PLUGIN-ARCHITECTURE.md` | — | 架构设计说明 | 有复杂共享库架构时 |
 
 
+## 2.3 Polyrepo 嵌套仓库的 Git 配置分层
+
+> **来源**：用户与 Agent 在 2026-07-08 对话中共同确认。本节基于「隔离 Git 优先」原则（见 `baseline-principles.md` §0.7.2），记录 monorepo 内嵌独立 polyrepo 时的 `.gitattributes` 分层建设原则。
+
+### 2.3.1 前提：隔离 Git 模式
+
+本项目严格使用**隔离 Git**（`venv/data-git/` 下的独立配置与可执行文件），所有 Git 操作通过 `git -C <path>` 显式指定工作目录。在此模式下：
+- 主仓库（cs_py）与嵌套仓库（jywl-lab）的 Git 操作**天然隔离**
+- 不存在"根级配置越界影响嵌套仓库"的风险
+- 但每个 `.git/` 仍须独立配置 `.gitattributes`，否则其内部文件将退回到隔离 Git 全局配置或 Git 默认值
+
+### 2.3.2 分层配置原则
+
+| 层级 | 位置 | 作用域 | 配置内容 |
+|------|------|--------|---------|
+| **主仓库（monorepo）** | `cs_py/.gitattributes` | 主仓库 `.git/` 管辖的全部文件 | 主仓库内所有文本文件的 LF 强制 + Windows 脚本豁免 |
+| **嵌套仓库（polyrepo）** | `jywl-lab/.gitattributes` | 独立仓库 `.git/` 管辖的全部文件 | 与主仓库**相互独立**的配置，可相同也可不同 |
+
+**关键约束**：
+1. **配置不继承**：嵌套仓库**不继承**主仓库的 `.gitattributes`，必须**独立建立**
+2. **内容可差异**：不同仓库可根据自身技术栈调整豁免列表（如某仓库无 `.ps1` 则可不配置 `-text` 豁免）
+3. **Agent 义务**：操作嵌套 polyrepo 时必须**分别检查**各仓库的 `.gitattributes` 存在性，禁止假设根级配置对嵌套仓库有效
+
+### 2.3.3 与 workflow 多端多 devroot 的关系
+
+`baseline-principles.md` §0.7.1 已规定 workflow 工具链通过 `--devroot` 参数支持多端多 polyrepo。本节是同一原则在 **Git 层面** 的具体化：
+
+| 层面 | 机制 | 控制什么 |
+|------|------|---------|
+| **Workflow 执行层** | `--devroot` 参数 | Python/PS/JS 脚本操作哪个仓库 |
+| **Git 行为层** | 隔离 Git + `-C <path>` + 各仓库独立的 `.gitattributes` | `git checkout` 时换行符如何转换 |
+| **环境变量层** | 隔离 Git 的 `.gitconfig`（`venv/data-git/.gitconfig`） | Git 默认行为（被 `.gitattributes` 覆盖） |
+
+**铁律**：
+- 隔离 Git 模式下，各仓库的操作天然隔离，但**配置仍需独立维护**
+- 禁止在任何脚本中使用系统全局 Git 或 IDE 内置 Git 作为默认执行器
+- 禁止假设"因为操作隔离了，所以配置也自动一致"
+
+
 ## 6. 文件位置约定
 
 ### 6.1 SOP.md

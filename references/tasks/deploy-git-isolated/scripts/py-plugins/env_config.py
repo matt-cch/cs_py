@@ -12,6 +12,7 @@
     user_name = config.get("GIT_USER_NAME")
 """
 import os
+import subprocess
 from pathlib import Path
 
 
@@ -73,3 +74,46 @@ def get_required_env(env_file: str = None, *keys: str) -> dict:
     if missing:
         raise ValueError(f"缺少必填环境变量: {missing}")
     return config
+
+
+def resolve_repo_url(toolchain_root: Path, target: Path = None, git_exe: Path = None) -> str:
+    """
+    解析目标仓库的 remote URL。
+
+    优先级：
+        1. git -C target remote get-url origin
+        2. toolchain_root/.env 中的 GITHUB_REPO_URL
+        3. 空字符串
+
+    参数:
+        toolchain_root: 工具链根目录绝对路径
+        target: 操作目标仓库绝对路径。省略时默认等于 toolchain_root
+        git_exe: git 可执行文件路径。省略时从 toolchain_root 推导
+
+    返回:
+        str: repo_url
+    """
+    if target is None:
+        target = toolchain_root
+    if git_exe is None:
+        git_exe = toolchain_root / "venv" / "git" / "cmd" / "git.exe"
+
+    # 1. 优先从 target 的 git remote 读取
+    if git_exe.exists():
+        r = subprocess.run(
+            [str(git_exe), "-C", str(target), "remote", "get-url", "origin"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+
+    # 2. fallback 到 .env
+    env = read_env(str(toolchain_root / ".env"))
+    repo_url = env.get("GITHUB_REPO_URL", "").strip()
+    if repo_url:
+        return repo_url
+
+    return ""

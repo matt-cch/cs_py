@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-插件：Markdown 格式 Linter（v1.3.0）
+插件：Markdown 格式 Linter（v1.4.0）
 标签：md, validation
 依赖：core
 
@@ -202,18 +202,22 @@ def _check_frontmatter_dashes(content: str) -> list:
     return violations
 
 
-def _fix_content(content: str, strategy="delete") -> str:
+def _fix_content(content: str, strategy="delete") -> tuple:
     """
     修复正文中的 ---。
     strategy:
         - "delete": 直接删除 --- 行（默认）
         - "replace_stars": 替换为 ***
+
+    返回: (fixed_content, fix_actions)
+        fix_actions: [{"action": str, "line": int, "detail": str}, ...]
     """
     lines = content.splitlines()
     dash_count = 0
     new_lines = []
+    fix_actions = []
 
-    for line in lines:
+    for idx, line in enumerate(lines, start=1):
         if line.strip() == "---":
             dash_count += 1
             if dash_count <= 2:
@@ -221,6 +225,17 @@ def _fix_content(content: str, strategy="delete") -> str:
             else:
                 if strategy == "replace_stars":
                     new_lines.append("***")
+                    fix_actions.append({
+                        "action": "replace_stars",
+                        "line": idx,
+                        "detail": f"第 {idx} 行: --- → ***"
+                    })
+                else:
+                    fix_actions.append({
+                        "action": "delete_dash",
+                        "line": idx,
+                        "detail": f"第 {idx} 行: 删除正文 --- 污染"
+                    })
                 # delete: 不添加任何内容
         else:
             new_lines.append(line)
@@ -229,19 +244,23 @@ def _fix_content(content: str, strategy="delete") -> str:
     # 保持原文件末尾换行符风格
     if content.endswith("\n") and not result.endswith("\n"):
         result += "\n"
-    return result
+    return result, fix_actions
 
 
-def _fix_frontmatter_fields(content: str, missing_keys: set = None) -> str:
+def _fix_frontmatter_fields(content: str, missing_keys: set = None) -> tuple:
     """
     自动修复 frontmatter 字段问题。
     支持：description/date 拼接拆分、缺失 meta 字段补全。
+
+    返回: (fixed_content, fix_actions)
+        fix_actions: [{"action": str, "line": int, "detail": str}, ...]
     """
     lines = content.splitlines()
     new_lines = []
     in_frontmatter = False
     frontmatter_end_idx = -1
     dash_count = 0
+    fix_actions = []
 
     # 先定位 frontmatter 边界
     for idx, line in enumerate(lines):
@@ -254,7 +273,7 @@ def _fix_frontmatter_fields(content: str, missing_keys: set = None) -> str:
                 break
 
     # 修复 description/date 拼接
-    for line in lines:
+    for idx, line in enumerate(lines, start=1):
         if line.strip().startswith("description:") and "date:" in line.strip():
             parts = line.strip().split("date:", 1)
             desc_part = parts[0].rstrip()
@@ -262,6 +281,11 @@ def _fix_frontmatter_fields(content: str, missing_keys: set = None) -> str:
             indent = line[:len(line) - len(line.lstrip())]
             new_lines.append(indent + desc_part)
             new_lines.append(indent + date_part)
+            fix_actions.append({
+                "action": "split_description_date",
+                "line": idx,
+                "detail": f"第 {idx} 行: 拆分 description 与 date 为两行"
+            })
         else:
             new_lines.append(line)
 
@@ -272,11 +296,16 @@ def _fix_frontmatter_fields(content: str, missing_keys: set = None) -> str:
         if new_lines:
             indent = new_lines[1][:len(new_lines[1]) - len(new_lines[1].lstrip())] if len(new_lines) > 1 else ""
         new_lines.insert(insert_idx, indent + "meta: {}")
+        fix_actions.append({
+            "action": "insert_meta",
+            "line": frontmatter_end_idx + 1,
+            "detail": f"第 {frontmatter_end_idx + 1} 行: 插入 meta: {{}}"
+        })
 
     result = "\n".join(new_lines)
     if content.endswith("\n") and not result.endswith("\n"):
         result += "\n"
-    return result
+    return result, fix_actions
 
 
 def validate_file(filepath: str, fix: bool = False, strategy="delete") -> dict:
@@ -292,6 +321,7 @@ def validate_file(filepath: str, fix: bool = False, strategy="delete") -> dict:
     files_with_violations = 0
     files_fixed = 0
     fixed_content = content
+    fix_details = []
 
     # 1. frontmatter 字段校验（例外文件跳过，来源：markdown-docs-format.mdc）
     if not _is_excluded_file(fp):
@@ -310,7 +340,8 @@ def validate_file(filepath: str, fix: bool = False, strategy="delete") -> dict:
                     if "meta" in v["context"]:
                         fixable_keys.add("meta")
             if fix and fixable_keys:
-                fixed_content = _fix_frontmatter_fields(fixed_content, fixable_keys)
+                fixed_content, actions = _fix_frontmatter_fields(fixed_content, fixable_keys)
+                fix_details.extend(actions)
                 files_fixed = 1
 
     # 2. --- 污染校验（所有文件都检查）
@@ -325,11 +356,12 @@ def validate_file(filepath: str, fix: bool = False, strategy="delete") -> dict:
                 "context": "正文出现 ---（frontmatter 边界污染）",
             })
         if fix:
-            fixed_content = _fix_content(fixed_content, strategy=strategy)
+            fixed_content, actions = _fix_content(fixed_content, strategy=strategy)
+            fix_details.extend(actions)
             files_fixed = 1
 
     if fix and files_fixed:
-        fp.write_text(fixed_content, encoding="utf-8")
+        fp.write_text(fixed_content, encoding="utf-8", newline="\n")
 
     # 构建 check_details 供逐项展示
     check_details = {
@@ -375,6 +407,7 @@ def validate_file(filepath: str, fix: bool = False, strategy="delete") -> dict:
         "metadata": {
             "files_fixed": files_fixed,
             "check_details": check_details,
+            "fix_details": fix_details,
         },
     }
 
@@ -403,6 +436,7 @@ def scan(dir_path: str = None, fix: bool = False, strategy="delete") -> dict:
     violations = []
     files_with_violations = 0
     files_fixed = 0
+    all_fix_details = []
 
     for md_file in md_files:
         content = md_file.read_text(encoding="utf-8")
@@ -410,6 +444,7 @@ def scan(dir_path: str = None, fix: bool = False, strategy="delete") -> dict:
         rel_path = str(md_file.relative_to(target_dir))
         file_has_v = False
         fixed_content = content
+        file_fix_details = []
 
         # 1. frontmatter 字段校验（例外文件跳过）
         if not _is_excluded_file(md_file):
@@ -427,7 +462,8 @@ def scan(dir_path: str = None, fix: bool = False, strategy="delete") -> dict:
                         if "meta" in v["context"]:
                             fixable_keys.add("meta")
                 if fix and fixable_keys:
-                    fixed_content = _fix_frontmatter_fields(fixed_content, fixable_keys)
+                    fixed_content, actions = _fix_frontmatter_fields(fixed_content, fixable_keys)
+                    file_fix_details.extend(actions)
 
         # 2. --- 污染校验（所有文件都检查）
         dash_v = _check_frontmatter_dashes(fixed_content)
@@ -440,13 +476,18 @@ def scan(dir_path: str = None, fix: bool = False, strategy="delete") -> dict:
                     "context": "正文出现 ---（frontmatter 边界污染）",
                 })
             if fix:
-                fixed_content = _fix_content(fixed_content, strategy=strategy)
+                fixed_content, actions = _fix_content(fixed_content, strategy=strategy)
+                file_fix_details.extend(actions)
 
         if file_has_v:
             files_with_violations += 1
-            if fix:
-                md_file.write_text(fixed_content, encoding="utf-8")
+            if fix and file_fix_details:
+                md_file.write_text(fixed_content, encoding="utf-8", newline="\n")
                 files_fixed += 1
+                all_fix_details.append({
+                    "file": rel_path,
+                    "actions": file_fix_details
+                })
 
     return {
         "success": True,
@@ -458,6 +499,7 @@ def scan(dir_path: str = None, fix: bool = False, strategy="delete") -> dict:
         "violations": violations,
         "metadata": {
             "files_fixed": files_fixed,
+            "fix_details": all_fix_details,
         },
     }
 

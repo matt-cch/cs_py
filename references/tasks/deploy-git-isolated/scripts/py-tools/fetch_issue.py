@@ -9,6 +9,7 @@ fetch_issue.py — 获取 GitHub Issue 完整内容（含评论）
 用法：
     python fetch_issue.py --issue-number 1
     python fetch_issue.py --devroot "D:/pjt/cursor/cs_py" --issue-number 2
+    python fetch_issue.py --devroot "D:/pjt/cursor/cs_py" --repo-url "https://github.com/jywl-team/jywl-lab.git" --issue-number 1
 """
 import argparse
 import sys
@@ -29,6 +30,11 @@ def main():
     parser.add_argument(
         "--devroot",
         help="Devroot 路径（如未传入，由 py_lib 自动探测）"
+    )
+    parser.add_argument(
+        "--repo-url",
+        default=None,
+        help="仓库 URL（polyrepo 场景从 manifest 传入，覆盖 .env 中的 GITHUB_REPO_URL）"
     )
     parser.add_argument(
         "--issue-number",
@@ -72,6 +78,17 @@ def main():
 
     # 读取认证
     creds = api.get_credentials()
+
+    # polyrepo 场景：外部传入 --repo-url 时覆盖
+    if args.repo_url:
+        import re
+        m = re.search(r'github\.com/([^/]+)/([^/]+?)(?:\.git)?$', args.repo_url)
+        if m:
+            creds["owner"] = m.group(1)
+            creds["repo"] = m.group(2)
+            print(f"[OK] repo_url 来自参数覆盖: {args.repo_url}")
+        else:
+            print(f"[WARN] --repo-url 格式无法解析: {args.repo_url}")
 
     # 获取 Issue 详情
     issue = api.get_issue(

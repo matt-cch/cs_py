@@ -37,7 +37,8 @@ meta: {}
 | [research/runtime-atomic-integration-experience.md](research/runtime-atomic-integration-experience.md) | research | 运行时域原子脚本集成经验 — verify-runtime / download-runtime-tool 重构踩坑、决策与修复路径 |
 | [research/git-local-remote-state-timeline-clarification.md](research/git-local-remote-state-timeline-clarification.md) | research | Git 本地/Remote 生效机制时间线 — workflow-deploy 与 workflow-gh 的衔接前提与常见误判 |
 | [research/branch-vs-worktree-equivalence-and-differences.md](research/branch-vs-worktree-equivalence-and-differences.md) | research | Branch 与 Worktree 模式在 PR 闭环中的等价性与差异 |
+| [research/crlf-lf-line-ending-governance-research-2026-07-08-111237.md](research/crlf-lf-line-ending-governance-research-2026-07-08-111237.md) | research | CRLF/LF 换行符治理深度研究 — 全仓库文本文件强制 LF 的决策路径 |
 
 
-*导航版本: v1.4*  
-*更新时间: 2026-07-01*
+*导航版本: v1.6*  
+*更新时间: 2026-07-08*

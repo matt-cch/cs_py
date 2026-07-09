@@ -94,6 +94,10 @@ meta: {}
 | [env-migration-polyrepo-jywl-lab-clone-2026-07-06-164910.md](env-migration-polyrepo-jywl-lab-clone-2026-07-06-164910.md) | jywl-lab 外部仓库 clone 与 Workspace 注册 | 2026-07-06-164910 |
 | [env-migration-deploy-git-tools-index-and-link-fix-eval-2026-07-07-111204.md](env-migration-deploy-git-tools-index-and-link-fix-eval-2026-07-07-111204.md) | deploy-git-isolated 工具索引补全与 link_checker 修复方案评估 | 2026-07-07-111204 |
 | [env-migration-deploy-git-preflight-atomic-extraction-2026-07-07-153838.md](env-migration-deploy-git-preflight-atomic-extraction-2026-07-07-153838.md) | deploy-git-isolated Preflight 抽离为 Atomic 脚本体系（新增 Step 4.5 安全门禁 + 多端多 devroot 规则） | 2026-07-07-153838 |
+| [env-migration-atomic-git-preflight-general-2026-07-07-174355.md](env-migration-atomic-git-preflight-general-2026-07-07-174355.md) | 多 polyrepo 通用 Git Preflight 工具（工具链锚定 Path.cwd() + 操作目标 --target 显式分离 + security-level 四级控制） | 2026-07-07-174355 |
+| [env-migration-crlf-lf-governance-2026-07-08-111550.md](env-migration-crlf-lf-governance-2026-07-08-111550.md) | CRLF/LF 换行符治理 — lint 检测范围扩展与 .gitattributes 分层建设 | 2026-07-08-111550 |
+| [env-migration-polyrepo-context-manifest-2026-07-08-173019.md](env-migration-polyrepo-context-manifest-2026-07-08-173019.md) | Polyrepo Context Manifest 体系建设（运行时上下文真源 + 5 个 pending 任务待接续） | 2026-07-08-173019 |
+| [env-migration-md-lint-fix-details-write-text-newline-2026-07-09-113244.md](env-migration-md-lint-fix-details-write-text-newline-2026-07-09-113244.md) | md-lint 修复明细输出改造 + write_text 换行符陷阱修复 | 2026-07-09-113244 |
 
 
 ## 上级导航

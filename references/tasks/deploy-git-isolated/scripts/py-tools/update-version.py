@@ -259,7 +259,7 @@ def main():
     errors = []
 
     # .md 文件名 → tools_config.json 工具名映射
-    NAME_MAP = {"opencode": "opencode_cli"}
+    NAME_MAP = {"opencode": "opencode_cli", "gh": "gh_cli"}
 
     for tool_name, md_path, history_path in tools:
         print(f"\n[{tool_name}] {md_path.name}")

@@ -49,16 +49,20 @@ def _run_git(git_exe: Path, args: list, cwd: Path = None) -> subprocess.Complete
     )
 
 
-def detect_git_env(devroot: Path) -> GitEnvResult:
+def detect_git_env(devroot: Path, target: Path = None) -> GitEnvResult:
     """
     检测 Git 环境基础状态。
 
     参数:
-        devroot: 开发根目录绝对路径
+        devroot: 开发根目录绝对路径（用于定位 git.exe）
+        target: 操作目标仓库绝对路径。如未传入，默认等于 devroot
 
     返回:
         GitEnvResult: 检测结果，ok=True 表示全部通过
     """
+    if target is None:
+        target = devroot
+
     result = GitEnvResult()
 
     # 1. 检查 git.exe
@@ -75,13 +79,13 @@ def detect_git_env(devroot: Path) -> GitEnvResult:
         return result
 
     # 3. 检测是否有仓库
-    git_dir = devroot / ".git"
+    git_dir = target / ".git"
     result.has_repo = git_dir.exists()
 
     if result.has_repo:
         # 4a. 读取身份（不指定 scope，Git 按 local > global > system 解析）
-        r_name = _run_git(git_exe, ["-C", str(devroot), "config", "user.name"])
-        r_email = _run_git(git_exe, ["-C", str(devroot), "config", "user.email"])
+        r_name = _run_git(git_exe, ["-C", str(target), "config", "user.name"])
+        r_email = _run_git(git_exe, ["-C", str(target), "config", "user.email"])
         result.user_name = r_name.stdout.strip() if r_name.returncode == 0 else ""
         result.user_email = r_email.stdout.strip() if r_email.returncode == 0 else ""
 
@@ -91,14 +95,14 @@ def detect_git_env(devroot: Path) -> GitEnvResult:
             result.errors.append("git user.email 未配置")
 
         # 4b. 当前分支
-        r = _run_git(git_exe, ["-C", str(devroot), "branch", "--show-current"])
+        r = _run_git(git_exe, ["-C", str(target), "branch", "--show-current"])
         result.current_branch = r.stdout.strip() if r.returncode == 0 else ""
 
         # 4c. working tree 是否 clean
-        r = _run_git(git_exe, ["-C", str(devroot), "status", "--porcelain"])
+        r = _run_git(git_exe, ["-C", str(target), "status", "--porcelain"])
         result.is_clean = r.returncode == 0 and not r.stdout.strip()
     else:
-        result.warnings.append("devroot 下无 .git/，跳过分支、身份和工作区检测")
+        result.warnings.append("target 下无 .git/，跳过分支、身份和工作区检测")
 
     result.ok = len(result.errors) == 0
     return result

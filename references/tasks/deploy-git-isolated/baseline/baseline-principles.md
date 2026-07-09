@@ -237,5 +237,124 @@ python workflow-deploy-full.py --devroot "D:\workspace\other-repo" --auto
 ```
 
 
+### 0.7.2 隔离 Git 优先（Isolated Git First）
+
+> **来源**：用户明确确认（2026-07-08）。本节定义 Git 操作的默认执行模式与配置策略。
+
+**核心原则**：所有 Git 操作**默认使用隔离 Git**（`venv/data-git/` 下的独立配置与可执行文件），**不依赖**系统全局 Git 或 IDE 内置 Git。
+
+**为什么隔离 Git 优先**：
+1. **配置可预期**：隔离 Git 的 `.gitconfig`、`.gitignore`、`.gitattributes` 完全由项目控制，不受用户全局配置或 IDE 默认行为干扰
+2. **跨环境一致性**：不同开发者的系统 Git 版本、全局配置可能差异巨大；隔离 Git 确保所有人在同一版本、同一配置下操作
+3. **polyrepo 安全**：隔离 Git 通过 `-C <path>` 显式指定工作目录，天然避免"操作越界"到嵌套仓库
+4. **可审计**：隔离 Git 的操作日志、配置变更全部落在项目目录内，可追溯、可复现
+
+**铁律**：
+
+| 场景 | 错误做法（禁止） | 正确做法（必须） |
+|------|---------------|---------------|
+| 执行 Git 命令 | `git add .`（依赖系统 PATH 中的 git） | `git -C <absolute_path> -c <key>=<value> <command>`（隔离 Git + 显式目录 + 显式配置） |
+| Git 配置 | 修改系统全局 `~/.gitconfig` | 修改 `venv/data-git/.gitconfig`（隔离配置） |
+| 仓库初始化 | `git init`（系统 Git，配置来源不明） | 隔离 Git 初始化，显式指定 `--git-dir` 与 `--work-tree` |
+| 嵌套 polyrepo 操作 | 假设根级 `.gitattributes` 对嵌套仓库有效 | 每个 `.git/` 独立配置 `.gitattributes`（见 `baseline-structure.md` §2.3） |
+
+**灵活性保留**：
+- 系统全局 Git 和 IDE 内置 Git **保留作为备选**，在隔离 Git 不可用时 fallback
+- 但任何 fallback 操作必须在文档/注释中**显式声明**，说明为何绕过隔离 Git
+- 禁止将 IDE Git 集成的默认行为当作"正常工作流"的一部分来设计工具链
+
+**与 polyrepo 的关系**：
+隔离 Git + `-C` 显式目录 + 每个 `.git/` 独立配置 `.gitignore/.gitattributes`，三重机制共同确保：
+- 主仓库（cs_py）与嵌套仓库（jywl-lab）的操作**天然隔离**
+- 不存在"根级配置越界影响嵌套仓库"的风险
+- 但每个仓库仍须独立配置 `.gitattributes`，否则其内部文件将退回到隔离 Git 全局配置或 Git 默认值
+
+
+### 0.7.3 命令行纯粹原则与路径入参铁律
+
+> **来源**：用户明确确认（2026-07-08）。本节定义 Shell 命令行的最小形态与脚本入参的强制义务。
+
+**核心原则**：命令行必须是**最纯粹的调用形态**——只包含「解释器 + 脚本路径 + 常规入参」，不携带任何逻辑。
+
+**命令行禁止行为**：
+
+| 禁止 | 说明 |
+|------|------|
+| `cd / Set-Location` | 改变 CWD 属于逻辑操作，必须在脚本内部完成（如 `os.chdir(devroot)`） |
+| 环境变量设置 | `$env:XXX = ...` 属于状态变更，必须在脚本内部通过代码读取 `.env` 完成 |
+| 字符串拼接/JSON 构造 | 命令行不是数据构造场所，数据应写入文件后由脚本读取 |
+| 路径检测/条件判断 | `Test-Path`、`if` 等逻辑必须在脚本内部完成 |
+| 管道组合多步逻辑 | `cmd1 | cmd2 | cmd3` 的复合逻辑应写成脚本 |
+
+**正确命令行形态**：
+```powershell
+# ✅ 纯粹调用：解释器 + 脚本路径 + 入参
+& "D:\pjt\cursor\cs_py\venv\py\python.exe" "D:\pjt\cursor\cs_py\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-deploy-full.py" --devroot "D:\pjt\cursor\cs_py" --auto
+```
+
+**`--devroot` / `--target` 强制必填**：
+
+在多端多源多 polyrepo 场景下，路径参数是**刚需**，不能马虎应付：
+
+| 参数 | 含义 | 何时必填 |
+|------|------|---------|
+| `--devroot` | 工具链根目录（含 `venv/`、`scripts/`、`.env` 等） | **始终必填** |
+| `--target` | 操作目标仓库（独立 `.git/` 所在目录） | polyrepo 场景必填；单仓库可与 `--devroot` 同值 |
+
+**脚本内部义务**：
+1. `--devroot` 不传 → 立即报错退出（`parser.add_argument("--devroot", required=True)`）
+2. `--target` 在需要时不传 → 立即报错退出
+3. 工具链根通过 `Path.cwd()` 推导（CWD 入参确定后保持不变），**禁止**用 `Path(__file__)` 回溯
+4. 工具链根与操作目标根**相互独立**（代码中作为独立变量处理），但**不一定是不同路径**——`cs_py` 单仓库场景下二者为同一目录
+
+
+### 0.8 仓库性质分级与操作权限铁律
+
+> **来源**：用户明确确认（2026-07-08）。本节源于 Agent 在调试未验证脚本时直接使用 team repo 作为测试对象，造成潜在风险。仓库性质不同，操作权限必须分级。
+
+#### 0.8.1 仓库三级分类
+
+| 级别 | 性质 | 示例 | 影响范围 |
+|------|------|------|---------|
+| **Personal** | 个人仓库 | `cs_py`（devroot） | 仅影响个人 |
+| **Team** | 团队共享仓库 | `jywl-lab`（内嵌 polyrepo） | 影响团队成员 |
+| **Organization** | 组织级仓库 | 平台主仓、公共库 | 影响整个组织 |
+
+#### 0.8.2 操作权限分级铁律
+
+| 仓库级别 | 只读操作 | 写操作（git add/commit/push 等） | 调试/验证未知脚本 |
+|----------|---------|--------------------------------|------------------|
+| **Personal** | ✅ 允许 | ⚠️ 允许，但**必须事先声明** | ⚠️ 允许，但**必须声明副作用** |
+| **Team** | ✅ 允许 | ❌ **默认禁止**；必须用户**亲口确认**后方可执行 | ❌ **绝对禁止**用 team repo 测试未验证脚本 |
+| **Organization** | ⚠️ 需用户确认 | ❌ **绝对禁止**；除非用户明确授权特定操作 | ❌ **绝对禁止** |
+
+> **铁律**：Team repo 的 `git add`、`git commit`、`git push`、文件写入、配置变更等**任何可能产生副作用的操作**，Agent **不得擅自执行**。必须在执行前向用户说明：
+> 1. 操作的具体内容（如"将执行 `git add -A`，把 xxx 文件加入 staged"）
+> 2. 影响范围（"这会修改 jywl-lab 的 Git 状态，团队成员可见"）
+> 3. 请求明确确认（"是否继续？"）
+>
+> 用户未回复或回复非肯定语义 → **禁止执行**。
+
+#### 0.8.3 调试与验证的约束
+
+**反面教材（已发生）**：
+Agent 在 `workflow-git-deploy-full-poly.py` 尚未完全验证时，直接使用 `jywl-lab`（team repo）执行 `--step 4`，导致 `git add -A` 修改了 team repo 的 staged 区域。虽然事后回滚成功，但该行为违反了以下铁律：
+
+1. **未验证脚本不得用 team repo 测试**：任何新脚本、修改后的脚本，首次验证必须使用 **personal repo**（`cs_py`）或**临时隔离环境**。
+2. **写操作前必须显式声明**：即使是对 personal repo，执行 `git add`、`git commit`、`git push`、文件覆盖前，也必须说明"即将执行什么操作、可能产生什么副作用"。
+3. **禁止侥幸心理**："只是试一下"、"应该没问题"、"马上回滚"等理由**不能**作为跳过声明的借口。
+
+#### 0.8.4 与 AGENTS.md 严格审慎文件名单的关系
+
+`AGENTS.md` 中已规定对 `.vscode/settings.json`、`venv/.opencode/AGENTS.md`、`venv/.opencode/config.json` 等文件的**写入前强制检查**。本节将同一精神扩展到**仓库性质判断**：
+
+- 触及 Team/Organization 仓库的写操作前，必须完成与"写入前强制检查"同等级别的自检
+- 自检清单：
+  1. 目标仓库是什么性质？（Personal / Team / Organization）
+  2. 操作是否只读？（是 → 可继续；否 → 进入第 3 步）
+  3. 是否已向用户声明操作内容、影响范围、请求确认？（是 → 等待用户回复；否 → **禁止执行**）
+  4. 用户是否明确回复肯定语义？（是 → 执行；否 → **禁止执行**）
+
+
 ***
 > **导航**：返回 [baseline-index.md](baseline-index.md)

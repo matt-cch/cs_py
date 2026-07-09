@@ -8,6 +8,7 @@ step-09-github-sync-issue.py — Step 9: Issue Sync
 
 用法：
     python step-09-github-sync-issue.py --devroot "D:/pjt/cursor/cs_py" --issue 1
+    python step-09-github-sync-issue.py --devroot "D:/pjt/cursor/cs_py" --target "D:/pjt/cursor/cs_py/apps/repos/jywl-team/jywl-lab" --repo-url "https://github.com/jywl-team/jywl-lab.git" --issue 1
 """
 import argparse
 import json
@@ -24,8 +25,8 @@ if str(_SCRIPTS_DIR) not in sys.path:
 from py_lib import load_plugins
 
 
-def _read_env_config(devroot: Path) -> dict:
-    """与 PS1 Read-EnvConfig 对齐"""
+def _read_env_config(devroot: Path, repo_url_override: str = None) -> dict:
+    """与 PS1 Read-EnvConfig 对齐。repo_url_override 传入时，不检查 .env 中的 GITHUB_REPO_URL。"""
     env = {}
     env_path = devroot / ".env"
     if not env_path.exists():
@@ -40,7 +41,12 @@ def _read_env_config(devroot: Path) -> dict:
             key, val = line.split("=", 1)
             env[key] = val
 
-    for key in ["GITHUB_USERNAME", "GITHUB_REPO_URL"]:
+    # 如果外部传入了 repo_url，不需要检查 .env 中的 GITHUB_REPO_URL
+    required_keys = ["GITHUB_USERNAME"]
+    if not repo_url_override:
+        required_keys.append("GITHUB_REPO_URL")
+
+    for key in required_keys:
         if not env.get(key, "").strip():
             print(f"[ERROR] {key} 未在 .env 中配置")
             sys.exit(1)
@@ -50,32 +56,36 @@ def _read_env_config(devroot: Path) -> dict:
         print("[ERROR] GITHUB_PAT 未配置或仍是占位符")
         sys.exit(1)
 
+    # 如果外部传入了 repo_url，覆盖 .env 中的值
+    if repo_url_override:
+        env["GITHUB_REPO_URL"] = repo_url_override
+
     return env
 
 
-def _get_commit_info(git_exe: Path, devroot: Path) -> dict:
-    """获取当前 commit 信息及变更文件列表"""
+def _get_commit_info(git_exe: Path, target: Path) -> dict:
+    """获取 target 仓库当前 commit 信息及变更文件列表"""
     result = subprocess.run(
-        [str(git_exe), "-C", str(devroot), "rev-parse", "--short", "HEAD"],
+        [str(git_exe), "-C", str(target), "rev-parse", "--short", "HEAD"],
         capture_output=True, text=True, encoding="utf-8"
     )
     commit_hash = result.stdout.strip()
 
     result = subprocess.run(
-        [str(git_exe), "-C", str(devroot), "log", "-1", "--pretty=format:%s"],
+        [str(git_exe), "-C", str(target), "log", "-1", "--pretty=format:%s"],
         capture_output=True, text=True, encoding="utf-8"
     )
     commit_msg = result.stdout.strip()
 
     result = subprocess.run(
-        [str(git_exe), "-C", str(devroot), "rev-parse", "--abbrev-ref", "HEAD"],
+        [str(git_exe), "-C", str(target), "rev-parse", "--abbrev-ref", "HEAD"],
         capture_output=True, text=True, encoding="utf-8"
     )
     branch = result.stdout.strip()
 
     # 获取变更文件列表（--name-status 格式：A/M/D + 路径）
     result = subprocess.run(
-        [str(git_exe), "-C", str(devroot), "diff", "--name-status", "HEAD~1..HEAD"],
+        [str(git_exe), "-C", str(target), "diff", "--name-status", "HEAD~1..HEAD"],
         capture_output=True, text=True, encoding="utf-8"
     )
     changes = {"A": [], "M": [], "D": [], "R": []}
@@ -92,7 +102,7 @@ def _get_commit_info(git_exe: Path, devroot: Path) -> dict:
 
     # 获取统计数字
     result = subprocess.run(
-        [str(git_exe), "-C", str(devroot), "diff", "--shortstat", "HEAD~1..HEAD"],
+        [str(git_exe), "-C", str(target), "diff", "--shortstat", "HEAD~1..HEAD"],
         capture_output=True, text=True, encoding="utf-8"
     )
     stat = result.stdout.strip()
@@ -108,7 +118,9 @@ def _get_commit_info(git_exe: Path, devroot: Path) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Step 9: Issue Sync")
-    parser.add_argument("--devroot", default=None, help="Devroot 路径")
+    parser.add_argument("--devroot", default=None, help="工具链根路径（用于定位 .env 和 git.exe）")
+    parser.add_argument("--target", default=None, help="操作目标仓库路径（默认等于 --devroot）")
+    parser.add_argument("--repo-url", default=None, help="仓库 URL（polyrepo 场景从 manifest 传入，优先于 .env）")
     parser.add_argument("--issue", type=int, default=1, help="Issue 编号 (默认 1)")
     parser.add_argument("--body", default=None, help="自定义评论内容（覆盖全部自动生成）")
     parser.add_argument("--summary", default=None, help="变更摘要（语义化描述，支持 \\n 换行）。如未传入，优先从 --meta 文件读取，最后 fallback 到 commit message")
@@ -118,6 +130,7 @@ def main():
 
     registry = load_plugins(devroot=args.devroot, tags=["core"])
     devroot = Path(registry.devroot)
+    target = Path(args.target) if args.target else devroot
     git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
 
     if not git_exe.exists():
@@ -129,7 +142,7 @@ def main():
     print("Step 9: Issue Sync")
     print("=" * 40)
 
-    cfg = _read_env_config(devroot)
+    cfg = _read_env_config(devroot, repo_url_override=args.repo_url)
     pat = cfg["GITHUB_PAT"].strip()
 
     # 提取 owner/repo
@@ -137,7 +150,7 @@ def main():
     import re
     m = re.search(r'github\.com/([^/]+)/([^/]+?)(?:\.git)?$', repo_url)
     if not m:
-        print(f"[ERROR] 无法从 GITHUB_REPO_URL 提取 owner/repo: {repo_url}")
+        print(f"[ERROR] 无法从 repo_url 提取 owner/repo: {repo_url}")
         sys.exit(1)
     owner, repo = m.group(1), m.group(2)
 
@@ -161,7 +174,7 @@ def main():
         body = args.body
     else:
         from datetime import datetime, timezone
-        info = _get_commit_info(git_exe, devroot)
+        info = _get_commit_info(git_exe, target)
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         lines = []
         lines.append(f"## 变更记录 — {now}")

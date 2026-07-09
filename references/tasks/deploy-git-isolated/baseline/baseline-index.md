@@ -28,8 +28,8 @@ meta:
 |------|------|---------|
 | [baseline-principles.md](baseline-principles.md) | Agent 执行哲学与工程化铁律（0.x） | 任何 Agent 执行操作前 |
 | [baseline-semantics.md](baseline-semantics.md) | Task/Skill/Workflow 语义定义（1.x） | 不确定 Task 与 Skill 边界时 |
-| [baseline-structure.md](baseline-structure.md) | 目录结构与文件位置约定（2.x + 6.x） | 新建/移动文件时 |
-| [baseline-formats.md](baseline-formats.md) | 文件格式规范（SOP/CHEATSHEET/TOOLS-INDEX/ENTRY/DESIGN）（3.x） | 新建/修改文档时 |
+| [baseline-structure.md](baseline-structure.md) | 目录结构与文件位置约定（2.x + 6.x）+ Polyrepo 嵌套仓库的 Git 配置分层（2.3） | 新建/移动文件时 |
+| [baseline-formats.md](baseline-formats.md) | 文件格式规范（3.x）+ 编码与换行符跨平台一致性（3.7） | 新建/修改文档时 |
 | [baseline-operations.md](baseline-operations.md) | 修订联动、执行路径、版本演进与归档（4.x + 5.x + 7.x） | 执行变更、发布版本时 |
 | [baseline-plugin-architecture.md](baseline-plugin-architecture.md) | 插件化架构、三层模型、命名规范、越级禁止（8.1-8.5 + 8.8 plugin） | 开发/修改 plugin 或 workflow 时 |
 | [baseline-workflow-deploy.md](baseline-workflow-deploy.md) | JS 工具链、全链条部署、Git 空目录保留、三侧冲突仲裁（8.6-8.8 workflow/JS） | 开发 workflow、跨侧工具选型时 |
@@ -44,10 +44,16 @@ meta:
 | 2 | Long-Content 分步落盘，禁止 `python -c` / `powershell -Command` | [baseline-principles.md](baseline-principles.md) 0.3 |
 | 3 | Workflow 自闭环执行，Agent 只构造入参、不干预步骤 | [baseline-principles.md](baseline-principles.md) 0.6 |
 | 4 | 显式优于隐含，一切上下文必须显式设定、显式验证 | [baseline-principles.md](baseline-principles.md) 0.7 |
-| 5 | 插件注册双向铁律：磁盘 `.py` ↔ `py-sort-rules.json` 一一对应 | [baseline-plugin-architecture.md](baseline-plugin-architecture.md) 8.4.7a |
-| 6 | 禁止越级调用：Workflow 必须通过 `py_lib.load_plugins()` 获取能力 | [baseline-plugin-architecture.md](baseline-plugin-architecture.md) 8.4.5 |
-| 7 | 审计者不能审计自己，自检≠独立审计 | [baseline-audit-truth.md](baseline-audit-truth.md) 8.9 |
-| 8 | 决策真源集中化：下游只消费、不判断 | [baseline-audit-truth.md](baseline-audit-truth.md) 8.10 |
+| 5 | 隔离 Git 优先，所有 Git 操作默认使用隔离配置 | [baseline-principles.md](baseline-principles.md) 0.7.2 |
+| 6 | 命令行纯粹原则：只含解释器+脚本+入参，不塞逻辑 | [baseline-principles.md](baseline-principles.md) 0.7.3 |
+| 7 | `--devroot` / `--target` 强制必填，不传示警退出 | [baseline-principles.md](baseline-principles.md) 0.7.3 |
+| 8 | 仓库性质分级：Team repo 写操作默认禁止，必须用户亲口确认 | [baseline-principles.md](baseline-principles.md) 0.8 |
+| 9 | 未验证脚本绝对禁止用 team repo 测试，调试只限 personal repo | [baseline-principles.md](baseline-principles.md) 0.8.3 |
+| 10 | 写操作前必须显式声明内容与影响，用户未肯定回复禁止执行 | [baseline-principles.md](baseline-principles.md) 0.8.2 |
+| 11 | 插件注册双向铁律：磁盘 `.py` ↔ `py-sort-rules.json` 一一对应 | [baseline-plugin-architecture.md](baseline-plugin-architecture.md) 8.4.7a |
+| 12 | 禁止越级调用：Workflow 必须通过 `py_lib.load_plugins()` 获取能力 | [baseline-plugin-architecture.md](baseline-plugin-architecture.md) 8.4.5 |
+| 13 | 审计者不能审计自己，自检≠独立审计 | [baseline-audit-truth.md](baseline-audit-truth.md) 8.9 |
+| 14 | 决策真源集中化：下游只消费、不判断 | [baseline-audit-truth.md](baseline-audit-truth.md) 8.10 |
 
 
 ## 版本历史

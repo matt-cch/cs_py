@@ -143,5 +143,118 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\...\script.ps1 <ar
 - **新增**：Trigger 治理设计意图（第 6 节），记录 trigger 体系的六维元原则（治理、参照、边界、协调、审计、重建）。
 
 
+## 3.7 文件编码与换行符规范
+
+> **来源**：用户与 Agent 在 2026-07-08 对话中共同确认。本节记录跨平台（Win/Linux）与 GitHub Remote 之间保持预期一致性的编码与换行符治理共识。
+
+### 3.7.1 核心共识：本地预期一致性优先
+
+**问题**：Windows 默认使用 CRLF (`\r\n`)，Linux/macOS 默认使用 LF (`\n`)。若依赖开发者各自的全局 `core.autocrlf` 配置，同一文件在不同平台 checkout 后的字节流不一致，导致 lint 检测、哈希校验、diff 比对全部失效。
+
+**解法**：**本地 `.gitattributes` 显式声明**，使仓库在任何平台 checkout 时都产生相同的换行符预期。不依赖全局 Git 配置，不假设操作系统的默认行为。
+
+### 3.7.2 换行符分层策略
+
+| 文件类型 | 换行符 | 原因 |
+|----------|--------|------|
+| `.ps1` / `.bat` / `.cmd` | **CRLF**（豁免强制 LF） | Windows 原生脚本生态完全兼容 CRLF；强制 LF 可能破坏与系统工具（如批处理解析器）的互操作 |
+| `.py` / `.js` / `.ts` / `.json` / `.md` / `.mdc` / `.yml` / `.yaml` / `.toml` / `.sh` / `.html` / `.css` | **强制 LF** | 跨平台一致性、JSON 规范（RFC 8259 禁止 BOM，默认 LF）、前端工具链默认 LF、POSIX shell 默认 LF |
+| 二进制文件（`.exe` / `.zip` / `.png` / `.pptx` 等） | **不参与转换** | `binary` 声明，Git 不做换行符处理 |
+
+**`.gitattributes` 最小配置模板**：
+
+```gitattributes
+# 所有文本文件默认 LF
+* text eol=lf
+
+# Windows 原生脚本豁免
+*.ps1 -text
+*.bat -text
+*.cmd -text
+
+# 二进制文件明确声明
+*.exe binary
+*.zip binary
+*.png binary
+*.pptx binary
+```
+
+### 3.7.3 lint 检测与自动修复
+
+**检测范围**：`lint_encoding.py` 的 CRLF 强制检测范围为「除 `.ps1`/`.bat`/`.cmd` 外全部文本文件」。
+
+**修复路径**：
+```powershell
+# 单文件修复
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --files "path/to/file.json" --fix
+
+# 全量扫描
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-encoding --fix
+```
+
+### 3.7.4 Python `write_text` / `open` 的换行符陷阱（Windows）
+
+> **来源**：2026-07-09 实测踩坑。`run-lint.py --fix` 在多插件串行修复时，CRLF 数量反而增加。
+
+#### 现象
+
+`lint_encoding` 插件先把 `.md` 文件的 CRLF 修复为 LF，`md_lint` 插件随后修改 frontmatter 并写回，Phase 3 重新检测时发现 CRLF 从 9 处增加到 10 处。
+
+#### 根因
+
+Python 的 `pathlib.Path.write_text()` 和内置 `open()` 在 Windows 上有一个隐蔽的默认行为：
+
+- **`newline=None`（默认）**：写入时自动把字符串中的每个 `\n` 转换为操作系统默认换行符，Windows 下即 `\r\n`
+- **这意味着**：即使传入的字符串里只有 `\n`，落盘后也会变成 `\r\n`
+
+在多插件串行修复的架构中：
+1. `lint_encoding` 用 `write_bytes()` 把文件修成纯 LF
+2. `md_lint` 读取文件 → 修改内容 → `write_text(content, encoding="utf-8")` 写回
+3. `write_text` 默认 `newline=None`，在 Windows 上把 LF 全部转回 CRLF
+4. 前序插件的修复成果被**静默覆盖**
+
+#### 硬性规定
+
+任何 Python 代码写入**强制 LF 的文件**（`.md` / `.py` / `.js` / `.json` / `.yml` / `.yaml` / `.toml` / `.sh` / `.html` / `.css`）时，**必须**显式指定 `newline="\n"`：
+
+```python
+# ✅ 正确：强制 LF 输出，不受操作系统影响
+path.write_text(content, encoding="utf-8", newline="\n")
+
+with open(path, "w", encoding="utf-8", newline="\n") as f:
+    f.write(content)
+
+# ❌ 错误：Windows 下会产生 CRLF
+path.write_text(content, encoding="utf-8")
+
+with open(path, "w", encoding="utf-8") as f:
+    f.write(content)
+```
+
+#### 排查要点
+
+- 不要假设 `write_text` 会按字面量写入——它在 Windows 上有平台相关的转换层
+- 多插件/多阶段修复时，每个写回文件的插件都必须独立遵守此规定
+- `lint_encoding` 使用 `write_bytes()` 不受此影响（字节直接落盘），但其他插件若改用 `write_text` 必须加 `newline="\n"`
+
+### 3.7.5 `.gitattributes` 的跟踪策略
+
+**不跟踪原则**：`.gitattributes` 文件**不纳入 Git 版本跟踪**（被 `.gitignore` 的 `/*` 排除），仅供**本地开发**使用。
+
+**原因**（在隔离 Git 优先模式下）：
+1. 隔离 Git 的配置（`.gitconfig`、`.gitattributes`、`.gitignore`）是**本地环境约定**，与业务代码解耦
+2. 不同 polyrepo 可能使用不同的技术栈（如某仓库纯前端无 `.ps1`），需要差异化的 `.gitattributes`
+3. 隔离 Git 的 `.gitconfig` 已提供基础默认行为，`.gitattributes` 是对该仓库的局部覆盖，不应强制同步到 remote
+4. 保持灵活性：每个开发环境/CI 实例可独立调整，不阻塞其他环境
+
+**例外**：若某 polyrepo 明确要求全团队统一换行符行为，可在该仓库内跟踪 `.gitattributes`，但须显式声明为团队级决策。
+
+**与隔离 Git 的关系**：
+- `.gitattributes` 是**仓库级**配置（落在 `.git/` 同级目录）
+- 隔离 Git 的 `.gitconfig` 是**工具级**配置（落在 `venv/data-git/`）
+- 两者共同决定换行符行为：`.gitattributes` 优先级 > `.gitconfig` > Git 默认值
+- 即使 `.gitattributes` 不跟踪，隔离 Git 的 `.gitconfig` 仍可全局设置 `core.autocrlf=false` 作为安全兜底
+
+
 ***
 > **导航**：返回 [baseline-index.md](baseline-index.md)

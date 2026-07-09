@@ -8,6 +8,7 @@ generate-ai-summary.py — AI 语义摘要生成器（示范脚本）
 
 用法：
     python generate-ai-summary.py --devroot "D:/pjt/cursor/cs_py"
+    python generate-ai-summary.py --devroot "D:/pjt/cursor/cs_py" --target "D:/pjt/cursor/cs_py/apps/repos/jywl-team/jywl-lab"
     python generate-ai-summary.py --cached --message "feat: xxx"
     python generate-ai-summary.py --commit-range "HEAD~1..HEAD" --message "feat: xxx"
 
@@ -32,10 +33,9 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 
-def get_git_diff(devroot: Path, commit_range: str = "HEAD~1..HEAD", cached: bool = False) -> str:
+def get_git_diff(git_exe: Path, target: Path, commit_range: str = "HEAD~1..HEAD", cached: bool = False) -> str:
     """获取 git diff 文本。commit_range 仅当 cached=False 时使用。"""
-    git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
-    cmd = [str(git_exe), "-C", str(devroot), "diff"]
+    cmd = [str(git_exe), "-C", str(target), "diff"]
     if cached:
         cmd.append("--cached")
     else:
@@ -53,10 +53,9 @@ def get_git_diff(devroot: Path, commit_range: str = "HEAD~1..HEAD", cached: bool
     return result.stdout
 
 
-def get_changed_files(devroot: Path, commit_range: str = "HEAD~1..HEAD", cached: bool = False) -> list[str]:
+def get_changed_files(git_exe: Path, target: Path, commit_range: str = "HEAD~1..HEAD", cached: bool = False) -> list[str]:
     """获取变更文件列表"""
-    git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
-    cmd = [str(git_exe), "-C", str(devroot), "diff", "--name-only"]
+    cmd = [str(git_exe), "-C", str(target), "diff", "--name-only"]
     if cached:
         cmd.append("--cached")
     else:
@@ -141,7 +140,8 @@ Diff：
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="AI 语义摘要生成器（nanobot Agent 示范）")
-    parser.add_argument("--devroot", default=r"D:\pjt\cursor\cs_py", help="Devroot 路径")
+    parser.add_argument("--devroot", default=r"D:\pjt\cursor\cs_py", help="Devroot 路径（用于加载 agent 插件体系）")
+    parser.add_argument("--target", default=None, help="操作目标仓库路径（默认等于 --devroot）")
     parser.add_argument("--commit-range", default="HEAD~1..HEAD", help="Git diff 范围（仅当未传 --cached 时使用）")
     parser.add_argument("--cached", action="store_true", help="使用 staged diff（git diff --cached），替代 --commit-range")
     parser.add_argument("--message", default="", help="Commit message（覆盖自动读取）")
@@ -149,29 +149,34 @@ def main() -> int:
     args = parser.parse_args()
 
     devroot = Path(args.devroot)
+    target = Path(args.target) if args.target else devroot
+    git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
+
     if not devroot.exists():
         print(f"[error] devroot 不存在: {devroot}", file=sys.stderr)
         return 1
+    if not target.exists():
+        print(f"[error] target 不存在: {target}", file=sys.stderr)
+        return 1
 
-    # 1. 获取 commit message（如未传入，从 git log 读取）
+    # 1. 获取 commit message（如未传入，从 target git log 读取）
     commit_message = args.message
     if not commit_message:
-        git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
         result = subprocess.run(
-            [str(git_exe), "-C", str(devroot), "log", "-1", "--pretty=%s"],
+            [str(git_exe), "-C", str(target), "log", "-1", "--pretty=%s"],
             capture_output=True, text=True, encoding="utf-8"
         )
         commit_message = result.stdout.strip() or "（无 commit message）"
 
-    # 2. 获取 diff 和变更文件
+    # 2. 获取 diff 和变更文件（在 target 执行）
     if args.cached:
         diff_source = "staged (--cached)"
-        diff_text = get_git_diff(devroot, cached=True)
-        changed_files = get_changed_files(devroot, cached=True)
+        diff_text = get_git_diff(git_exe, target, cached=True)
+        changed_files = get_changed_files(git_exe, target, cached=True)
     else:
         diff_source = args.commit_range
-        diff_text = get_git_diff(devroot, args.commit_range)
-        changed_files = get_changed_files(devroot, args.commit_range)
+        diff_text = get_git_diff(git_exe, target, args.commit_range)
+        changed_files = get_changed_files(git_exe, target, args.commit_range)
     print(f"[Diff] 读取范围: {diff_source}")
     print(f"[Diff] 变更文件: {len(changed_files)} 个")
 
@@ -179,7 +184,7 @@ def main() -> int:
         print("[warn] diff 为空，可能无变更或范围错误", file=sys.stderr)
         return 0
 
-    # 3. 调用 Agent 生成摘要
+    # 3. 调用 Agent 生成摘要（agent 插件体系仍从 devroot 加载）
     try:
         summary = generate_summary(devroot, diff_text, commit_message, changed_files)
     except Exception as e:

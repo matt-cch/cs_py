@@ -84,8 +84,10 @@ def _check_encoding(filepath: Path) -> dict:
         violations.append(f"{ext} 文件不应包含 UTF-8 BOM（AGENTS.md 规定）")
         fixable = True
 
-    # CRLF 检测（仅对 .md / .mdc 强制要求 LF）
-    if ext in (".md", ".mdc") and crlf > 0:
+    # CRLF 检测：除 .ps1/.bat/.cmd 外，所有文本文件强制 LF
+    # .ps1 保持系统默认（Windows 原生生态），.bat/.cmd 为 GBK 批处理文件
+    CRLF_EXEMPT_EXTENSIONS = {".ps1", ".bat", ".cmd"}
+    if ext not in CRLF_EXEMPT_EXTENSIONS and crlf > 0:
         violations.append(f"{ext} 文件必须使用 LF 换行符，检测到 {crlf} 处 CRLF")
         fixable = True
 
