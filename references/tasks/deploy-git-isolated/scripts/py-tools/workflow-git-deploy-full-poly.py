@@ -423,6 +423,11 @@ def main():
     summary_path = None
     remote_comment_path = None
     step5_message = None
+    # 认证信息缓存（Step 7/8 共享）
+    auth_repo_url = None
+    auth_pat = None
+    auth_username = None
+    auth_url = None
 
     for step in steps:
         # Step 4: git add
@@ -555,6 +560,11 @@ def main():
                 all_ok = False
                 break
 
+            # 缓存认证信息供 Step 8 复用
+            auth_repo_url = repo_url
+            auth_pat = pat
+            auth_username = username
+
             # 获取当前分支
             result = _run_git(target, ["branch", "--show-current"])
             branch = result.stdout.strip()
@@ -606,14 +616,40 @@ def main():
             print(f"\n{'='*50}")
             print("[Step] Step 8: upstream 设置")
             print(f"{'='*50}")
+            if not auth_url:
+                print("[WARN] upstream 设置跳过（无认证信息，可能 Step 7 未执行）")
+                continue
             result = _run_git(target, ["branch", "--show-current"])
             branch = result.stdout.strip()
             if branch:
-                result = _run_git(target, ["push", "-u", "origin", branch], check=False)
+                # 阻断 GCM 弹窗
+                cmd_gcm = [str(_GIT_EXE), "-C", str(target), "config", "--local", "credential.helper", ""]
+                print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd_gcm)}")
+                sys.stdout.flush()
+                subprocess.run(cmd_gcm, capture_output=True)
+                env_push = os.environ.copy()
+                env_push["GCM_INTERACTIVE"] = "0"
+                env_push["GIT_TERMINAL_PROMPT"] = "0"
+
+                cmd_upstream = [str(_GIT_EXE), "-C", str(target), "push", "-u", auth_url, branch]
+                print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd_upstream)}")
+                sys.stdout.flush()
+                result = subprocess.run(
+                    cmd_upstream,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace",
+                    env=env_push
+                )
+                print(result.stdout, end="")
+                if result.stderr:
+                    print(result.stderr, end="")
                 if result.returncode == 0:
-                    print(f"[OK] upstream 设置完成: origin/{branch}")
+                    print(f"[OK] upstream 设置完成: {branch}")
                 else:
-                    print(f"[WARN] upstream 设置跳过（可能已存在）")
+                    stderr_lower = result.stderr.lower() if result.stderr else ""
+                    if "already exists" in stderr_lower or "everything up-to-date" in stderr_lower:
+                        print(f"[OK] upstream 已存在: {branch}")
+                    else:
+                        print(f"[WARN] upstream 设置返回非 0: {result.stderr.strip()[:200]}")
             continue
 
         # Step 9: issue sync

@@ -50,6 +50,9 @@ def get_git_diff(git_exe: Path, target: Path, commit_range: str = "HEAD~1..HEAD"
     if result.returncode != 0:
         print(f"[warn] git diff 失败: {result.stderr}", file=sys.stderr)
         return ""
+    diff_len = len(result.stdout)
+    print(f"[Diag] git diff 原始长度: {diff_len} 字符")
+    sys.stdout.flush()
     return result.stdout
 
 
@@ -90,9 +93,12 @@ def generate_summary(devroot: Path, diff_text: str, commit_message: str, changed
     file_list_text = "\n".join(f"- {f}" for f in changed_files) if changed_files else "（无文件变更）"
 
     # 截断 diff 防止超出上下文窗口
-    diff_truncated = diff_text[:12000] if len(diff_text) > 12000 else diff_text
-    if len(diff_text) > 12000:
-        diff_truncated += "\n\n... (diff 已截断，原始长度 {len(diff_text)} 字符)"
+    diff_len = len(diff_text)
+    diff_truncated = diff_text[:12000] if diff_len > 12000 else diff_text
+    if diff_len > 12000:
+        diff_truncated += f"\n\n... (diff 已截断，原始长度 {diff_len} 字符)"
+    print(f"[Diag] diff 截断前: {diff_len} 字符, 截断后: {len(diff_truncated)} 字符")
+    sys.stdout.flush()
 
     prompt = f"""你是一位资深代码审查员。请阅读以下 git diff，用中文总结本次变更的核心内容。
 
@@ -115,15 +121,23 @@ Diff：
 请直接输出 bullet points，不要添加标题或前言。
 """
 
+    prompt_len = len(prompt)
+    print(f"[Diag] prompt 总长度: {prompt_len} 字符")
+    sys.stdout.flush()
+
     print("[Agent] 正在生成语义摘要...")
     start = time.time()
     try:
         # 显式构造 AgentCore，传入 config.json 的 provider_cfg
         # 【原则】generate-ai-summary 不创造/修改任何参数，全部从 config.json 照搬
+        print(f"[Diag] AgentCore 初始化开始...")
+        sys.stdout.flush()
         agent = registry.agent_core.AgentCore(
             enable_tools=False,
             provider_cfg=provider_cfg,
         )
+        print(f"[Diag] AgentCore 初始化完成，准备调用 agent.run (max_turns=1)...")
+        sys.stdout.flush()
         summary = agent.run(
             prompt=prompt,
             system="你是资深代码审查员，擅长用中文提炼代码变更的业务语义。",
