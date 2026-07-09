@@ -7,7 +7,7 @@ atomic-polyrepo-context-manifest.py — Polyrepo 上下文 manifest 生成原子
       被 workflow-git-deploy-full-poly 在 Step 0c 调用，workflow 本身不感知 plugin。
 
 用法：
-    & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-polyrepo-context-manifest.py" --devroot "<工具链根>" [--target "<操作目标>"]
+    & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-polyrepo-context-manifest.py" --devroot "<工具链根>" [--target "<操作目标>"] [--output "<manifest路径>"]
 
 输出：
     stdout: manifest 文件绝对路径
@@ -34,6 +34,7 @@ def main():
     parser = argparse.ArgumentParser(description="Polyrepo 上下文 manifest 生成")
     parser.add_argument("--devroot", default=None, help="工具链根路径（默认使用当前工作目录）")
     parser.add_argument("--target", default=None, help="操作目标仓库路径（默认等于 --devroot）")
+    parser.add_argument("--output", default=None, help="manifest 输出文件路径（默认自动生成到 venv/tmp/）")
     args = parser.parse_args()
 
     toolchain_root = Path(args.devroot) if args.devroot else Path.cwd()
@@ -47,9 +48,10 @@ def main():
         sys.exit(1)
 
     try:
-        # 只有 atomic 内部才允许 import plugin
         from polyrepo_context import PolyrepoContext
         ctx = PolyrepoContext.from_args(toolchain_root=toolchain_root, target=target)
+        if args.output:
+            ctx.manifest_path = Path(args.output)
         manifest_path = ctx.persist()
         print(manifest_path)
         sys.exit(0)

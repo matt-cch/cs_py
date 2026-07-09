@@ -90,6 +90,8 @@ def _verify_devroot(args_devroot: str) -> Path:
 def _run_git(target: Path, args: list, check: bool = True) -> subprocess.CompletedProcess:
     """在目标仓库执行隔离 git 命令。"""
     cmd = [str(_GIT_EXE), "-C", str(target)] + args
+    print(f"[{datetime.now().isoformat()}] [GIT] {' '.join(cmd)}")
+    sys.stdout.flush()
     result = subprocess.run(
         cmd,
         capture_output=True,
@@ -126,6 +128,8 @@ def _generate_ai_summary(toolchain_root: Path, target: Path, message: str, cache
         cmd.append("--cached")
 
     print("[AI Summary] 正在生成语义摘要...")
+    print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd)}")
+    sys.stdout.flush()
     start = time.time()
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
@@ -252,9 +256,10 @@ def _run_py_step(name: str, script_path: Path, extra_args: list = None) -> tuple
     if extra_args:
         cmd.extend(extra_args)
 
+    print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd)}")
+    sys.stdout.flush()
     start = time.time()
     try:
-        sys.stdout.flush()
         result = subprocess.run(
             cmd,
             text=True,
@@ -289,6 +294,7 @@ def main():
     parser.add_argument("--auto", action="store_true", help="[已废弃] 自动生成 commit message（现默认行为，无需显式指定）")
     parser.add_argument("--step", choices=["0", "4", "5", "6", "7", "8", "9", "10", "all"], default="all")
     parser.add_argument("--issue", type=int, default=1)
+    parser.add_argument("--timeout", type=int, default=300, help="网络操作超时秒数（默认 300s，Step 7/9/10 使用）")
     args = parser.parse_args()
 
     # 验证 devroot
@@ -330,8 +336,11 @@ def main():
     if not _ATOMIC_GIT_PREFLIGHT_GENERAL.exists():
         print(f"[ERROR] atomic-git-preflight-general 不存在: {_ATOMIC_GIT_PREFLIGHT_GENERAL}")
         sys.exit(1)
+    cmd_0a = [str(_PY_EXE), str(_ATOMIC_GIT_PREFLIGHT_GENERAL), "--target", str(target)]
+    print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd_0a)}")
+    sys.stdout.flush()
     result = subprocess.run(
-        [str(_PY_EXE), str(_ATOMIC_GIT_PREFLIGHT_GENERAL), "--target", str(target)],
+        cmd_0a,
         capture_output=False, text=True, encoding="utf-8", errors="replace"
     )
     if result.returncode != 0:
@@ -342,8 +351,11 @@ def main():
     if not _ATOMIC_DEPLOY_PREFLIGHT.exists():
         print(f"[ERROR] atomic-deploy-preflight 不存在: {_ATOMIC_DEPLOY_PREFLIGHT}")
         sys.exit(1)
+    cmd_0b = [str(_PY_EXE), str(_ATOMIC_DEPLOY_PREFLIGHT), "--devroot", str(toolchain_root), "--target", str(target)]
+    print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd_0b)}")
+    sys.stdout.flush()
     result = subprocess.run(
-        [str(_PY_EXE), str(_ATOMIC_DEPLOY_PREFLIGHT), "--devroot", str(toolchain_root), "--target", str(target)],
+        cmd_0b,
         capture_output=False, text=True, encoding="utf-8", errors="replace"
     )
     if result.returncode != 0:
@@ -354,16 +366,18 @@ def main():
     if not _ATOMIC_POLYREPO_CONTEXT.exists():
         print(f"[ERROR] atomic-polyrepo-context-manifest 不存在: {_ATOMIC_POLYREPO_CONTEXT}")
         sys.exit(1)
+
+    manifest_path = toolchain_root / "venv" / "tmp" / f"polyrepo-context-wf-{int(time.time())}.json"
+    cmd_0c = [str(_PY_EXE), str(_ATOMIC_POLYREPO_CONTEXT), "--devroot", str(toolchain_root), "--target", str(target), "--output", str(manifest_path)]
+    print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd_0c)}")
+    sys.stdout.flush()
     result = subprocess.run(
-        [str(_PY_EXE), str(_ATOMIC_POLYREPO_CONTEXT), "--devroot", str(toolchain_root), "--target", str(target)],
-        capture_output=True, text=True, encoding="utf-8", errors="replace"
+        cmd_0c,
+        capture_output=False, text=True, encoding="utf-8", errors="replace"
     )
     if result.returncode != 0:
         print("[FAIL] Step 0c: atomic-polyrepo-context-manifest 失败，终止部署")
-        if result.stderr:
-            print(f"  stderr: {result.stderr.strip()}")
         sys.exit(1)
-    manifest_path = Path(result.stdout.strip())
     if not manifest_path.exists():
         print(f"[FAIL] Step 0c: manifest 文件未生成: {manifest_path}")
         sys.exit(1)
@@ -555,14 +569,20 @@ def main():
             auth_url = f"https://{username}:{pat}@github.com/{repo_path}"
 
             # 阻断 GCM 弹窗
-            subprocess.run([str(_GIT_EXE), "-C", str(target), "config", "--local", "credential.helper", ""], capture_output=True)
+            cmd_gcm = [str(_GIT_EXE), "-C", str(target), "config", "--local", "credential.helper", ""]
+            print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd_gcm)}")
+            sys.stdout.flush()
+            subprocess.run(cmd_gcm, capture_output=True)
             env_push = os.environ.copy()
             env_push["GCM_INTERACTIVE"] = "0"
             env_push["GIT_TERMINAL_PROMPT"] = "0"
 
             print("正在 push 到 GitHub ...")
+            cmd_push = [str(_GIT_EXE), "-C", str(target), "push", auth_url, branch]
+            print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd_push)}")
+            sys.stdout.flush()
             result = subprocess.run(
-                [str(_GIT_EXE), "-C", str(target), "push", auth_url, branch],
+                cmd_push,
                 capture_output=True, text=True, encoding="utf-8", errors="replace",
                 env=env_push
             )

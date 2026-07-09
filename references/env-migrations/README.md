@@ -98,6 +98,8 @@ meta: {}
 | [env-migration-crlf-lf-governance-2026-07-08-111550.md](env-migration-crlf-lf-governance-2026-07-08-111550.md) | CRLF/LF 换行符治理 — lint 检测范围扩展与 .gitattributes 分层建设 | 2026-07-08-111550 |
 | [env-migration-polyrepo-context-manifest-2026-07-08-173019.md](env-migration-polyrepo-context-manifest-2026-07-08-173019.md) | Polyrepo Context Manifest 体系建设（运行时上下文真源 + 5 个 pending 任务待接续） | 2026-07-08-173019 |
 | [env-migration-md-lint-fix-details-write-text-newline-2026-07-09-113244.md](env-migration-md-lint-fix-details-write-text-newline-2026-07-09-113244.md) | md-lint 修复明细输出改造 + write_text 换行符陷阱修复 | 2026-07-09-113244 |
+| [env-migration-opencode-bash-timeout-guard-2026-07-09-164437.md](env-migration-opencode-bash-timeout-guard-2026-07-09-164437.md) | OpenCode bash-timeout-guard Plugin 新增（自动提升 bash timeout 至 600s） | 2026-07-09-164437 |
+| [env-migration-polyrepo-workflow-completion-2026-07-09-164950.md](env-migration-polyrepo-workflow-completion-2026-07-09-164950.md) | Polyrepo Workflow 改造落地（Pending 清单完结） | 2026-07-09-164950 |
 
 
 ## 上级导航
