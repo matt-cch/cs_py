@@ -42,6 +42,13 @@
       "description": "Git Staged 内容扫描：扫描已 staged 文件中的敏感模式（API key、PAT、私钥等）"
     },
     {
+      "name": "git_reset",
+      "module": "git_reset",
+      "depends": [],
+      "tags": ["git", "core"],
+      "description": "Git Reset 封装：安全取消暂存区全部 staged 文件（git reset HEAD），操作前审计、操作后验证"
+    },
+    {
       "name": "detect_devroot",
       "module": "detect_devroot",
       "depends": [],

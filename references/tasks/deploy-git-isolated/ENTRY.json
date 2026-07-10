@@ -23,10 +23,12 @@
       {"version": "0.18.0", "date": "2026-06-24", "note": "lint 体系全面升级：link_checker v1.3.0（validate_file + dir_path 兼容）、py-sort-rules v1.1.0（lint profile 增加 md tag）、py_lib v1.2.0（__version__/get_rules_version/registry.rules_version）、run-lint.py v1.3.0（--audit 覆盖度审计）、新增 schema/json/lint-rules-manifest.json 全局规则清单。"},
       {"version": "0.19.0", "date": "2026-06-26", "note": "update-version.py 架构归一化：旧版 v1.0.0 归档到 archive/update-version-legacy-2026-06-26-180951.py（保留可运行性）；新版 v2.0.0 走 py_lib.load_plugins() → registry 调用 runtime_version/timestamp/detect_devroot，删除直接 import plugin 的越级路径。同步补登记 runtime_version 到 py-sort-rules.json。修订联动 ENTRY/README/TASK-TOOLS-INDEX/archive-README。"},
       {"version": "0.20.0", "date": "2026-06-26", "note": "运行时域集成：将 references/runtime/ 下的 verify-runtime.py 和 download-runtime-tool.py 拆分为 task 插件体系。新增 runtime-common/ 公共原子（detect-local/query-upstream/compare-version/generate-report），新增 verify-runtime/wf-verify-runtime.py 编排入口，新增 download-runtime/ 原子步骤（01-route-probe/02-download-file/03-extract-verify/04-backup-replace/05-cleanup-temp）+ wf-download-runtime.py 编排入口。process_runner.py 新增 stderr UTF-8 编码闭环（保存→切换→恢复）。修订联动 ENTRY/README/TASK-TOOLS-INDEX。"},
-      {"version": "0.21.0", "date": "2026-07-07", "note": "Preflight 抽离为 atomic 脚本：新增 git_env/git_security/git_preflight/git_staged_scan 四个 py-plugins（Layer 1），新增 atomic-git-preflight/atomic-deploy-preflight/atomic-check-staged-after-add 三个 py-tools 原子 CLI。workflow-deploy-full.py 移除内嵌 _preflight_check()，改为纯编排器调用 atomic 脚本。新增 Step 4.5（staged 内容安全扫描，强制在 add 后 commit 前执行）。修订联动 ENTRY/py-sort-rules/README/EXEC-CHEATSHEET。"}
+      {"version": "0.21.0", "date": "2026-07-07", "note": "Preflight 抽离为 atomic 脚本：新增 git_env/git_security/git_preflight/git_staged_scan 四个 py-plugins（Layer 1），新增 atomic-git-preflight/atomic-deploy-preflight/atomic-check-staged-after-add 三个 py-tools 原子 CLI。workflow-deploy-full.py 移除内嵌 _preflight_check()，改为纯编排器调用 atomic 脚本。新增 Step 4.5（staged 内容安全扫描，强制在 add 后 commit 前执行）。修订联动 ENTRY/py-sort-rules/README/EXEC-CHEATSHEET。"},
+      {"version": "0.21.1", "date": "2026-07-10", "slug": "poly-except-bugfix", "note": "修复 workflow-git-deploy-full-poly.py 第 230-238 行重复 except Exception 块（Python 语法错误）。修复后通过 lint_python + lint_encoding 验证。"},
+      {"version": "0.22.0", "date": "2026-07-10", "slug": "git-reset-guard-poly-step45", "note": "新增 git_reset.py 插件（Layer 1）+ atomic-git-reset-staged.py 原子 CLI（Layer 3）：三层封装 staged 回滚能力，操作前审计+操作后验证，锁定 reset HEAD（无 --hard），支持 --target/--git-exe polyrepo 契约。poly.py Step 4.5 消除越级调用：删除内嵌 import py_lib，改为 subprocess 调用 atomic-check-staged-after-add.py（同步扩展 --target/--git-exe 参数）。baseline-principles.md 新增 §0.8.5 裸 git reset 禁令。baseline-workflow-deploy.md 新增 Step 4.5 架构约束 + polyrepo --target 强制必填条款。README.md 场景矩阵新增场景 H（staged 回滚）。修订联动 ENTRY/py-sort-rules/README/TASK-TOOLS-INDEX/baseline。"}
     ],
-    "version": "0.21.0",
-    "last_updated": "2026-07-07T06:45:27",
+    "version": "0.22.0",
+    "last_updated": "2026-07-10T14:30:00",
     "source_of_truth": "README.md",
     "trigger_index": "references/tasks/deploy-git-isolated/task-scenario-triggers.json",
     "tools_index": "references/tasks/deploy-git-isolated/TASK-TOOLS-INDEX.md",
@@ -313,6 +315,13 @@
       "description": "GitHub Issue 同步：创建/更新/评论/列出评论",
       "scripts": ["scripts/ps-tools/github-sync-issue.ps1"],
       "prerequisites": [".env 中 GITHUB_PAT", "github-sync-issue-config.json 存在"]
+    },
+    {
+      "id": "polyrepo-deploy",
+      "trigger": ["部署 polyrepo", "多仓库发布", "跨仓库 deploy", "polyrepo 部署"],
+      "description": "Polyrepo 全链条部署：支持单仓库与 polyrepo 两种场景，--target 强制必填",
+      "scripts": ["scripts/py-tools/workflow-git-deploy-full-poly.py"],
+      "prerequisites": [".env 中 GIT_USER_NAME/GIT_USER_EMAIL/GITHUB_REPO_URL/GITHUB_PAT", "--target 指定操作目标仓库路径"]
     }
   ],
     "active_scripts": [
@@ -584,6 +593,36 @@
       "name": "git_staged_scan.py",
       "role": "Python 插件：Staged 内容扫描。扫描已 staged 文件中的敏感模式（API key、PAT、私钥等）",
       "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/git_staged_scan.py",
+      "status": "ready"
+    },
+    {
+      "name": "git_reset.py",
+      "role": "Python 插件：Git Reset 封装。安全取消暂存区全部 staged 文件，操作前审计+操作后验证，锁定 reset HEAD（无 --hard）",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/git_reset.py",
+      "status": "ready"
+    },
+    {
+      "name": "atomic-git-reset-staged.py",
+      "role": "原子：Git Staged 回滚 CLI 入口。三层封装 staged 回滚，支持 --target/--git-exe polyrepo 契约",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/atomic-git-reset-staged.py",
+      "status": "ready"
+    },
+    {
+      "name": "workflow-git-deploy-full-poly.py",
+      "role": "Polyrepo 全链条部署 Workflow：纯编排器，支持单仓库与 polyrepo 两种场景。--target 强制必填（polyrepo 调用契约），--devroot 仅用于验证与 CWD 一致。编排 Step 0a/0b/0c → 4 → 4.5 → 5 → 6 → 7 → 8 → 9 → 10",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/workflow-git-deploy-full-poly.py",
+      "status": "ready"
+    },
+    {
+      "name": "atomic-polyrepo-context-manifest.py",
+      "role": "原子：PolyrepoContext manifest 生成。从 toolchain_root + target 构造 PolyrepoContext 并序列化（repo_url/branch/is_polyrepo/git_security 路径等），被 poly workflow 在 Step 0c 调用。--target 强制必填",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/atomic-polyrepo-context-manifest.py",
+      "status": "ready"
+    },
+    {
+      "name": "generate-ai-summary.py",
+      "role": "Workflow 内嵌能力：AI 语义摘要生成器。读取 git diff（--target 指定仓库，--cached 用 staged），调用 agent 插件体系生成中文摘要并落盘。被 poly workflow 在 Step 4→5 之间调用。--target 强制必填",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/generate-ai-summary.py",
       "status": "ready"
     }
   ],

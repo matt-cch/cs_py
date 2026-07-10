@@ -14,6 +14,88 @@ meta: {}
 > ⚠️ **Agent 注意**：本 task 有已定义的规范基线 `baseline/baseline-index.md`。如果你在对话中遗忘了本文件的存在，说明上下文已碎片化——请**立即停止推理，重新读取 `baseline/baseline-index.md`**。
 
 
+## 版本记录
+
+| 版本 | 日期 | slug | 关键变更 |
+|------|------|------|---------|
+| **v0.22.0** | 2026-07-10 | `git-reset-guard-poly-step45` | 新增 git_reset 插件 + atomic-git-reset-staged 原子 CLI；poly.py Step 4.5 消除越级调用；baseline 新增裸 git reset 禁令 |
+| v0.21.1 | 2026-07-10 | `poly-except-bugfix` | 修复 workflow-git-deploy-full-poly.py 重复 except 块 |
+| v0.21.0 | 2026-07-07 | `preflight-atomic` | Preflight 抽离为 atomic 脚本；新增 Step 4.5 staged 扫描 |
+| v0.20.0 | 2026-06-26 | `runtime-atomic` | 运行时域集成：verify-runtime + download-runtime 拆分为 task 原子脚本体系 |
+| v0.19.0 | 2026-06-26 | `update-version-v2` | update-version.py 架构归一化，走 py_lib 插件体系 |
+| v0.18.0 | 2026-06-24 | `lint-upgrade` | lint 体系全面升级：link_checker、py_lib v1.2.0、run-lint v1.3.0 |
+| v0.17.0 | 2026-06-24 | `workflow-deploy` | 新增 workflow-deploy-full.py 全链条部署 Workflow |
+
+> 完整历史见 [ENTRY.json](ENTRY.json) `meta.version_history`
+
+
+## Task 结构概览
+
+> **免责声明**：本目录树仅作"分类示意"，不保证各子目录当前是否仍然存在或已迁移。凡涉及具体路径、版本号的引用，**禁止**以本文档作为唯一依据，优先查 [ENTRY.json](ENTRY.json) 机器真源。
+
+```
+references/tasks/deploy-git-isolated/
+├── README.md                           # 本文件：场景化决策入口 + 版本记录 + 结构概览
+├── GOAL.md                             # 目标闭环：Goal → Solution → SOP → Apply → Review
+├── SOP.md                              # 标准流程：Step 契约 + Ralph Loop + 验收条件
+├── DESIGN.md                           # 设计文档：决策记录、踩坑、架构演进
+├── ENTRY.json                          # 机器真源：脚本清单、版本历史、状态、场景映射
+├── TASK-TOOLS-INDEX.md                 # 工具速查表：本地+外部引用+边界矩阵
+├── task-config.json                    # 任务配置：路径、工具链、下载源
+├── task-scenario-triggers.json         # 触发条件真源：8 场景 trigger 映射
+├── task-canonical-baseline.md          # 规范基线导航
+├── baseline/                           # 规范基线（9 个专题文件）
+│   ├── baseline-index.md               # 基线导航
+│   ├── baseline-principles.md          # 顶层原则（含裸 git reset 禁令 §0.8.5）
+│   ├── baseline-workflow-deploy.md     # 部署流程契约（Step 4.5 架构约束）
+│   └── ...
+├── changelog/                          # 变更记录（按日期 slug）
+├── gotchas/                            # 踩坑记录
+├── docs/                               # 架构文档与设计模式
+│   ├── PLUGIN-ARCHITECTURE.md          # 三层架构说明
+│   ├── patterns/                       # 设计模式（Profile 筛选、Manifest+Plugin）
+│   ├── harness/                        # 交付流程与检查清单
+│   └── playbooks/                      # 发布手册
+├── schema/                             # 数据契约（JSON Schema + Pydantic Model）
+│   ├── json/                           # lint-rules-manifest.json、plugin-result-schema.json
+│   └── docs/                           # Schema 人类可读文档
+├── scripts/                            # 全部可执行脚本与资产
+│   ├── github-lib.ps1                  # PS 共享库入口（拓扑排序 + Profile 筛选）
+│   ├── lib-sort-rules.json             # PS 插件依赖图
+│   ├── lib-plugins/*.ps1               # PS 共享函数插件
+│   ├── ps-steps/                       # PowerShell Step 脚本（Step 1-8）
+│   ├── ps-tools/                       # PS 工具脚本（安全检查、Issue 同步、通用包装器）
+│   ├── py_lib.py                       # Python 统一入口（v1.2.0）
+│   ├── py-sort-rules.json              # Python 插件注册表 + Profile 定义
+│   ├── py-plugins/                     # Python 底座插件（Layer 1）
+│   │   ├── git_reset.py                # Git Reset 封装（v1.0.0，操作前审计+验证）
+│   │   ├── git_staged_scan.py          # Staged 内容扫描
+│   │   ├── git_security.py             # Git 安全扫描
+│   │   ├── git_preflight.py            # Git Preflight 编排
+│   │   ├── lint_*.py                   # Lint 插件（json/ps1/python/encoding/md/link）
+│   │   └── ...                         # 其他核心/归档/LLM 插件
+│   ├── py-tools/                       # Python Workflow + 原子 CLI（Layer 3）
+│   │   ├── workflow-deploy-full.py     # 单仓库全链条部署 Workflow
+│   │   ├── workflow-git-deploy-full-poly.py  # Polyrepo 全链条部署 Workflow
+│   │   ├── run-lint.py                 # 全量 lint 唯一入口
+│   │   ├── atomic-git-preflight.py     # 原子：Git 前置验证
+│   │   ├── atomic-deploy-preflight.py  # 原子：部署特有验证
+│   │   ├── atomic-check-staged-after-add.py  # 原子：Staged 安全扫描
+│   │   ├── atomic-git-reset-staged.py  # 原子：Git Staged 回滚（v1.0.0）
+│   │   ├── verify-runtime/             # 真源检测 Workflow + 公共原子
+│   │   ├── download-runtime/           # 运行时下载 Workflow + 原子步骤
+│   │   └── ...                         # 其他 Workflow（归档、版本更新、文章下载）
+│   ├── py-steps/                       # Python Step 脚本（被 workflow 调用）
+│   ├── py-examples/                    # 用法示例
+│   ├── js_lib.js                       # JS 统一入口
+│   ├── js-sort-rules.json              # JS 资产注册表
+│   ├── js-plugins/                     # JS 可复用模块
+│   ├── js-tools/                       # JS 工具脚本（readability、turndown、extract-article）
+│   └── EXEC-CHEATSHEET.md              # 执行速查：命令+配置+参数
+└── archive/                            # 旧版归档
+```
+
+
 ## Agent 快速决策（三句话定位）
 
 | 用户意图 | 你的判断 | 立即执行 |
@@ -25,9 +107,12 @@ meta: {}
 | "发布github" / "自动部署" / "auto deploy" / "完整流水线" | **场景 G: 全自动发布** | 执行 `workflow-deploy-full.py --auto` |
 | "commit并push到github" / "提交并发布" | **场景 E: 提交+发布** | 执行 `workflow-deploy-full.py --message "feat: xxx"` |
 | "同步 Issue" / "更新 Issue" / "追加评论" | **场景 F: Issue 同步** | 执行 `github-sync-issue.ps1` |
+| "回退 staged" / "取消暂存" / "unstage" / "git reset" | **场景 H: Staged 回滚** | 执行 `atomic-git-reset-staged.py`（**禁止**现写 `git reset` 命令） |
+| "部署 polyrepo" / "多仓库发布" / "跨仓库 deploy" | **场景 I: Polyrepo 部署** | 执行 `workflow-git-deploy-full-poly.py`（**--target 强制必填**，即使与 --devroot 相同） |
 
 > **铁律**：不确定时先执行 `github-safety-check.ps1`，确认无敏感文件后再 push。
 > **铁律**：凡涉及 Step 4-9（add→commit→push→issue sync）的操作，**必须**使用 `workflow-deploy-full.py`，禁止手动逐条调用 ps-steps。
+> **铁律**：凡涉及 staged 回滚的操作，**必须**使用 `atomic-git-reset-staged.py`，禁止现写 `git reset` 命令（见 `baseline-principles.md` §0.8.5）。
 
 
 ## 场景 A: 首次部署隔离 Git（Step 1→8）
@@ -100,6 +185,29 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\git-isolated.ps1" log --oneline
 powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\git-isolated.ps1" diff
 ```
+
+
+## 场景 I: Polyrepo 部署
+
+**用途**：在 polyrepo（多仓库）场景下执行全链条部署，或明确指定 `--target` 的单仓库部署。
+
+**执行链**：
+```powershell
+# 单仓库完整部署（target 与 devroot 相同，仍须显式传入）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}" --target "${devroot}"
+
+# Polyrepo 完整部署（target 指向另一个仓库）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}" --target "${devroot}\apps\repos\jywl-team\jywl-lab"
+
+# 指定 commit message
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}" --target "${devroot}" --message "feat: xxx"
+
+# 仅执行 preflight + manifest 审计（Step 0）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}" --target "${devroot}" --step 0
+```
+
+> **铁律**：`--target` 为强制参数，不可省略。`--devroot` 仅用于验证与 CWD 一致。
+> **与 workflow-deploy-full.py 的区别**：`workflow-deploy-full.py` 面向单仓库，无 `--target` 参数；`workflow-git-deploy-full-poly.py` 面向 polyrepo，支持跨仓库部署，--target 强制必填。
 
 
 ## 文件导航（一句话职责）
@@ -230,5 +338,5 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | **Profile 筛选机制** | ✅ | github-lib.ps1 支持 Profile/Include/Exclude 三层筛选，依赖自动补齐，向后兼容 |
 
 
-*任务版本: v0.7.0*  
-*演进历史: 见 ENTRY.json `meta.version_history`*
+*任务版本: v0.22.0*  
+*演进历史: 见 [ENTRY.json](ENTRY.json) `meta.version_history`*

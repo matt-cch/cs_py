@@ -101,6 +101,8 @@ meta: {}
 | [env-migration-opencode-bash-timeout-guard-2026-07-09-164437.md](env-migration-opencode-bash-timeout-guard-2026-07-09-164437.md) | OpenCode bash-timeout-guard Plugin 新增（自动提升 bash timeout 至 600s） | 2026-07-09-164437 |
 | [env-migration-polyrepo-workflow-completion-2026-07-09-164950.md](env-migration-polyrepo-workflow-completion-2026-07-09-164950.md) | Polyrepo Workflow 改造落地（Pending 清单完结） | 2026-07-09-164950 |
 | [env-migration-bash-timeout-stdout-liveness-2026-07-09-174456.md](env-migration-bash-timeout-stdout-liveness-2026-07-09-174456.md) | Bash 工具超时行为实测观察 — stdout 活跃即免杀 | 2026-07-09-174456 |
+| [env-migration-ai-summary-configurable-and-target-required-2026-07-10-125144.md](env-migration-ai-summary-configurable-and-target-required-2026-07-10-125144.md) | ai_summary 可配置化与 polyrepo 调用契约硬化（diff 截断阈值三层覆盖 + --target 强制显式化） | 2026-07-10-125144 |
+| [env-migration-deploy-git-polyrepo-index-completion-2026-07-10-151251.md](env-migration-deploy-git-polyrepo-index-completion-2026-07-10-151251.md) | deploy-git-isolated polyrepo 脚本索引补全与 staged 回滚能力建设（poly.py 语法修复 + Step 4.5 消除越级 + 索引全量登记） | 2026-07-10-151251 |
 
 
 ## 上级导航

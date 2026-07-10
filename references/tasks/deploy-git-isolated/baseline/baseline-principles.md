@@ -355,6 +355,56 @@ Agent 在 `workflow-git-deploy-full-poly.py` 尚未完全验证时，直接使�
   3. 是否已向用户声明操作内容、影响范围、请求确认？（是 → 等待用户回复；否 → **禁止执行**）
   4. 用户是否明确回复肯定语义？（是 → 执行；否 → **禁止执行**）
 
+#### 0.8.5 裸 `git reset` 禁令（Git Reset Guard）
+
+> **来源**：2026-07-10 session，用户明确确认。`git reset` 是 Git 命令中风险最高的操作族之一，现写命令已多次导致偏差与数据丢失风险。
+
+**铁律**：Agent 在任何场景下**禁止现写 `git reset HEAD` 或任何 `git reset` 变体命令**。所有 staged 回滚操作必须通过 `atomic-git-reset-staged.py` 原子脚本执行。
+
+**禁止现写的根因**：
+
+| 风险 | 具体表现 | 后果 |
+|------|---------|------|
+| **参数偏差** | 手误写成 `git reset --hard HEAD` | 工作区未提交修改全部丢失，不可恢复 |
+| **目标错配** | polyrepo 场景下在错误仓库执行 reset | 不相关的 staged 文件被清空，破坏其他仓库状态 |
+| **无审计** | 现写命令不输出 reset 前的 staged 文件列表 | 事后无法追溯"哪些文件曾被暂存、何时被取消" |
+| **无验证** | reset 后不做二次确认 | 残留 staged 文件未被察觉，后续 commit 包含预期外的变更 |
+
+**原子脚本 `atomic-git-reset-staged.py` 的防护机制**：
+
+1. **操作审计**：reset 前输出全部 staged 文件列表（含数量、文件名），供事后追溯
+2. **偏差防护**：脚本内部锁定 `reset HEAD`（无 `--hard` 选项），杜绝参数误写
+3. **polyrepo 对齐**：支持 `--target` 指定操作仓库，`--git-exe` 指定隔离 git，避免在错误仓库执行
+4. **状态验证**：reset 后二次执行 `diff --cached --name-only`，确认 staged 区真正清空，失败时报错
+
+**调用契约**：
+
+```powershell
+# 单仓库
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-git-reset-staged.py" --devroot "${devroot}"
+
+# Polyrepo
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-git-reset-staged.py" --devroot "${devroot}" --target "${target}" --git-exe "${devroot}\venv\git\cmd\git.exe"
+```
+
+**三层封装架构**：
+
+```
+┌─────────────────────────────────────────┐
+│ Layer 3: atomic-git-reset-staged.py     │
+│  CLI 入口、参数解析、格式化输出          │
+├─────────────────────────────────────────┤
+│ Layer 2: py_lib.py                      │
+│  load_plugins(tags=["git"]) → registry  │
+├─────────────────────────────────────────┤
+│ Layer 1: git_reset.py                   │
+│  reset_staged() → _run_git("reset HEAD")│
+│  → 审计 → 验证                           │
+└─────────────────────────────────────────┘
+```
+
+**违规后果**：未通过原子脚本、现写 `git reset` 命令的操作，视为**严重操作失误**。必须立即报告用户，检查工作区是否受损，并在 `gotchas/` 记录事件。
+
 
 ***
 > **导航**：返回 [baseline-index.md](baseline-index.md)

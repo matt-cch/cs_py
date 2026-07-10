@@ -202,6 +202,37 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 > 前置：`.env` 中已配置 `GIT_USER_NAME`、`GIT_USER_EMAIL`、`GITHUB_REPO_URL`、`GITHUB_PAT`
 
 
+## Stage S5.4: Polyrepo 部署（Python Workflow）
+
+编排 Step 0a→0b→0c→4→4.5→5→6→7→8→9→10，支持单仓库与 polyrepo 两种场景。
+
+**Agent:**
+```powershell
+# 单仓库完整部署（target 与 devroot 相同，仍须显式传入）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}" --target "${devroot}"
+
+# Polyrepo 完整部署（target 指向另一仓库）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}" --target "${devroot}\apps\repos\jywl-team\jywl-lab"
+
+# 指定 commit message
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}" --target "${devroot}" --message "feat: xxx"
+
+# 仅执行 preflight + manifest 审计（Step 0）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}" --target "${devroot}" --step 0
+
+# 仅执行 add + staged 扫描 + commit（Step 4→5）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}" --target "${devroot}" --step 4
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}" --target "${devroot}" --message "feat: xxx"
+```
+
+> 前置：`.env` 中已配置 `GIT_USER_NAME`、`GIT_USER_EMAIL`、`GITHUB_REPO_URL`、`GITHUB_PAT`
+> **铁律**：`--target` 强制必填，不可省略。`--devroot` 仅用于验证与 CWD 一致。
+
+
 ## Stage S5.5: 版本记录更新
 
 ### 全量自动检测与更新

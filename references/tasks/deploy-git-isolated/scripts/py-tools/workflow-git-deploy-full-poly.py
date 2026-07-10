@@ -231,11 +231,6 @@ def _generate_ai_summary(toolchain_root: Path, target: Path, message: str, cache
         elapsed = time.time() - start
         print(f"[AI Summary] 异常 (耗时 {elapsed:.2f}s): {e}", file=sys.stderr)
         return ""
-        return ""
-    except Exception as e:
-        elapsed = time.time() - start
-        print(f"[AI Summary] 异常 (耗时 {elapsed:.2f}s): {e}", file=sys.stderr)
-        return ""
 
 
 def _generate_meta(toolchain_root: Path, target: Path, message: str) -> Path:
@@ -537,17 +532,26 @@ def main():
             print(f"\n{'='*50}")
             print("[Step] Step 4.5: staged 内容安全扫描")
             print(f"{'='*50}")
-            sys.path.insert(0, str(_SCRIPTS_DIR))
-            from py_lib import load_plugins
-            registry = load_plugins(devroot=str(toolchain_root), tags=["git"])
-            sec_result = registry.git_security.scan_git_security(devroot=target, git_exe=_GIT_EXE)
-            if not sec_result.ok:
-                print(f"[FAIL] 安全扫描发现 {len(sec_result.violations)} 处违规:")
-                for v in sec_result.violations:
-                    print(f"  ! {v}")
+            script_45 = _PY_TOOLS_DIR / "atomic-check-staged-after-add.py"
+            cmd_45 = [
+                str(_PY_EXE), str(script_45),
+                "--devroot", str(toolchain_root),
+                "--target", str(target),
+                "--git-exe", str(_GIT_EXE),
+            ]
+            print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd_45)}")
+            sys.stdout.flush()
+            result = subprocess.run(
+                cmd_45,
+                capture_output=False,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            if result.returncode != 0:
+                print("[FAIL] Step 4.5: staged 内容安全扫描失败")
                 all_ok = False
                 break
-            print("[OK] 安全扫描通过")
 
             # 生成 meta
             meta_path = _generate_meta(toolchain_root, target, step5_message)

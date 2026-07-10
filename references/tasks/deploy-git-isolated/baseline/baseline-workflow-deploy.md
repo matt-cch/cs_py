@@ -196,6 +196,11 @@ Step 9: issue sync（使用 meta 中的 AI 摘要 + 分类信息）
 2. **前置验证全量通行后才开始**：agent 插件加载、config.json 配置、.env 变量三方验证全通过后才执行 Step 4。任一失败不执行任何 git 操作。
 3. **--auto 不等于无入参**：--auto 模式自动从 staged 文件列表生成 commit message，无需用户指定 --message，但 .env 和 config.json 仍必须提前配置好。
 4. **`py-steps/` 下的脚本仍保留**：作为 `--step N` 单步调试模式的底层调用，但 Agent 禁止直接调用它们来完成全链条部署。
+5. **Step 4.5 必须通过 subprocess 调用原子脚本，禁止 workflow 内嵌 import 插件**：
+   - `workflow-deploy-full.py`（单仓库）和 `workflow-git-deploy-full-poly.py`（polyrepo）的 Step 4.5 均通过 `subprocess.run()` 调用 `atomic-check-staged-after-add.py`
+   - polyrepo 场景下必须显式传入 `--target <target>` 和 `--git-exe <git.exe>`，确保扫描在正确的仓库、使用正确的隔离 git 执行
+   - 禁止 workflow 脚本直接 `from py_lib import load_plugins` 或访问 `registry.git_security` / `registry.git_staged_scan`——任何插件调用必须由原子脚本封装，workflow 只负责编排
+6. **Polyrepo 全链条部署必须使用 `--target`**：`workflow-git-deploy-full-poly.py` 的 `--target` 为强制必填参数（`required=True`），不传直接报错。即使操作 devroot 自身，也必须显式传入 `--target "${devroot}"`，消除跨 session 调用时的上下文歧义。
 
 ### 8.7.5 Git 空目录保留规则
 

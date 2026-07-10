@@ -384,6 +384,10 @@ Python 版部署流水线，与 PS 版 Step 1-8 功能对等。`workflow-deploy-
 | `atomic-git-preflight.py` | **原子：Git 前置验证**。整合 git_env + git_security 插件，提供 check()/verify() + GitContext（含 run_git）。可独立执行或被子 workflow 调用。 | 任何 git 业务脚本开头的前置验证 | ready |
 | `atomic-deploy-preflight.py` | **原子：部署特有前置验证**。验证 .env PAT、分支保护、agent 插件加载、git 空目录保留。workflow 的 Step 0b。 | workflow-deploy-full 部署前验证 | ready |
 | `atomic-check-staged-after-add.py` | **原子：Staged 内容安全扫描**。必须在 git add 后执行，强制扫描 staged 文件敏感模式。无 staged 文件时报错。 | workflow Step 4.5（add 后 commit 前） | ready |
+| `atomic-git-reset-staged.py` | **原子：Git Staged 回滚**。安全取消暂存区全部 staged 文件，操作前审计+操作后验证，锁定 `reset HEAD`（无 `--hard`）。支持 `--target/--git-exe` polyrepo 契约。 | staged 回滚、unstage、reset HEAD | ready |
+| `workflow-git-deploy-full-poly.py` | **Polyrepo 全链条部署 Workflow**：纯编排器，支持单仓库与 polyrepo 两种场景。--target 强制必填（polyrepo 调用契约），--devroot 仅验证与 CWD 一致。编排 Step 0a/0b/0c → 4 → 4.5 → 5 → 6 → 7 → 8 → 9 → 10 | 跨仓库/多根部署、polyrepo 流水线 | ready |
+| `atomic-polyrepo-context-manifest.py` | **原子：PolyrepoContext manifest 生成**。从 toolchain_root + target 构造 PolyrepoContext 并序列化（repo_url/branch/is_polyrepo 等），供 workflow Step 0c 与 Step 7/9/10 复用。--target 强制必填 | poly workflow Step 0c、运行时上下文登记 | ready |
+| `generate-ai-summary.py` | **Workflow 内嵌能力：AI 语义摘要生成器**。读取 git diff（--target 指定仓库，--cached 用 staged），调用 agent 插件体系生成中文摘要并落盘，被 poly workflow Step 4→5 之间调用。--target 强制必填 | 自动生成 commit 语义摘要、注入部署 meta | ready |
 
 **架构**：
 ```
@@ -399,6 +403,9 @@ workflow-deploy-full.py（Workflow 编排）
   ├── py-steps/step-07-github-push.py
   ├── py-steps/step-08-github-upstream.py
   └── py-steps/step-09-github-sync-issue.py（接收 --meta）
+
+atomic-git-reset-staged.py（独立原子，非 workflow 编排内步骤）
+  └── 供外部调用：staged 回滚、unstage、reset HEAD
 ```
 
 **CLI 用法**（显式传 `--devroot`，禁止省略）：
@@ -448,6 +455,7 @@ workflow-deploy-full.py（Workflow 编排）
 | 生成时间戳文件名 | `get-timestamp.py`（本地 workflow） | — | 禁止内嵌 `Get-Date` 拼文件名 |
 | git init / push | `github-step-01/07.ps1`（本地） | — | 禁止裸命令操作 Git |
 | push 前安全检查 | `github-safety-check.ps1`（本地） | — | 禁止跳过安全检查直接 push |
+| staged 回滚 / unstage | `atomic-git-reset-staged.py`（本地） | — | **禁止现写 `git reset HEAD` 或任何 `git reset` 变体**（见 baseline-principles.md §0.8.5） |
 | 日常 git 操作 | `git-isolated.ps1`（本地） | — | 禁止裸 `git` 调用（可能命中系统版） |
 | 真源扫描 | `wf-verify-runtime.py`（本地 workflow） | — | 禁止自行实现文件存在性扫描 |
 | 下载 MinGit | `wf-download-runtime.py`（本地 workflow） | — | 禁止自行写 `curl`/`Invoke-WebRequest` 下载 |
@@ -475,6 +483,9 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 
 # 安全检查
 powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\github-safety-check.ps1"
+
+# Staged 回滚（取消全部暂存，不丢弃工作区修改）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-git-reset-staged.py" --devroot "${devroot}" --target "${devroot}" --git-exe "${devroot}\venv\git\cmd\git.exe"
 
 # 通用包装器（示例：git status）
 powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git-isolated\scripts\git-isolated.ps1" status
@@ -559,6 +570,9 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 | `scripts/py-tools/fetch_issue.py` | 获取 GitHub Issue 完整内容（含评论） |
 | `scripts/py-tools/workflow-deploy-full.py` | **全链条部署 Workflow**：编排 Step 4-9，支持 --step/--issue 参数 |
 | `scripts/py-tools/download-article.py` | **文章下载 CLI 入口**：URL → Markdown + JSON |
+| `scripts/py-tools/atomic-check-staged-after-add.py` | **原子：Staged 内容安全扫描**。必须在 git add 后执行 |
+| `scripts/py-tools/atomic-git-reset-staged.py` | **原子：Git Staged 回滚**。安全取消暂存，操作前审计+验证，禁止现写 `git reset` |
+| `scripts/py-plugins/git_reset.py` | **Git Reset 封装插件**。锁定 `reset HEAD`（无 `--hard`），三层封装 |
 | `scripts/py-plugins/lint_*.py` | Lint 插件（json/ps1/python/encoding） |
 | `scripts/py-plugins/js_loader.py` | **Python ↔ JS 桥接**：读取 js-sort-rules.json 拓扑排序 |
 | `scripts/py-plugins/article_extractor.py` | **文章提取编排**：browser_session + js_loader → extractArticle |
