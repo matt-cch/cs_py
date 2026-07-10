@@ -43,7 +43,7 @@ meta:
 | `check-links.py` | Markdown 内部相对链接验证 | 文档链接检查 |
 | `clone-repo.py` | 隔离环境 Git Clone + 自动设置 local identity | 克隆新仓库 |
 | `screenshot_verifier.py` | URL 截图验证（Playwright）| 页面截图留档 |
-| `atomic-check-chrome-session.py` | Chrome Session 登录态检测（查 Cookie DB）| 验证 Chrome 是否已登录 |
+| `atomic-check-chrome-session.py` | 🌐 **Chrome Session 登录态检测原子 CLI**。读取 Cookies DB，检测登录态标志 + TTL + 新鲜度，输出 A/B/C/D 四级结论，支持 `--output` manifest 落盘供 pipeline 复用 | 头条/GitHub 等域名登录态验证 |
 | `chrome_extension_manager.py` | Chrome 扩展管理器（搜索 / 下载 CRX / 解压）| 管理浏览器扩展 |
 
 ### GitHub PR / 分支管理
@@ -61,6 +61,22 @@ meta:
 | `archive_project.py` | 项目归档主编排：scan → compress → verify 三阶段闭环 | 归档 cs_py / venv 分组 |
 | `archive_cs_py.py` | 快捷入口：归档 cs_py 分组 | 调用 `archive_project.py --group cs_py` |
 | `archive_venv.py` | 快捷入口：归档 venv 分组 | 调用 `archive_project.py --group venv` |
+
+### 🌐 浏览器 / Chrome / Session 工具聚合
+
+| 脚本 | 职责 | 典型场景 |
+|------|------|---------|
+| `atomic-check-chrome-session.py` | 🌐 **Chrome Session 登录态检测原子 CLI**。读取 Cookies DB，检测登录态标志 + TTL + 新鲜度，输出 A/B/C/D 四级结论，支持 `--output` manifest 落盘 | 头条 / GitHub 等域名登录态验证、pipeline 前置门禁 |
+| `download-article.py` | 🌐 **文章下载 CLI 入口**。Playwright + Chrome 持久化上下文 + Readability/Turndown 注入提取文章 | 头条文章下载为 Markdown |
+| `screenshot_verifier.py` | 🌐 **URL 截图验证**。Playwright + 已保存 Chrome Session 对目标页面截图 | 页面截图留档、前端验证 |
+| `chrome_extension_manager.py` | Chrome 扩展管理器（搜索 / 下载 CRX / 解压）| 管理浏览器扩展 |
+
+> **底层插件支撑**（Layer 1，通过 `py_lib.load_plugins()` 访问）：
+> - `browser_session.py` — Chrome 持久化上下文管理器（交互式登录 / headless 上下文创建）
+> - `chrome_session.py` — Cookies DB 读取器（登录态检测 / TTL 分析 / 新鲜度判定）
+> - `article_extractor.py` — 文章提取编排（Playwright + JS 注入 Readability + Turndown）
+> - `js_loader.py` — JS 资产发现与拓扑排序（注入顺序真源）
+
 
 ### 文章下载
 

@@ -1,38 +1,71 @@
 #!/usr/bin/env python3
 r"""
-workflow-gh-pr.py — GitHub PR 自闭环 Workflow
+workflow-gh-pr.py — GitHub PR 自闭环 Workflow（gh CLI 编排）
 标签：py-tools
 版本：v1.2.0（title + body 双生成）
+v1.1.1→v1.2.0 更新意图：新增 --auto 模式下 body 的 AI 双生成（title 概括主题 + body 含变更概述/commits/统计/审查事项）；
+                      补强与 workflow-deploy-full[-poly].py 的衔接说明；--no-pull 默认同步 master 提升本地一致性。
 
-职责：编排 gh-pr-create.py → gh-pr-merge.py，一键完成远端 PR 闭环。
-      前提：当前在 feature 分支，且已 push 到 origin。
-      与 workflow-deploy-full.py 衔接：deploy 负责 git add/commit/push，
-      本 workflow 负责 PR create/merge/cleanup。
+职责：编排 gh-pr-create.py → gh-pr-merge.py → 本地同步，一键完成远端 PR 闭环（create→merge→cleanup→pull）。
+      前提：当前在 feature 分支，且已 push 到 origin（remote 分支存在）。
+      与部署 workflow 衔接：
+        - workflow-deploy-full.py / workflow-git-deploy-full-poly.py 负责 git add/commit/push（含安全扫描、AI 摘要、Issue 同步）；
+        - 本 workflow 接过已 push 的 feature 分支，负责 PR create / merge / 分支清理 / 本地 master 同步。
+      注意：PR 合并发生在 GitHub 远端服务器（gh pr merge 本质是 REST API 封装），merge 后本地 master 需 pull 才同步。
 
-      --auto 模式下，workflow 自行搜集 feature 分支全部 commits 和变更统计，
-      调用 AI 同时生成：
-        - title：单行概括（≤72 字符），供 reviewer 快速识别主题
-        - body：明细信息，含变更概述、commits 列表、变更统计、审查注意事项
-      再以确定的 --title 和 --body 传给 gh-pr-create.py。
+执行顺序：
+  1. Preflight：验证 git.exe（隔离 MinGit）、当前在 feature 分支（非 base）、remote 分支存在、gh CLI 可用
+  2. 确定 PR title/body（workflow 层决策）：
+     - --auto：AI 聚合 feature 分支全部 commits + diff --stat，生成 title（≤72 字符 conventional commits 中文）+ body（概述/commits/统计/审查事项）
+     - --title：使用指定标题，body 用默认模板
+  3. Step 1 PR Create：调用 gh-pr-create.py（--title/--body/--base）
+  4. Step 2 PR Merge：调用 gh-pr-merge.py（--strategy/--admin/--delete-branch）
+  5. Step 3 本地同步：checkout base + pull origin base（除非 --no-pull）
+
+认证与隔离机制（gh CLI headless）：
+  - gh CLI 隔离部署于 venv/gh/bin/gh.exe，配置隔离于 venv/data-gh（GH_CONFIG_DIR）。
+  - 自动化调用无需 `gh auth login`：直接注入环境变量即可 headless 运行：
+      $env:GH_TOKEN = $env:GITHUB_PAT        # 复用 .env 的 PAT
+      $env:GH_CONFIG_DIR = "${devroot}\venv\data-gh"
+  - 底层 gh_preflight 插件（py-plugins/gh_preflight.py）验证 gh.exe + PAT + 认证状态，返回 GhContext（含 run_gh 封装）。
+
+审计产物与追踪路径：
+  - PR Create 成功：stdout 末行输出 PR URL（https://github.com/owner/repo/pull/123）
+  - PR Merge 成功：exit code 0；失败时提示可在网页端手动处理（PR 分支名已打印）
 
 参数：
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| --devroot | str | 否 | D:\pjt\cursor\cs_py | devroot 绝对路径 |
-| --base | str | 否 | master | 目标分支 |
-| --title | str | 条件 | — | PR 标题（与 --auto 互斥） |
+| --devroot | str | 否 | D:\pjt\cursor\cs_py | devroot 绝对路径（用于定位 git.exe / gh.exe / .env） |
+| --base | str | 否 | master | 目标分支（PR 合入目标） |
+| --title | str | 条件 | — | PR 标题（与 --auto 互斥；二者必选其一） |
 | --auto | flag | 否 | False | AI 自动生成 PR title + body（基于 feature 分支全部 commits 聚合） |
-| --admin | flag | 否 | False | 使用管理员权限绕过分支保护 |
-| --keep-branch | flag | 否 | False | merge 后保留分支（默认删除） |
-| --strategy | str | 否 | squash | merge/squash/rebase |
-| --no-pull | flag | 否 | False | merge 后不自动切回 base 分支 pull |
+| --admin | flag | 否 | False | 使用管理员权限绕过分支保护（仓库开启 Require reviews 时必需） |
+| --keep-branch | flag | 否 | False | merge 后保留分支（默认删除 remote + 本地分支） |
+| --strategy | str | 否 | squash | merge/squash/rebase（默认 squash 复用 PR title 为 squash message） |
+| --no-pull | flag | 否 | False | merge 后不自动切回 base 分支 pull（默认同步本地 master） |
 
 调用示例：
-  # 全自动（推荐）：AI 生成 title + body + admin 绕过 + 删除分支 + 同步 master
-  & "D:\pjt\cursor\cs_py\venv\py\python.exe" "D:\pjt\cursor\cs_py\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-gh-pr.py" --auto --admin
 
-  # 指定 title（body 使用默认）
-  & "D:\pjt\cursor\cs_py\venv\py\python.exe" "...\workflow-gh-pr.py" --title "feat: xxx"
+  # 全自动（推荐）：AI 生成 title+body + admin 绕过分支保护 + 删除分支 + 同步 master
+  & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-gh-pr.py" --auto --admin
+
+  # 指定 title（body 用默认模板）
+  & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-gh-pr.py" --title "feat: xxx"
+
+  # 指定目标分支 + merge 策略 + 保留分支（不删）
+  & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-gh-pr.py" --auto --base develop --strategy merge --keep-branch
+
+  # 仅创建 PR（不自动 merge），用于需要人工 review 的场景
+  & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\gh-pr-create.py" --auto --base master
+
+  # 仅合并（PR 已存在），rebase 策略 + 不删分支
+  & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\gh-pr-merge.py" --strategy rebase --admin
+
+  # 新建 GitHub 仓库（gh CLI 独立使用，headless 认证，补齐 deploy 主流程未覆盖的 repo create）
+  $env:GH_TOKEN = $env:GITHUB_PAT
+  $env:GH_CONFIG_DIR = "${devroot}\venv\data-gh"
+  & "${devroot}\venv\gh\bin\gh.exe" repo create my-new-project --private --source . --push
 """
 import argparse
 import json

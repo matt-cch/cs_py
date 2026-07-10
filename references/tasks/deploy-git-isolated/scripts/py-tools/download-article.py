@@ -1,12 +1,43 @@
 #!/usr/bin/env python3
 """
-download-article.py — 文章正文下载 CLI
+download-article.py — 文章正文下载 CLI  (v1.0.0)
 
-职责：通过 py_lib 统一入口加载 article_extractor 插件执行提取，
-并在提取前执行 preflight 检查（Chrome 路径、Profile 占用、Session 状态）。
+设计意图
+  将「从 URL 提取文章正文」这一高频需求封装为标准化 CLI 工具。
+  核心流程：Chrome Preflight（路径/占用/Session）→ Playwright 创建持久化上下文
+  → JS 注入（Readability + Turndown）→ 页面滚动触发懒加载 → 图片下载 → Markdown + JSON 落盘。
+  对头条域名（toutiao.com/cn）额外执行 Session 登录态检测，未登录则拒绝执行，
+  防止在登录墙前做无效提取。
 
-用法：
-  python download-article.py --url "<文章URL>" [--tags "AI,编程"] [--headless]
+外部依赖
+  - Playwright（browser_session.py 通过 playwright.sync_api 创建 Chrome 上下文）
+  - Chrome / Chromium 可执行文件（路径由 verified-runtime-index.json 或环境变量推导）
+  - py_lib 插件体系：
+      article_extractor  — 提取编排（调用 browser_session + js_loader）
+      browser_session    — Chrome 持久化上下文管理（交互式登录 / headless 复用）
+      chrome_session     — Cookies DB 读取器（登录态 / TTL / 新鲜度判定）
+  - JS 资产（通过 js_loader.py 拓扑排序注入）：
+      Readability.js  — Mozilla 文章正文提取引擎
+      Turndown.js     — HTML → Markdown 转换器
+
+命令行示例
+  # 基本用法（headless，默认输出到 devroot/out/articles/）
+  python download-article.py --url "https://www.toutiao.com/article/123456/"
+
+  # 指定标签（写入 frontmatter）
+  python download-article.py --url "https://example.com/post" --tags "AI,编程"
+
+  # 指定输出目录
+  python download-article.py --url "https://example.com/post" --output-dir "D:/articles"
+
+  # 显示浏览器窗口（非 headless，调试用）
+  python download-article.py --url "https://example.com/post" --headed
+
+  # 跳过 preflight（仅本地调试，生产环境禁止）
+  python download-article.py --url "https://example.com/post" --skip-preflight
+
+  # 显式指定 devroot（polyrepo 场景）
+  python download-article.py --url "https://example.com/post" --devroot "D:/workspace/other-repo"
 """
 import argparse
 import asyncio

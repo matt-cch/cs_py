@@ -82,6 +82,11 @@ references/tasks/deploy-git-isolated/
 │   │   ├── atomic-deploy-preflight.py  # 原子：部署特有验证
 │   │   ├── atomic-check-staged-after-add.py  # 原子：Staged 安全扫描
 │   │   ├── atomic-git-reset-staged.py  # 原子：Git Staged 回滚（v1.0.0）
+│   │   ├── workflow-gh-pr.py           # GitHub PR 自闭环 Workflow（gh CLI 编排：create→merge→cleanup→pull）
+│   │   ├── gh-pr-create.py             # 子脚本：创建 PR（含 AI title 生成）
+│   │   ├── gh-pr-merge.py              # 子脚本：合并 PR（squash/merge/rebase + admin 绕过保护）
+│   │   ├── gh-branch-protect.py        # 子脚本：分支保护规则管理
+│   │   ├── workflow-gh-preflight-demo.py  # gh CLI 前置验证演示（gh.exe + PAT + 认证状态）
 │   │   ├── verify-runtime/             # 真源检测 Workflow + 公共原子
 │   │   ├── download-runtime/           # 运行时下载 Workflow + 原子步骤
 │   │   └── ...                         # 其他 Workflow（归档、版本更新、文章下载）
@@ -109,6 +114,7 @@ references/tasks/deploy-git-isolated/
 | "同步 Issue" / "更新 Issue" / "追加评论" | **场景 F: Issue 同步** | 执行 `github-sync-issue.ps1` |
 | "回退 staged" / "取消暂存" / "unstage" / "git reset" | **场景 H: Staged 回滚** | 执行 `atomic-git-reset-staged.py`（**禁止**现写 `git reset` 命令） |
 | "部署 polyrepo" / "多仓库发布" / "跨仓库 deploy" | **场景 I: Polyrepo 部署** | 执行 `workflow-git-deploy-full-poly.py`（**--target 强制必填**，即使与 --devroot 相同） |
+| "建 PR" / "提 PR" / "合并 PR" / "PR 自闭环" / "gh pr" | **场景 J: GitHub PR 自闭环（gh）** | 已 push feature 分支后执行 `workflow-gh-pr.py --auto --admin` |
 
 > **铁律**：不确定时先执行 `github-safety-check.ps1`，确认无敏感文件后再 push。
 > **铁律**：凡涉及 Step 4-9（add→commit→push→issue sync）的操作，**必须**使用 `workflow-deploy-full.py`，禁止手动逐条调用 ps-steps。
@@ -210,6 +216,33 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 > **与 workflow-deploy-full.py 的区别**：`workflow-deploy-full.py` 面向单仓库，无 `--target` 参数；`workflow-git-deploy-full-poly.py` 面向 polyrepo，支持跨仓库部署，--target 强制必填。
 
 
+## 场景 J: GitHub PR 自闭环（gh CLI）
+
+**前提**：已完成 `workflow-deploy-full.py`（或 poly 版）的 push，当前在 feature 分支且 `origin/<branch>` 已存在。
+
+**执行链**（一键 PR 闭环，全程本机 + headless 认证）：
+
+```powershell
+# 全自动（推荐）：AI 生成 title + body → PR create → PR merge（admin 绕过保护）→ 删除分支 → 同步 master
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-gh-pr.py" --auto --admin
+```
+
+**认证**：gh CLI 隔离部署于 `venv/gh/bin/gh.exe`，配置隔离于 `venv/data-gh`。自动化无需 `gh auth login`，直接注入：
+```powershell
+$env:GH_TOKEN = $env:GITHUB_PAT
+$env:GH_CONFIG_DIR = "${devroot}\venv\data-gh"
+```
+
+**补充说明**：`workflow-deploy-full*.py` 主流程覆盖 `init → commit → push → issue sync`，但**不封装 `repo create`（新建仓库）**。新建 GitHub 仓库本机化可用已部署的 gh CLI 补齐：
+```powershell
+$env:GH_TOKEN = $env:GITHUB_PAT
+$env:GH_CONFIG_DIR = "${devroot}\venv\data-gh"
+& "${devroot}\venv\gh\bin\gh.exe" repo create my-new-project --private --source . --push
+```
+
+> **认知澄清**：`gh pr merge` 本质是 GitHub REST API 的命令行封装，代码合并发生在**远端服务器**，本地 `master` 需 `pull` 才同步（workflow 默认已做）。PR 自动化属可行性验证阶段，是否纳入主部署流水线取决于用户仓库分支保护策略。
+
+
 ## 文件导航（一句话职责）
 
 | 文件 | 职责 | 何时读 |
@@ -239,6 +272,12 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | `scripts/lib-plugins/github-api.ps1` | 插件：GitHub REST API 封装（UTF-8 encoding） | 被 sync-issue / 其他脚本点源加载 |
 | `scripts/ps-tools/git-isolated.ps1` | 通用包装器：日常 git 子命令 | 日常操作 |
 | `scripts/py-tools/workflow-deploy-full.py` | **Workflow：全链条部署**。编排 Step 4-9，调用 py-steps 分步执行 | 完整 GitHub 部署流水线 |
+| `scripts/py-tools/workflow-gh-pr.py` | **Workflow：GitHub PR 自闭环**。编排 gh-pr-create → gh-pr-merge → 本地同步，基于已 push 的 feature 分支 | PR 自动化闭环（需先 deploy push） |
+| `scripts/py-tools/gh-pr-create.py` | **子脚本：创建 PR**。支持 --auto AI 生成 title + --body/--base/--draft | PR 创建（可独立调用） |
+| `scripts/py-tools/gh-pr-merge.py` | **子脚本：合并 PR**。squash/merge/rebase + --admin 绕过保护 + --delete-branch | PR 合并（可独立调用） |
+| `scripts/py-tools/gh-branch-protect.py` | **子脚本：分支保护**。管理仓库分支保护规则 | 分支保护配置 |
+| `scripts/py-tools/workflow-gh-preflight-demo.py` | **演示：gh CLI 前置验证**。验证 gh.exe + PAT + 认证状态 | gh 可用性自检 |
+| `scripts/py-plugins/gh_preflight.py` | **插件：gh CLI 前置检测**。验证 gh.exe / PAT / 认证状态，返回 GhContext（含 run_gh 封装） | 被 workflow-gh-pr / gh-pr-* 调用 |
 | `scripts/py-steps/step-04-*.py` ~ `step-09-*.py` | Python 版 Step 脚本：add / commit / remote / push / upstream / issue sync | 被 workflow-deploy-full.py 调用 |
 | `scripts/py-tools/run-lint.py` | **Workflow：全量 lint**。--fix 三阶段闭环、--audit 覆盖度审计（对照 lint-rules-manifest.json） | 脚本交付前必执行 |
 | `scripts/py-tools/workflow-lint-amend-lint.py` | **Workflow：编码修复闭环**。通过 py_lib 调用 lint_encoding | 编码问题发现后修复 |
@@ -334,6 +373,8 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 | **Python 全链条部署** | ✅ | workflow-deploy-full.py 编排 Step 4-9，调用 py-steps 分步执行，支持 --step/--issue 参数 |
 | 工具索引 | ✅ | TASK-TOOLS-INDEX.md v1.0（本地+外部引用+边界） |
 | Issue 同步体系 | ✅ | github-sync-issue.ps1 + github-api.ps1 + config.json |
+| **gh CLI 隔离部署** | ✅ | venv/gh/bin/gh.exe + venv/data-gh（GH_CONFIG_DIR）；headless 认证 GH_TOKEN+GH_CONFIG_DIR，无需 gh auth login |
+| **GitHub PR 自闭环** | ✅ | workflow-gh-pr.py（编排 gh-pr-create/merge）+ gh_preflight 插件；研究见 docs/gh-cli-...feasibility-study |
 | **版本记录更新** | ✅ | update-version.py（自动发现 → 实测 → 更新 .md + history） |
 | **Profile 筛选机制** | ✅ | github-lib.ps1 支持 Profile/Include/Exclude 三层筛选，依赖自动补齐，向后兼容 |
 

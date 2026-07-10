@@ -509,6 +509,40 @@ py-plugins/*         → 底座层（具体检测/修复能力）
 | `.js` / `.ts` / `.html` / 等 | — | `lint_encoding` | — |
 
 
+## Stage S6.5: Chrome / 浏览器 Session 检测
+
+### 检测 Chrome Session 登录态（头条系）
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-check-chrome-session.py"
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-check-chrome-session.py"
+```
+
+> 职责：读取 Chrome Cookies DB，检测登录态标志（sessionid / passport_auth_status 等）、新鲜度（10 分钟窗口）、TTL 有效期。
+> 输出：stdout 格式化报告 + `--output` 结构化 JSON manifest（供 pipeline 复用）。
+> **结论分级**：A. 有效 / B. 残留 / C. 残缺 / D. 失效（明确无歧义）。
+
+**指定 manifest 输出路径（pipeline 复用）:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-check-chrome-session.py" --output "${devroot}\venv\tmp\pipeline-manifest.json"
+```
+
+**指定 Chrome Profile 路径:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-check-chrome-session.py" --user-data-dir "D:\custom\chrome-profile"
+```
+
+**检测其他域名（如 GitHub）:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-check-chrome-session.py" --domain-patterns "%github%" --key-cookies "session_id,auth_token"
+```
+
+
 ## Stage S7: Issue 同步
 
 ### 追加评论（记录 commit）
@@ -534,6 +568,35 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 ```powershell
 & "${devroot}\references\tasks\deploy-git-isolated\scripts\ps-tools\github-sync-issue.ps1" -Mode list-comments -IssueNumber 1
 ```
+
+
+## Stage S7.2: GitHub CLI / PR 自闭环（gh）
+
+> 前提：已完成 deploy push，当前在 feature 分支且 `origin/<branch>` 已存在。gh CLI 隔离部署于 `venv/gh/bin/gh.exe`，配置隔离于 `venv/data-gh`。
+
+**Agent：**
+```powershell
+# 全自动 PR 闭环（推荐）：AI 生成 title+body → create → merge(admin) → 删分支 → 同步 master
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-gh-pr.py" --auto --admin
+
+# 仅创建 PR（不自动 merge，留人工 review）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\gh-pr-create.py" --auto --base master
+
+# 仅合并（PR 已存在）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\gh-pr-merge.py" --strategy rebase --admin
+
+# gh CLI 前置验证演示（gh.exe + PAT + 认证状态）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-gh-preflight-demo.py"
+```
+
+**headless 认证（终端/CI，无需 `gh auth login`）：**
+```powershell
+$env:GH_TOKEN = $env:GITHUB_PAT
+$env:GH_CONFIG_DIR = "${devroot}\venv\data-gh"
+& "${devroot}\venv\gh\bin\gh.exe" repo create my-new-project --private --source . --push
+```
+
+> 认知澄清：`gh pr merge` 是 GitHub REST API 的命令行封装，合并发生在远端服务器，本地 master 需 pull 才同步（workflow 默认已做）。
 
 
 ## 高级：插件 Profile 筛选

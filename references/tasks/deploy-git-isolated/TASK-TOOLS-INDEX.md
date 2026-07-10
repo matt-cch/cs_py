@@ -426,6 +426,29 @@ atomic-git-reset-staged.py（独立原子，非 workflow 编排内步骤）
 > **与 PS 版的关系**：PS 版（`github-step-0N-*.ps1`）为原始实现，功能完备；Python 版（`py-steps/step-0N-*.py` + `workflow-deploy-full.py` 编排）为同能力重构版，提供更灵活的编排参数和自动化（AI 摘要、动态 meta）。**凡涉及 Step 4-9 的操作，必须使用 Python 版 workflow，禁止手动逐条调用 ps-steps。**
 
 
+### 1.10 GitHub CLI / PR 自闭环
+
+> **集成现状**：gh CLI（`venv/gh/bin/gh.exe`）已隔离部署，配置于 `venv/data-gh`（通过 `GH_CONFIG_DIR`）。本 task 主部署流水线（workflow-deploy-full*.py）走 GitHub REST API + PAT 模式；gh CLI 当前用于 **PR 自动化闭环**（可行性验证阶段）。
+
+| 脚本 | 职责 | 典型场景 | 状态 |
+|------|------|---------|------|
+| `workflow-gh-pr.py` | **Workflow：PR 自闭环**。编排 gh-pr-create → gh-pr-merge → 本地同步（checkout base + pull） | 已 push feature 分支后一键 PR 闭环 | ready |
+| `gh-pr-create.py` | 子脚本：创建 PR，支持 `--auto` AI 生成 title + `--body/--base/--draft` | PR 创建（可独立调用） | ready |
+| `gh-pr-merge.py` | 子脚本：合并 PR，squash/merge/rebase + `--admin` 绕过保护 + `--delete-branch` | PR 合并（可独立调用） | ready |
+| `gh-branch-protect.py` | 子脚本：分支保护规则管理 | 配置 Require reviews 等 | ready |
+| `workflow-gh-preflight-demo.py` | 演示：gh CLI 前置验证（gh.exe + PAT + 认证状态） | gh 可用性自检 | ready |
+| `gh_preflight.py`（py-plugins） | 前置检测插件：验证 gh.exe / PAT / 认证状态，返回 `GhContext`（含 `run_gh` 封装） | 被 workflow-gh-pr / gh-pr-* 调用 | ready |
+
+**headless 认证**（自动化无需 `gh auth login`）：
+```powershell
+$env:GH_TOKEN = $env:GITHUB_PAT                       # 复用 .env 的 PAT
+$env:GH_CONFIG_DIR = "${devroot}\venv\data-gh"        # 隔离配置目录
+& "${devroot}\venv\gh\bin\gh.exe" repo create my-new-project --private --source . --push
+```
+
+> **认知澄清**：`gh pr merge` 本质是 GitHub REST API 的命令行封装，代码合并发生在**远端服务器**，本地 master 需 `pull` 才同步。PR 自动化是否纳入主部署流水线，取决于用户仓库分支保护策略。
+
+
 ## 2. 外部通用工具引用（runtime / schema/tool）
 
 本 task 执行过程中**不应自行实现**以下能力，应直接调用已登记的通用工具。
@@ -471,6 +494,13 @@ atomic-git-reset-staged.py（独立原子，非 workflow 编排内步骤）
 | URL 分析（isImage/toAbsoluteURI） | `url-analyze.js`（本地 js-tool） | `node url-analyze.js --url ...` | 禁止现写 URL 解析正则 |
 | JS 资产依赖发现 | `js_lib.js`（本地入口） | `node js_lib.js --resolve <tool>` | 禁止手动翻 js-sort-rules.json 拼路径 |
 | 浏览器桥接（Python → JS inject） | `js_loader.py`（本地 py-plugin） | — | 禁止硬编码 JS 文件路径 |
+| Chrome Session 登录态检测 | `atomic-check-chrome-session.py`（本地原子） | `chrome_session.py`（py-plugin） | 禁止直接读 Cookies DB（走 atomic CLI 或 py_lib 插件） |
+| 头条文章下载（Playwright + Chrome） | `download-article.py`（本地 workflow） | `article_extractor.py` + `browser_session.py` | 禁止自行写 Playwright 脚本 |
+| URL 截图验证 | `screenshot_verifier.py`（本地 workflow） | `browser_session.py` | 禁止自行写 Playwright 截图 |
+| PR 创建（已 push feature 分支） | `workflow-gh-pr.py --auto` / `gh-pr-create.py` | — | 禁止裸 `gh pr create`（绕过 preflight 与 AI 生成） |
+| PR 合并（绕过保护） | `gh-pr-merge.py --admin` | — | 禁止裸 `gh pr merge`（绕过 preflight 与审计） |
+| gh CLI 前置验证 | `workflow-gh-preflight-demo.py` / `gh_preflight.py` | — | 禁止裸 `gh auth status` 替代 |
+| 新建 GitHub 仓库 | `gh.exe repo create`（headless: GH_TOKEN+GH_CONFIG_DIR） | — | 禁止网页手动建仓后再切回命令行（可全本机） |
 
 
 ## 4. 速查命令
@@ -510,6 +540,27 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\references\tasks\deploy-git
 
 # URL 分析 CLI
 "${devroot}\venv\node\node.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\js-tools\url-analyze.js" --url "/img/banner.webp" --base "https://site.com/blog/"
+
+# Chrome Session 登录态检测（默认检测 devroot/venv/data-chrome 头条系）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-check-chrome-session.py"
+
+# Chrome Session 检测 + 指定 manifest 输出路径（pipeline 复用）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-check-chrome-session.py" --output "${devroot}\venv\tmp\pipeline-manifest.json"
+
+# Chrome Session 检测 + 指定 Profile 路径
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-check-chrome-session.py" --user-data-dir "D:\custom\chrome-profile"
+
+# GitHub PR 自闭环（全自动，需先 deploy push 到 feature 分支）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-gh-pr.py" --auto --admin
+
+# 仅创建 PR（不自动 merge，留人工 review）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\gh-pr-create.py" --auto --base master
+
+# 仅合并 PR（已存在）
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\gh-pr-merge.py" --strategy rebase --admin
+
+# gh CLI 前置验证演示
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-gh-preflight-demo.py"
 ```
 
 > 完整命令见：`scripts/EXEC-CHEATSHEET.md`

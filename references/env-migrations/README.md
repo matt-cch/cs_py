@@ -103,6 +103,8 @@ meta: {}
 | [env-migration-bash-timeout-stdout-liveness-2026-07-09-174456.md](env-migration-bash-timeout-stdout-liveness-2026-07-09-174456.md) | Bash 工具超时行为实测观察 — stdout 活跃即免杀 | 2026-07-09-174456 |
 | [env-migration-ai-summary-configurable-and-target-required-2026-07-10-125144.md](env-migration-ai-summary-configurable-and-target-required-2026-07-10-125144.md) | ai_summary 可配置化与 polyrepo 调用契约硬化（diff 截断阈值三层覆盖 + --target 强制显式化） | 2026-07-10-125144 |
 | [env-migration-deploy-git-polyrepo-index-completion-2026-07-10-151251.md](env-migration-deploy-git-polyrepo-index-completion-2026-07-10-151251.md) | deploy-git-isolated polyrepo 脚本索引补全与 staged 回滚能力建设（poly.py 语法修复 + Step 4.5 消除越级 + 索引全量登记） | 2026-07-10-151251 |
+| [env-migration-download-article-index-docstring-2026-07-10-162824.md](env-migration-download-article-index-docstring-2026-07-10-162824.md) | 头条文章下载工具链索引补全与 docstring 增强（ENTRY.json 登记 + docstring 重写 + 浏览器工具聚合导航） | 2026-07-10-162824 |
+| [env-migration-deploy-git-gh-toolchain-docs-registration-2026-07-10-173616.md](env-migration-deploy-git-gh-toolchain-docs-registration-2026-07-10-173616.md) | deploy-git-isolated gh 工具链文档补登记（4 文件补登 + docstring 增强 + team-docs playbook 新建） | 2026-07-10-173616 |
 
 
 ## 上级导航

@@ -624,6 +624,36 @@
       "role": "Workflow 内嵌能力：AI 语义摘要生成器。读取 git diff（--target 指定仓库，--cached 用 staged），调用 agent 插件体系生成中文摘要并落盘。被 poly workflow 在 Step 4→5 之间调用。--target 强制必填",
       "path": "references/tasks/deploy-git-isolated/scripts/py-tools/generate-ai-summary.py",
       "status": "ready"
+    },
+    {
+      "name": "atomic-check-chrome-session.py",
+      "role": "原子：Chrome Session 登录态检测 CLI。通过 py_lib 加载 chrome_session 插件读取 Cookies DB，检测登录态标志 + TTL 分析 + 新鲜度判定，输出 A/B/C/D 四级结论，支持 --output manifest 落盘供 pipeline 复用。",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/atomic-check-chrome-session.py",
+      "status": "ready"
+    },
+    {
+      "name": "download-article.py",
+      "role": "Workflow：文章正文下载 CLI 入口。通过 py_lib 加载 article_extractor 插件，执行 Chrome Preflight → JS 注入（Readability+Turndown）→ 页面滚动 → 图片下载 → Markdown + JSON 落盘。支持头条 Session 检测前置门禁。",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-tools/download-article.py",
+      "status": "ready"
+    },
+    {
+      "name": "article_extractor.py",
+      "role": "Python 插件：文章提取编排器。调用 browser_session 创建 Chrome 上下文 → js_loader.resolve() 注入 JS → 执行 window.__extractArticle() → 返回 {title, content, excerpt, byline, images}。支持 add_init_script 绕过 CSP。",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/article_extractor.py",
+      "status": "ready"
+    },
+    {
+      "name": "chrome_session.py",
+      "role": "Python 插件：Chrome Session 状态检测器。读取 Cookies SQLite DB，分析登录态标志（sessionid/passport_auth_status 等）、TTL 有效期、新鲜度（10 分钟窗口）。被 download-article.py Preflight 和 atomic-check-chrome-session.py CLI 复用。",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/chrome_session.py",
+      "status": "ready"
+    },
+    {
+      "name": "js_loader.py",
+      "role": "Python 插件：JS 资产发现与拓扑排序。读取 js-sort-rules.json → 按依赖图拓扑排序 → 返回注入顺序列表。被 article_extractor.py 在 add_init_script 阶段调用。",
+      "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/js_loader.py",
+      "status": "ready"
     }
   ],
   "maintenance_scripts": [

@@ -43,10 +43,16 @@ scripts/
 | 入口 / 目录 | 职责 | 进一步阅读 |
 |------------|------|-----------|
 | `py-tools/` | **Python Workflow 脚本**（lint、部署、归档、运行时、PR、Agent 等） | [py-tools/README.md](py-tools/README.md) |
+| `py-tools/workflow-gh-pr.py` | 🔀 **GitHub PR 自闭环**（gh CLI 编排：create→merge→cleanup→pull） | [EXEC-CHEATSHEET.md](EXEC-CHEATSHEET.md) Stage S7.2 |
+| `py-tools/gh-pr-create.py` / `gh-pr-merge.py` / `gh-branch-protect.py` | 🔀 **PR 子脚本**（创建/合并/分支保护） | [EXEC-CHEATSHEET.md](EXEC-CHEATSHEET.md) Stage S7.2 |
+| `py-tools/gh_preflight.py`（py-plugins） | 🔀 **gh CLI 前置检测插件**（gh.exe + PAT + 认证 → GhContext） | [TASK-TOOLS-INDEX.md](../TASK-TOOLS-INDEX.md) 1.10 |
 | `py-plugins/` | Python 底座插件（34 个），**禁止越级直接 import** | 通过 `py_lib.load_plugins()` 访问 |
 | `ps-steps/` | PowerShell Step 1-8（Git init → upstream） | [task 总索引](../README.md) 场景 A |
 | `ps-tools/` | PS 工具（安全检查、Issue 同步、通用包装器） | [task 总索引](../README.md) 场景 C-F |
 | `js-tools/` | JS 浏览器注入工具（Readability、Turndown、文章提取） | [py-tools/README.md](py-tools/README.md) 文章下载节 |
+| `py-tools/atomic-check-chrome-session.py` | 🌐 **Chrome Session 检测**：登录态 / TTL / 新鲜度 / manifest 落盘 | [EXEC-CHEATSHEET.md](EXEC-CHEATSHEET.md) Stage S6.5 |
+| `py-tools/download-article.py` | 🌐 **文章下载**：Playwright + Chrome 持久化上下文提取头条文章 | [EXEC-CHEATSHEET.md](EXEC-CHEATSHEET.md) 文章下载 |
+| `py-tools/screenshot_verifier.py` | 🌐 **截图验证**：Playwright + 已保存 Chrome Session | [EXEC-CHEATSHEET.md](EXEC-CHEATSHEET.md) 截图验证 |
 | `EXEC-CHEATSHEET.md` | 命令速查真源（复制粘贴即用） | [EXEC-CHEATSHEET.md](EXEC-CHEATSHEET.md) |
 
 
