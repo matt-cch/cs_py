@@ -82,12 +82,19 @@ def generate_summary(devroot: Path, diff_text: str, commit_message: str, changed
     依赖 py_lib 加载 agent 插件体系。
     调试阶段使用 source="config_json" 命中 OpenCode config.json 分支。
     """
+    print(f"[{datetime.now().isoformat()}] [Progress] 进入 generate_summary，准备加载 agent 插件体系...")
+    sys.stdout.flush()
+    step_start = time.time()
+
     from py_lib import load_plugins
     registry = load_plugins(devroot=str(devroot), profile="agent")
+    print(f"[{datetime.now().isoformat()}] [Progress] agent 插件体系加载完成 (耗时 {time.time() - step_start:.2f}s)")
+    sys.stdout.flush()
 
     # 显式从 config.json 读取 provider 配置（调试：确保命中 config.json 分支）
     provider_cfg = registry.provider_config.get_provider(source="config_json")
-    print(f"[Provider] 来源: config.json | model: {provider_cfg.get('model')} | base_url: {provider_cfg.get('base_url')}")
+    print(f"[{datetime.now().isoformat()}] [Progress] Provider 配置读取完成: model={provider_cfg.get('model')} | base_url={provider_cfg.get('base_url')}")
+    sys.stdout.flush()
 
     # 构造 prompt
     file_list_text = "\n".join(f"- {f}" for f in changed_files) if changed_files else "（无文件变更）"
@@ -122,10 +129,49 @@ Diff：
 """
 
     prompt_len = len(prompt)
-    print(f"[Diag] prompt 总长度: {prompt_len} 字符")
+    print(f"[{datetime.now().isoformat()}] [Progress] Prompt 构造完成，长度 {prompt_len} 字符")
     sys.stdout.flush()
 
-    print("[Agent] 正在生成语义摘要...")
+    # Agent Preflight: 调用 atomic-agent-preflight.py 确认 LLM 可达
+    preflight_script = devroot / "references" / "tasks" / "deploy-git-isolated" / "scripts" / "py-tools" / "atomic-agent-preflight.py"
+    preflight_manifest = devroot / "venv" / "tmp" / f"agent-preflight-for-ai-summary-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.json"
+    preflight_cmd = [str(devroot / "venv" / "py" / "python.exe"), str(preflight_script), "--devroot", str(devroot), "--manifest", str(preflight_manifest)]
+
+    print(f"[{datetime.now().isoformat()}] [Progress] Agent Preflight: 调用 atomic-agent-preflight.py...")
+    sys.stdout.flush()
+    preflight_lines = []
+    try:
+        process = subprocess.Popen(
+            preflight_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        for line in process.stdout:
+            line = line.rstrip("\n")
+            print(line, flush=True)
+            preflight_lines.append(line)
+        process.wait(timeout=60)
+        if process.returncode != 0:
+            raise RuntimeError(f"atomic-agent-preflight 返回非 0 (exit {process.returncode})")
+
+        # 解析最后一行 JSON
+        if not preflight_lines:
+            raise RuntimeError("atomic-agent-preflight 无输出")
+        preflight_result = json.loads(preflight_lines[-1])
+        if not preflight_result.get("success"):
+            raise RuntimeError(f"atomic-agent-preflight 失败: {preflight_result.get('error')}")
+
+        print(f"[{datetime.now().isoformat()}] [Progress] Agent Preflight 通过，manifest: {preflight_result.get('manifest')}")
+        sys.stdout.flush()
+    except Exception as e:
+        print(f"[{datetime.now().isoformat()}] [Progress] Agent Preflight 失败: {e}")
+        sys.stdout.flush()
+        raise
+
+    print(f"[{datetime.now().isoformat()}] [Progress] AgentCore 初始化开始...")
     start = time.time()
     try:
         # 显式构造 AgentCore，传入 config.json 的 provider_cfg
@@ -136,19 +182,25 @@ Diff：
             enable_tools=False,
             provider_cfg=provider_cfg,
         )
-        print(f"[Diag] AgentCore 初始化完成，准备调用 agent.run (max_turns=1)...")
+        print(f"[{datetime.now().isoformat()}] [Progress] AgentCore 初始化完成 (耗时 {time.time() - start:.2f}s)")
         sys.stdout.flush()
+
+        print(f"[{datetime.now().isoformat()}] [Progress] 开始调用 LLM 生成摘要（预计耗时 30-120s，视 diff 大小而定）...")
+        sys.stdout.flush()
+        llm_start = time.time()
         summary = agent.run(
             prompt=prompt,
             system="你是资深代码审查员，擅长用中文提炼代码变更的业务语义。",
             max_turns=1,
         )
-        elapsed = time.time() - start
-        print(f"[Agent] 摘要生成完成 (耗时 {elapsed:.2f}s)")
+        llm_elapsed = time.time() - llm_start
+        total_elapsed = time.time() - start
+        print(f"[{datetime.now().isoformat()}] [Progress] LLM 生成完成（LLM 耗时 {llm_elapsed:.2f}s，generate_summary 总耗时 {total_elapsed:.2f}s）")
+        sys.stdout.flush()
         return summary
     except Exception as e:
         elapsed = time.time() - start
-        print(f"[Agent] 摘要生成失败 (耗时 {elapsed:.2f}s): {e}", file=sys.stderr)
+        print(f"[{datetime.now().isoformat()}] [Progress] 摘要生成失败 (耗时 {elapsed:.2f}s): {e}", file=sys.stderr)
         raise
 
 
@@ -161,6 +213,10 @@ def main() -> int:
     parser.add_argument("--message", default="", help="Commit message（覆盖自动读取）")
     parser.add_argument("--output-dir", default=None, help="输出目录（默认 devroot/venv/tmp）")
     args = parser.parse_args()
+
+    print(f"[{datetime.now().isoformat()}] [Progress] ========== AI Summary 全流程开始 ==========")
+    sys.stdout.flush()
+    total_start = time.time()
 
     devroot = Path(args.devroot)
     target = Path(args.target) if args.target else devroot
@@ -223,12 +279,14 @@ def main() -> int:
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     # 5. 输出
+    total_elapsed = time.time() - total_start
     print(f"\n{'='*50}")
     print("AI 语义摘要")
     print(f"{'='*50}")
     print(summary)
     print(f"{'='*50}")
     print(f"[Output] 已落盘: {output_path}")
+    print(f"[{datetime.now().isoformat()}] [Progress] ========== AI Summary 全流程完成，总耗时 {total_elapsed:.2f}s ==========")
     return 0
 
 

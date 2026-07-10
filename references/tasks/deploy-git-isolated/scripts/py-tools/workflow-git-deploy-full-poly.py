@@ -121,6 +121,11 @@ def _run_git(target: Path, args: list, check: bool = True) -> subprocess.Complet
     return result
 
 
+def _mask_pat(text: str) -> str:
+    """将命令行/URL 中的 GitHub PAT 替换为 ***，防止泄露到 stdout。"""
+    return re.sub(r"(https?://[^:]+:)([^@]+)(@)", r"\1***\3", text)
+
+
 def _auto_generate_message(target: Path) -> str:
     """从 staged 文件自动生成 commit message。"""
     result = _run_git(target, ["diff", "--cached", "--name-only"])
@@ -136,7 +141,7 @@ def _auto_generate_message(target: Path) -> str:
 
 
 def _generate_ai_summary(toolchain_root: Path, target: Path, message: str, cached: bool = False) -> str:
-    """调用 generate-ai-summary.py 生成 AI 语义摘要。"""
+    """调用 generate-ai-summary.py 生成 AI 语义摘要。实时透传子进程输出，避免进度信息被吞。"""
     script = _PY_TOOLS_DIR / "generate-ai-summary.py"
     cmd = [str(_PY_EXE), str(script), "--devroot", str(toolchain_root), "--target", str(target), "--message", message]
     if cached:
@@ -147,15 +152,29 @@ def _generate_ai_summary(toolchain_root: Path, target: Path, message: str, cache
     sys.stdout.flush()
     start = time.time()
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
+        # Popen 实时读取并透传，避免 capture_output=True 导致进度信息被吞
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        output_lines = []
+        for line in process.stdout:
+            line = line.rstrip("\n")
+            print(line, flush=True)
+            output_lines.append(line)
+        process.wait(timeout=300)
         elapsed = time.time() - start
-        if result.returncode != 0:
+
+        if process.returncode != 0:
             print(f"[AI Summary] 生成失败 (耗时 {elapsed:.2f}s)")
-            print(f"[AI Summary] stderr: {result.stderr[:500]}", file=sys.stderr)
             return ""
 
         summary_text = ""
-        for line in result.stdout.splitlines():
+        for line in output_lines:
             if line.startswith("[Output] 已落盘:"):
                 output_path = Path(line.split("已落盘:", 1)[1].strip())
                 if output_path.exists():
@@ -169,7 +188,13 @@ def _generate_ai_summary(toolchain_root: Path, target: Path, message: str, cache
             print(f"[AI Summary] 摘要为空 (耗时 {elapsed:.2f}s)")
         return summary_text
     except subprocess.TimeoutExpired:
-        print(f"[AI Summary] 超时 (>300s)")
+        elapsed = time.time() - start
+        print(f"[AI Summary] 超时 (>300s, 实际 {elapsed:.2f}s)")
+        return ""
+    except Exception as e:
+        elapsed = time.time() - start
+        print(f"[AI Summary] 异常 (耗时 {elapsed:.2f}s): {e}", file=sys.stderr)
+        return ""
         return ""
     except Exception as e:
         elapsed = time.time() - start
@@ -604,7 +629,7 @@ def main():
 
             print("正在 push 到 GitHub ...")
             cmd_push = [str(_GIT_EXE), "-C", str(target), "push", auth_url, branch]
-            print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd_push)}")
+            print(f"[{datetime.now().isoformat()}] [EXEC] {_mask_pat(' '.join(cmd_push))}")
             sys.stdout.flush()
             result = subprocess.run(
                 cmd_push,
@@ -631,40 +656,43 @@ def main():
             print(f"\n{'='*50}")
             print("[Step] Step 8: upstream 设置")
             print(f"{'='*50}")
-            if not auth_url:
-                print("[WARN] upstream 设置跳过（无认证信息，可能 Step 7 未执行）")
-                continue
             result = _run_git(target, ["branch", "--show-current"])
             branch = result.stdout.strip()
-            if branch:
-                # 阻断 GCM 弹窗
-                cmd_gcm = [str(_GIT_EXE), "-C", str(target), "config", "--local", "credential.helper", ""]
-                print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd_gcm)}")
-                sys.stdout.flush()
-                subprocess.run(cmd_gcm, capture_output=True)
-                env_push = os.environ.copy()
-                env_push["GCM_INTERACTIVE"] = "0"
-                env_push["GIT_TERMINAL_PROMPT"] = "0"
+            if not branch:
+                print("[WARN] 无法获取当前分支名，跳过 upstream 设置")
+                continue
 
-                cmd_upstream = [str(_GIT_EXE), "-C", str(target), "push", "-u", auth_url, branch]
-                print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd_upstream)}")
-                sys.stdout.flush()
-                result = subprocess.run(
-                    cmd_upstream,
-                    capture_output=True, text=True, encoding="utf-8", errors="replace",
-                    env=env_push
-                )
-                print(result.stdout, end="")
-                if result.stderr:
-                    print(result.stderr, end="")
-                if result.returncode == 0:
-                    print(f"[OK] upstream 设置完成: {branch}")
+            # 前置检查：origin remote 是否存在
+            result_origin = _run_git(target, ["remote", "get-url", "origin"], check=False)
+            if result_origin.returncode != 0:
+                print("[WARN] origin remote 不存在，跳过 upstream 设置")
+                print("[HINT] 如需手动设置: git remote add origin <url>")
+                continue
+
+            # 检查远程分支是否已存在（Step 7 应已推送）
+            result_fetch = _run_git(target, ["fetch", "origin", branch], check=False)
+            if result_fetch.returncode != 0:
+                print(f"[WARN] 无法 fetch origin/{branch}，跳过 upstream 设置")
+                continue
+
+            cmd_upstream = [str(_GIT_EXE), "-C", str(target), "branch", "--set-upstream-to", f"origin/{branch}", branch]
+            print(f"[{datetime.now().isoformat()}] [EXEC] {' '.join(cmd_upstream)}")
+            sys.stdout.flush()
+            result = subprocess.run(
+                cmd_upstream,
+                capture_output=True, text=True, encoding="utf-8", errors="replace"
+            )
+            print(result.stdout, end="")
+            if result.stderr:
+                print(result.stderr, end="")
+            if result.returncode == 0:
+                print(f"[OK] upstream 设置完成: {branch} -> origin/{branch}")
+            else:
+                stderr_lower = result.stderr.lower() if result.stderr else ""
+                if "already exists" in stderr_lower or "already tracking" in stderr_lower:
+                    print(f"[OK] upstream 已存在: {branch}")
                 else:
-                    stderr_lower = result.stderr.lower() if result.stderr else ""
-                    if "already exists" in stderr_lower or "everything up-to-date" in stderr_lower:
-                        print(f"[OK] upstream 已存在: {branch}")
-                    else:
-                        print(f"[WARN] upstream 设置返回非 0: {result.stderr.strip()[:200]}")
+                    print(f"[WARN] upstream 设置返回非 0: {result.stderr.strip()[:200]}")
             continue
 
         # Step 9: issue sync
