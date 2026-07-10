@@ -33,12 +33,12 @@ if str(_PY_PLUGINS_DIR) not in sys.path:
 def main():
     parser = argparse.ArgumentParser(description="Polyrepo 上下文 manifest 生成")
     parser.add_argument("--devroot", default=None, help="工具链根路径（默认使用当前工作目录）")
-    parser.add_argument("--target", default=None, help="操作目标仓库路径（默认等于 --devroot）")
+    parser.add_argument("--target", required=True, help="操作目标仓库路径（polyrepo 调用契约要求，必须显式传入，即使与 --devroot 相同）")
     parser.add_argument("--output", default=None, help="manifest 输出文件路径（默认自动生成到 venv/tmp/）")
     args = parser.parse_args()
 
     toolchain_root = Path(args.devroot) if args.devroot else Path.cwd()
-    target = Path(args.target) if args.target else toolchain_root
+    target = Path(args.target)
 
     if not toolchain_root.exists():
         print(f"[ERROR] devroot 不存在: {toolchain_root}", file=sys.stderr)

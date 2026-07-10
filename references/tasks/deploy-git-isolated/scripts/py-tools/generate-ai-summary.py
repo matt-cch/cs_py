@@ -27,6 +27,17 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 
+
+def _load_tools_config(devroot: Path) -> dict:
+    """读取 tools_config.json，返回 ai_summary 配置节。失败时返回空 dict。"""
+    config_path = devroot / "references" / "runtime" / "runtime_config" / "tools_config.json"
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+        return data.get("ai_summary", {})
+    except Exception:
+        return {}
+
+
 # 确保 scripts/ 在 path 中
 _SCRIPTS_DIR = Path(__file__).parent.parent.resolve()
 if str(_SCRIPTS_DIR) not in sys.path:
@@ -75,7 +86,7 @@ def get_changed_files(git_exe: Path, target: Path, commit_range: str = "HEAD~1..
     return [line.strip() for line in result.stdout.strip().splitlines() if line.strip()]
 
 
-def generate_summary(devroot: Path, diff_text: str, commit_message: str, changed_files: list[str]) -> str:
+def generate_summary(devroot: Path, diff_text: str, commit_message: str, changed_files: list[str], max_diff_chars: int = 80000) -> str:
     """
     调用 Agent 底层能力生成中文语义摘要。
 
@@ -99,12 +110,13 @@ def generate_summary(devroot: Path, diff_text: str, commit_message: str, changed
     # 构造 prompt
     file_list_text = "\n".join(f"- {f}" for f in changed_files) if changed_files else "（无文件变更）"
 
-    # 截断 diff 防止超出上下文窗口
+    # 截断 diff 防止超出上下文窗口（max_diff_chars 由 CLI > tools_config > 默认值 80000 决定）
     diff_len = len(diff_text)
-    diff_truncated = diff_text[:12000] if diff_len > 12000 else diff_text
-    if diff_len > 12000:
-        diff_truncated += f"\n\n... (diff 已截断，原始长度 {diff_len} 字符)"
-    print(f"[Diag] diff 截断前: {diff_len} 字符, 截断后: {len(diff_truncated)} 字符")
+    effective_max = max_diff_chars if max_diff_chars > 0 else diff_len
+    diff_truncated = diff_text[:effective_max] if diff_len > effective_max else diff_text
+    if diff_len > effective_max and max_diff_chars > 0:
+        diff_truncated += f"\n\n... (diff 已截断，原始长度 {diff_len} 字符，阈值 {max_diff_chars})"
+    print(f"[Diag] diff 截断前: {diff_len} 字符, 截断后: {len(diff_truncated)} 字符, 阈值: {max_diff_chars}")
     sys.stdout.flush()
 
     prompt = f"""你是一位资深代码审查员。请阅读以下 git diff，用中文总结本次变更的核心内容。
@@ -207,12 +219,13 @@ Diff：
 def main() -> int:
     parser = argparse.ArgumentParser(description="AI 语义摘要生成器（nanobot Agent 示范）")
     parser.add_argument("--devroot", default=r"D:\pjt\cursor\cs_py", help="Devroot 路径（用于加载 agent 插件体系）")
-    parser.add_argument("--target", default=None, help="操作目标仓库路径（默认等于 --devroot）")
+    parser.add_argument("--target", required=True, help="操作目标仓库路径（polyrepo 调用契约要求，必须显式传入，即使与 --devroot 相同）")
     parser.add_argument("--commit-range", default="HEAD~1..HEAD", help="Git diff 范围（仅当未传 --cached 时使用）")
     parser.add_argument("--cached", action="store_true", help="使用 staged diff（git diff --cached），替代 --commit-range")
     parser.add_argument("--message", default="", help="Commit message（覆盖自动读取）")
     parser.add_argument("--output-dir", default=None, help="输出目录（默认 devroot/venv/tmp）")
     parser.add_argument("--diff-output", default=None, help="diff 审计文件输出路径。由上游 workflow 显式命名传入，便于审计追踪。未传入时回退到 devroot/venv/tmp/diff-audit-{ts}.json")
+    parser.add_argument("--max-diff-chars", type=int, default=None, help="diff 截断阈值（字符数）。覆盖 tools_config.json 的 ai_summary.max_diff_chars。设为 0 表示不截断。")
     args = parser.parse_args()
 
     print(f"[{datetime.now().isoformat()}] [Progress] ========== AI Summary 全流程开始 ==========")
@@ -220,8 +233,19 @@ def main() -> int:
     total_start = time.time()
 
     devroot = Path(args.devroot)
-    target = Path(args.target) if args.target else devroot
+    target = Path(args.target)
     git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
+
+    # 0. 解析 diff 截断阈值：CLI > tools_config.json > 默认值 80000
+    if args.max_diff_chars is not None:
+        max_diff_chars = args.max_diff_chars
+        threshold_source = "cli"
+    else:
+        ai_summary_cfg = _load_tools_config(devroot)
+        max_diff_chars = ai_summary_cfg.get("max_diff_chars", 80000)
+        threshold_source = "tools_config" if "max_diff_chars" in ai_summary_cfg else "default"
+    print(f"[Config] diff 截断阈值: {max_diff_chars} (来源: {threshold_source})")
+    sys.stdout.flush()
 
     if not devroot.exists():
         print(f"[error] devroot 不存在: {devroot}", file=sys.stderr)
@@ -275,8 +299,10 @@ def main() -> int:
         "diff_stats": {
             "length_chars": len(diff_text),
             "line_count": diff_text.count("\n") + 1 if diff_text else 0,
-            "is_truncated_for_prompt": len(diff_text) > 12000,
-            "truncated_at": 12000 if len(diff_text) > 12000 else None,
+            "threshold": max_diff_chars,
+            "threshold_source": threshold_source,
+            "is_truncated_for_prompt": len(diff_text) > max_diff_chars if max_diff_chars > 0 else False,
+            "truncated_at": max_diff_chars if max_diff_chars > 0 and len(diff_text) > max_diff_chars else None,
         },
     }
     diff_output_path = Path(args.diff_output) if args.diff_output else devroot / "venv" / "tmp" / f"diff-audit-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.json"
@@ -287,7 +313,7 @@ def main() -> int:
 
     # 3. 调用 Agent 生成摘要（agent 插件体系仍从 devroot 加载）
     try:
-        summary = generate_summary(devroot, diff_text, commit_message, changed_files)
+        summary = generate_summary(devroot, diff_text, commit_message, changed_files, max_diff_chars)
     except Exception as e:
         print(f"[error] 生成失败: {e}", file=sys.stderr)
         return 1

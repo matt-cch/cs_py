@@ -38,11 +38,11 @@ def _print_banner(title: str, width: int = 50):
 def main():
     parser = argparse.ArgumentParser(description="部署特有前置验证")
     parser.add_argument("--devroot", default=None, help="工具链根路径（默认使用当前工作目录）")
-    parser.add_argument("--target", default=None, help="操作目标仓库路径（默认等于 --devroot）")
+    parser.add_argument("--target", required=True, help="操作目标仓库路径（polyrepo 调用契约要求，必须显式传入，即使与 --devroot 相同）")
     args = parser.parse_args()
 
     devroot = Path(args.devroot) if args.devroot else Path.cwd()
-    target = Path(args.target) if args.target else devroot
+    target = Path(args.target)
 
     if not devroot.exists():
         print(f"[ERROR] devroot 不存在: {devroot}")

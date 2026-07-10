@@ -5,9 +5,9 @@ workflow-git-deploy-full-poly.py — deploy-git-isolated Polyrepo 全链条部�
 版本：v1.2.0（由 v1.1.1 升级）
 v1.1.1→v1.2.0 更新意图：Step 8 upstream 重构为 `branch --set-upstream-to` 以彻底消除 PAT 持久化泄露；集成 `atomic-agent-preflight.py` LLM 探活预检；`_generate_ai_summary` 改为 Popen 实时透传；新增 diff 审计落盘。
 
-职责：纯编排器，支持单仓库与 polyrepo 两种场景的自动部署。
+  职责：纯编排器，支持单仓库与 polyrepo 两种场景的自动部署。
       工具链根固定为 Path.cwd()，--devroot 仅用于验证一致性。
-      操作目标通过 --target 显式指定，省略时默认等于工具链根（单仓库场景）。
+      操作目标通过 --target 显式指定，必须传入（即使与 --devroot 相同）。
 
 执行顺序：
   1. Step 0a: atomic-git-preflight-general（通用 git 环境验证，支持 --target）
@@ -365,7 +365,7 @@ def _run_py_step(name: str, script_path: Path, extra_args: list = None) -> tuple
 def main():
     parser = argparse.ArgumentParser(description="deploy-git-isolated Polyrepo 全链条部署")
     parser.add_argument("--devroot", required=True, help="工具链根目录绝对路径（必须与 CWD 一致）")
-    parser.add_argument("--target", default=None, help="操作目标仓库（默认等于 --devroot）")
+    parser.add_argument("--target", required=True, help="操作目标仓库绝对路径（polyrepo 调用契约要求，必须显式传入，即使与 --devroot 相同）")
     parser.add_argument("--message", default=None, help="Commit message（如未传入，自动从 staged 文件生成）")
     parser.add_argument("--auto", action="store_true", help="[已废弃] 自动生成 commit message（现默认行为，无需显式指定）")
     parser.add_argument("--step", choices=["0", "4", "5", "6", "7", "8", "9", "10", "all"], default="all")
