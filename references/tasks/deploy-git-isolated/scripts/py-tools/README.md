@@ -36,7 +36,8 @@ meta:
 |------|------|---------|
 | `get-timestamp.py` | 时间戳生成 CLI。输出 `local_short` / `local_iso` / `utc_iso` / `filename_safe` 等格式 | 写入 .md / .json 的 date 字段 |
 | `update-version.py` | **版本记录更新 Workflow**。自动发现 `venv/version/` 下工具 → 实测版本 → 对比 → 更新 `.md` + 追加 `*-history.md` | 记一版 version |
-| `generate-ai-summary.py` | AI 语义摘要生成器。读取 git diff，调用 Agent 底层能力生成中文摘要 | commit message 辅助 |
+| `generate-ai-summary.py` | AI 语义摘要生成器。读取 git diff，调用 Agent 底层能力生成中文摘要；内部先调用 `atomic-agent-preflight.py` 探活 LLM | commit message 辅助 |
+| `atomic-agent-preflight.py` | **Agent / LLM 探活预检原子**。初始化 AgentCore 后发送轻量级请求确认 LLM 可达，输出 JSON + 审计 manifest | AI 摘要前门禁、LLM 可用性验证 |
 | `nanobot.py` | **极简 Agent CLI**。支持 ReAct 模式 + 工具调用 | workflow 集成 LLM |
 | `fetch_issue.py` | 获取 GitHub Issue 完整内容（含评论）| Issue 内容查看 |
 | `check-links.py` | Markdown 内部相对链接验证 | 文档链接检查 |

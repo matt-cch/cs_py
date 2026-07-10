@@ -2,7 +2,8 @@
 r"""
 workflow-git-deploy-full-poly.py — deploy-git-isolated Polyrepo 全链条部署 workflow
 标签：py-tools
-版本：v1.1.1
+版本：v1.2.0（由 v1.1.1 升级）
+v1.1.1→v1.2.0 更新意图：Step 8 upstream 重构为 `branch --set-upstream-to` 以彻底消除 PAT 持久化泄露；集成 `atomic-agent-preflight.py` LLM 探活预检；`_generate_ai_summary` 改为 Popen 实时透传；新增 diff 审计落盘。
 
 职责：纯编排器，支持单仓库与 polyrepo 两种场景的自动部署。
       工具链根固定为 Path.cwd()，--devroot 仅用于验证一致性。
@@ -14,7 +15,10 @@ workflow-git-deploy-full-poly.py — deploy-git-isolated Polyrepo 全链条部�
   3. Step 0c: atomic-polyrepo-context-manifest（生成 PolyrepoContext manifest，记录 repo_url/branch 等）
   4. Step 4: git -C <target> add -A
   5. Step 4.5: git_security 扫描（target 仓库，工具链 git.exe）
-  6. AI 摘要 + meta 生成
+  6. AI 摘要 + meta 生成（generate-ai-summary.py）
+     6a. diff 审计落盘（--diff-output，原始 diff 持久化供事后分析）
+     6b. Agent Preflight（atomic-agent-preflight.py，确认 LLM 可达后再进入长耗时生成）
+     6c. LLM 语义摘要生成
   7. Step 5: git -C <target> commit
   8. 更新 meta commit hash
   9. Step 6-9: remote → push → upstream → issue sync
@@ -34,6 +38,30 @@ AI 集成：
 认证信息缓存：
   - Step 7 将 repo_url / PAT / username 缓存为模块变量，供 Step 8 upstream 设置复用，
     避免重复读取 .env 或 manifest。
+
+审计产物与追踪路径（按执行顺序）：
+  - Step 0c  PolyrepoContext manifest:
+      `${devroot}/venv/tmp/polyrepo-context-wf-{timestamp}.json`
+      记录 repo_url、branch、is_polyrepo、git_security 路径等运行时上下文。
+  - Step 4.5 git_security 扫描:
+      stdout 实时输出 violations 列表，不单独落盘；发现敏感信息即阻断提交。
+  - Step 6a  diff 审计:
+      `${devroot}/venv/tmp/diff-audit-for-ai-summary-{timestamp}.json`
+      原始完整 diff + diff_stats（length_chars、line_count、is_truncated_for_prompt）。
+      用于事后分析「diff 过大导致摘要异常」的根因。
+  - Step 6b  Agent Preflight manifest:
+      `${devroot}/venv/tmp/agent-preflight-for-ai-summary-{timestamp}.json`
+      记录 LLM 探活结果（model、base_url、response_time_ms、response_preview、error）。
+  - Step 6c  AI Summary 输出:
+      `${devroot}/venv/tmp/ai-summary-{timestamp}.json`
+      生成的 ai_summary、changed_files、commit_message 等。
+  - Step 5   Workflow meta:
+      `${devroot}/venv/tmp/workflow-meta-{timestamp}.json`
+      部署实时配置：commit_message、categories、ai_summary、commit_hash（commit 后更新）。
+  - Step 9   Issue comment:
+      远程落盘到 GitHub Issue #N，本地可通过 Step 10 回读验证。
+  - Step 10  最新 comment 获取:
+      stdout 输出 Issue body + 评论列表，不额外落盘；如需持久化可配合 `--output`。
 
 参数：
 
