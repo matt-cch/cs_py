@@ -212,6 +212,7 @@ def main() -> int:
     parser.add_argument("--cached", action="store_true", help="使用 staged diff（git diff --cached），替代 --commit-range")
     parser.add_argument("--message", default="", help="Commit message（覆盖自动读取）")
     parser.add_argument("--output-dir", default=None, help="输出目录（默认 devroot/venv/tmp）")
+    parser.add_argument("--diff-output", default=None, help="diff 审计文件输出路径。由上游 workflow 显式命名传入，便于审计追踪。未传入时回退到 devroot/venv/tmp/diff-audit-{ts}.json")
     args = parser.parse_args()
 
     print(f"[{datetime.now().isoformat()}] [Progress] ========== AI Summary 全流程开始 ==========")
@@ -253,6 +254,36 @@ def main() -> int:
     if not diff_text.strip():
         print("[warn] diff 为空，可能无变更或范围错误", file=sys.stderr)
         return 0
+
+    # 2.5: diff 审计落盘（原始完整 diff，供后续分析为什么过大）
+    diff_audit = {
+        "meta": {
+            "script": str(Path(__file__).resolve()),
+            "version": "1.0.0",
+            "tag": "py-tools",
+            "executed_at": datetime.now(timezone.utc).isoformat(),
+            "devroot": str(devroot),
+            "target": str(target),
+        },
+        "request": {
+            "diff_source": diff_source,
+            "commit_range": args.commit_range,
+            "cached": args.cached,
+            "changed_files": changed_files,
+        },
+        "diff_raw": diff_text,
+        "diff_stats": {
+            "length_chars": len(diff_text),
+            "line_count": diff_text.count("\n") + 1 if diff_text else 0,
+            "is_truncated_for_prompt": len(diff_text) > 12000,
+            "truncated_at": 12000 if len(diff_text) > 12000 else None,
+        },
+    }
+    diff_output_path = Path(args.diff_output) if args.diff_output else devroot / "venv" / "tmp" / f"diff-audit-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.json"
+    diff_output_path.parent.mkdir(parents=True, exist_ok=True)
+    diff_output_path.write_text(json.dumps(diff_audit, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"[Diff] 原始 diff 已落盘审计: {diff_output_path} ({len(diff_text)} 字符)")
+    sys.stdout.flush()
 
     # 3. 调用 Agent 生成摘要（agent 插件体系仍从 devroot 加载）
     try:

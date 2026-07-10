@@ -143,7 +143,15 @@ def _auto_generate_message(target: Path) -> str:
 def _generate_ai_summary(toolchain_root: Path, target: Path, message: str, cached: bool = False) -> str:
     """调用 generate-ai-summary.py 生成 AI 语义摘要。实时透传子进程输出，避免进度信息被吞。"""
     script = _PY_TOOLS_DIR / "generate-ai-summary.py"
-    cmd = [str(_PY_EXE), str(script), "--devroot", str(toolchain_root), "--target", str(target), "--message", message]
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    diff_output = toolchain_root / "venv" / "tmp" / f"diff-audit-for-ai-summary-{ts}.json"
+    cmd = [
+        str(_PY_EXE), str(script),
+        "--devroot", str(toolchain_root),
+        "--target", str(target),
+        "--message", message,
+        "--diff-output", str(diff_output),
+    ]
     if cached:
         cmd.append("--cached")
 
