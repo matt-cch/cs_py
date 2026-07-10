@@ -163,7 +163,7 @@ def main():
     parser.add_argument("--proxy", default="", help="指定代理域名")
     parser.add_argument("--prefer-direct", action="store_true",
                         help="即使直连速度低于阈值也强制使用直连")
-    parser.add_argument("--min-speed-mbps", type=float, default=0.1,
+    parser.add_argument("--min-speed-mbps", type=float, default=0.05,
                         help="直连最小可用速度阈值（MB/s），默认 0.1")
     args = parser.parse_args()
 

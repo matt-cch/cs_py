@@ -100,6 +100,7 @@ meta: {}
 | [env-migration-md-lint-fix-details-write-text-newline-2026-07-09-113244.md](env-migration-md-lint-fix-details-write-text-newline-2026-07-09-113244.md) | md-lint 修复明细输出改造 + write_text 换行符陷阱修复 | 2026-07-09-113244 |
 | [env-migration-opencode-bash-timeout-guard-2026-07-09-164437.md](env-migration-opencode-bash-timeout-guard-2026-07-09-164437.md) | OpenCode bash-timeout-guard Plugin 新增（自动提升 bash timeout 至 600s） | 2026-07-09-164437 |
 | [env-migration-polyrepo-workflow-completion-2026-07-09-164950.md](env-migration-polyrepo-workflow-completion-2026-07-09-164950.md) | Polyrepo Workflow 改造落地（Pending 清单完结） | 2026-07-09-164950 |
+| [env-migration-bash-timeout-stdout-liveness-2026-07-09-174456.md](env-migration-bash-timeout-stdout-liveness-2026-07-09-174456.md) | Bash 工具超时行为实测观察 — stdout 活跃即免杀 | 2026-07-09-174456 |
 
 
 ## 上级导航

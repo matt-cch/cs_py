@@ -104,11 +104,19 @@ def get_paths(devroot: str) -> dict:
 
 def load_tool_config(tools_config_path: str, tool_name: str) -> dict:
     with open(tools_config_path, "r", encoding="utf-8") as f:
-        tools = json.load(f).get("tools", [])
+        data = json.load(f)
+    tools = data.get("tools", [])
     for t in tools:
         if t["name"] == tool_name:
             return t
     return None
+
+
+def load_download_config(tools_config_path: str) -> dict:
+    """读取全局 download 配置节（如 min_speed_mbps）。"""
+    with open(tools_config_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return data.get("download", {})
 
 
 def _load_download_url_from_index(index_path: str, tool_name: str) -> str:
@@ -181,6 +189,10 @@ def main():
     if not tool:
         print(f"[ERROR] 未找到工具配置: {args.tool_name}")
         sys.exit(1)
+
+    # 读取全局 download 配置（如 min_speed_mbps）
+    download_cfg = load_download_config(paths["tools_config"])
+    min_speed_mbps = download_cfg.get("min_speed_mbps", 0.05)
 
     # 加载 runtime_naming 命名真源插件（三层架构：py_lib → py-sort-rules.json → runtime_naming）
     registry = load_plugins(devroot=devroot, tags=["naming"])
@@ -290,7 +302,8 @@ def main():
 
     route_result = run_atomic(
         os.path.join(paths["atomic_dir"], "atomic-01-route-probe.py"),
-        ["--url", asset_url, "--proxy", args.proxy]
+        ["--url", asset_url, "--proxy", args.proxy,
+         "--min-speed-mbps", str(min_speed_mbps)]
     )
     print(f"  {route_result.get('reason')}")
     if route_result.get("route") == "none":

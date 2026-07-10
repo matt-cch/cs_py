@@ -2,7 +2,7 @@
 r"""
 workflow-git-deploy-full-poly.py — deploy-git-isolated Polyrepo 全链条部署 workflow
 标签：py-tools
-版本：v1.1.0
+版本：v1.1.1
 
 职责：纯编排器，支持单仓库与 polyrepo 两种场景的自动部署。
       工具链根固定为 Path.cwd()，--devroot 仅用于验证一致性。
@@ -19,6 +19,21 @@ workflow-git-deploy-full-poly.py — deploy-git-isolated Polyrepo 全链条部�
   8. 更新 meta commit hash
   9. Step 6-9: remote → push → upstream → issue sync
   10. Step 10: 获取 remote 最新 comment 落盘
+
+安全与审计机制：
+  - Step 4.5 对 staged 文件执行 git_security 安全扫描，发现敏感信息即阻断提交。
+  - push / upstream 操作时通过环境变量阻断 GCM 弹窗（GCM_INTERACTIVE=0、GIT_TERMINAL_PROMPT=0）。
+  - 支持分支保护检测：push 被远程拒绝时自动提示使用 feature 分支 + PR merge 流程。
+  - PAT 从工具链根 .env 读取，不在代码或日志中暴露。
+
+AI 集成：
+  - 未传入 --message 时，自动从 staged 文件名生成 commit message（单文件 / 多文件 / 计数三种模式）。
+  - Step 4 后调用 generate-ai-summary.py 生成 AI 语义摘要，注入部署 meta。
+  - AI 摘要生成失败时自动终止并提示回滚（git reset HEAD）。
+
+认证信息缓存：
+  - Step 7 将 repo_url / PAT / username 缓存为模块变量，供 Step 8 upstream 设置复用，
+    避免重复读取 .env 或 manifest。
 
 参数：
 
