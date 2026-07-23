@@ -1,8 +1,9 @@
 ---
 title: deploy-git-isolated — 执行速查表
 description: Agent 执行参考与用户终端速查，涵盖命令、配置、参数等所有可执行/可操作内容，不限定于命令行格式。
-date: 2026-06-19
-meta: {}
+date: 2026-07-23
+meta:
+  version: 1.1
 ---
 
 # deploy-git-isolated — 执行速查表（EXEC-CHEATSHEET）
@@ -231,6 +232,213 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 
 > 前置：`.env` 中已配置 `GIT_USER_NAME`、`GIT_USER_EMAIL`、`GITHUB_REPO_URL`、`GITHUB_PAT`
 > **铁律**：`--target` 强制必填，不可省略。`--devroot` 仅用于验证与 CWD 一致。
+
+
+## Stage S5.4.1: Polyrepo 初始化（Create + Clone + Smoke Push）
+
+用于从 0 到 1 新建 polyrepo 仓库并完成本地→remote 联动验证。
+
+**Agent:**
+```powershell
+# Step 1: 创建 GitHub 远程仓库
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-gh-repo-create.py" `
+    --devroot "${devroot}" `
+    --owner "matt-cch" `
+    --repo-name "jywl-settlement" `
+    --public `
+    --add-readme `
+    --description "三方物流企业结算模块" `
+    --output "${devroot}\venv\tmp\polyrepo-init-step1-create.json"
+
+# Step 2: Clone 到本地并配置 git identity
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-git-repo-clone.py" `
+    --devroot "${devroot}" `
+    --repo-url "https://github.com/matt-cch/jywl-settlement" `
+    --target-dir "${devroot}\apps\repos\matt-cch\jywl-settlement" `
+    --output "${devroot}\venv\tmp\polyrepo-init-step2-clone.json"
+
+# Step 3: 本地 diff → add → commit（workflow phase）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-phase-git-local-diff-add-commit.py" `
+    --devroot "${devroot}" `
+    --target "${devroot}\apps\repos\matt-cch\jywl-settlement" `
+    --files ".emptydir GOAL.md" `
+    --message "init: add .emptydir and GOAL.md" `
+    --output "${devroot}\venv\tmp\polyrepo-init-step3-commit.json"
+
+# Step 4: Smoke push（无弹窗安全 push）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-git-push-smoke.py" `
+    --devroot "${devroot}" `
+    --target "${devroot}\apps\repos\matt-cch\jywl-settlement" `
+    --remote "origin" `
+    --branch "main" `
+    --output "${devroot}\venv\tmp\polyrepo-init-step4-push.json"
+```
+
+**终端:**
+```powershell
+# 创建远程仓库
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-gh-repo-create.py" --devroot "${devroot}" --owner "matt-cch" --repo-name "jywl-settlement" --public --add-readme --output "${devroot}\venv\tmp\polyrepo-init-step1-create.json"
+
+# Clone 到本地
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-git-repo-clone.py" --devroot "${devroot}" --repo-url "https://github.com/matt-cch/jywl-settlement" --target-dir "${devroot}\apps\repos\matt-cch\jywl-settlement" --output "${devroot}\venv\tmp\polyrepo-init-step2-clone.json"
+
+# 本地 commit
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-phase-git-local-diff-add-commit.py" --devroot "${devroot}" --target "${devroot}\apps\repos\matt-cch\jywl-settlement" --message "init: add .emptydir and GOAL.md" --output "${devroot}\venv\tmp\polyrepo-init-step3-commit.json"
+
+# Smoke push
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-git-push-smoke.py" --devroot "${devroot}" --target "${devroot}\apps\repos\matt-cch\jywl-settlement" --remote "origin" --branch "main" --output "${devroot}\venv\tmp\polyrepo-init-step4-push.json"
+```
+
+> 前置：`.env` 中已配置 `GITHUB_PAT`、`GITHUB_USERNAME`、`GIT_USER_NAME`、`GIT_USER_EMAIL`
+> **调用链**：create → clone → diff-add-commit → push-smoke，四步顺序执行，前一步 exit 0 后方可进入下一步
+
+
+## Stage S5.4.2: JSON 配置原子编辑
+
+> **替代手敲 `edit` 修改 JSON**。用 RFC 6902 JSON Pointer 做结构化编辑，根治缩进微差、逗号遗漏、CRLF 污染、Shell 中文编码损坏等问题。
+
+### 标准三步流程（必须遵守）
+
+**凡涉及 JSON 文件修改，禁止直接用 `edit` 工具，必须按以下三步执行：**
+
+```
+Step 1: write 工具写入 patch 内容到 venv/tmp/patch.json（不经 Shell）
+Step 2: atomic-config-edit-json.py --batch @venv/tmp/patch.json --backup
+Step 3: run-lint.py 验证修改后的 JSON
+```
+
+> **铁律**：
+> 1. 中文内容 / 复杂对象 / 批量更新 → **必须**先 write 到文件，再用 `@file` 传入，禁止直接塞进 `--batch` 参数。
+> 2. 单条短字符串且无中文（如替换时间戳）→ 可直接 `--operation + --json-pointer + --value`。
+> 3. 关键索引文件（verified-task-index.json、verified-runtime-index.json 等）→ **必须**加 `--backup`。
+> 4. 修改后 **必须**执行 `run-lint.py` 验证 JSON 语法 + 编码。
+
+### 单条简单操作（无中文短 value）
+
+**Agent:**
+```powershell
+# 替换时间戳（无中文，可直接传参）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-config-edit-json.py" `
+    --file "${devroot}\references\runtime\verified-task-index.json" `
+    --operation replace `
+    --json-pointer "/meta/last_updated" `
+    --value '"2026-07-22T17:00:00"'
+```
+
+### 批量操作（含中文 / 复杂对象 / 多条——标准流程）
+
+**Step 1: write 工具写入 patch 文件（不经 Shell）**
+
+```
+write → venv/tmp/patch.json
+```
+
+内容示例：
+```json
+[
+  {"op": "replace", "path": "/meta/last_updated", "value": "2026-07-22T17:00:00"},
+  {"op": "add", "path": "/available_scripts_and_tools/my-tool", "value": {"name": "我的工具", "description": "中文描述"}}
+]
+```
+
+**Step 2: 执行编辑（带备份）**
+
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-config-edit-json.py" `
+    --file "${devroot}\references\runtime\verified-task-index.json" `
+    --batch "@venv/tmp/patch.json" `
+    --backup
+```
+
+**Step 3: lint 验证**
+
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" `
+    --devroot "${devroot}" `
+    --files "${devroot}\references\runtime\verified-task-index.json"
+```
+
+### 仅预览（dry-run）
+
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-config-edit-json.py" `
+    --file "${devroot}\references\runtime\verified-task-index.json" `
+    --operation replace `
+    --json-pointer "/meta/last_updated" `
+    --value '"2026-07-22T17:00:00"' `
+    --dry-run
+```
+
+### 常见踩坑速查
+
+| 踩坑场景 | 错误做法 | 正确做法 |
+|---------|---------|---------|
+| 用 `edit` 改 JSON | `edit` 改 oldString，因缩进微差失败 | 用 `atomic-config-edit-json.py` |
+
+
+## Stage S5.6: CSV 列转换（配置驱动）
+
+> **适用范围**：任何需要 CSV 列内容转换的场景（如 Invoice date 批量更新、状态字段替换、正则清洗等）。
+> **核心原则**：配置驱动，改 JSON 配置即可适配新场景，py 框架不变。
+
+### 标准调用（默认配置：Invoice date → today_ymd）
+
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-csv-column-transform.py" `
+    --input "D:\\demo\\FEILIKS_FAPINV.20260722-2607.csv" `
+    --outfile "D:\\demo\\FEILIKS_FAPINV.20260723.csv" `
+    --output "${devroot}\venv\tmp\polyrepo-wf-step3-transform.json"
+```
+
+### 自定义配置（多列转换）
+
+**Step 1: write 工具写入配置 JSON**
+
+```json
+{
+  "transforms": {
+    "Invoice date": {"type": "today_ymd"},
+    "Status": {"type": "fixed", "value": "ACTIVE"},
+    "Amount": {"type": "regex_replace", "pattern": ",", "replacement": ""}
+  }
+}
+```
+
+**Step 2: 执行转换**
+
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-csv-column-transform.py" `
+    --input "D:\\demo\\data.csv" `
+    --outfile "D:\\demo\\data_processed.csv" `
+    --config "${devroot}\venv\tmp\transform-config.json" `
+    --output "${devroot}\venv\tmp\csv-transform-manifest.json"
+```
+
+### 参数语义（严格区分）
+
+| 参数 | 语义 | 必填 | 说明 |
+|------|------|------|------|
+| `--input` | 源 CSV 路径（或目录） | ✅ | 目录时自动扫描 *.csv 取最新 |
+| `--outfile` | 业务产物：转换后的 CSV | ✅ | 只读源文件，写入新文件 |
+| `--output` | 审计产物：manifest JSON | 可选 | workflow 调用时必须显式传入；未传时回退 `venv/tmp/atomic-csv-column-transform-manifest-{ts}.json` |
+| `--config` | 转换规则配置 JSON | 可选 | 未传时使用内置默认 |
+| `--dry-run` | 预览模式 | 可选 | 输出前 3 行转换对比，不写入任何文件 |
+
+### 内置 transform 类型
+
+| type | 说明 | 额外字段 |
+|------|------|---------|
+| `today_ymd` | 今天 YYYYMMDD（UTC） | 无 |
+| `today_iso` | 今天 ISO 日期 | 无 |
+| `fixed` | 固定值 | `value` |
+| `regex_replace` | 正则替换 | `pattern`, `replacement` |
+| `empty` | 清空列 | 无 |
+| 中文直接塞 `--batch` | Shell 编码损坏，中文变乱码 | 先 `write` 到文件，再用 `@file` |
+| 修改后忘记验证 | JSON 语法错误未被发现 | 修改后必执行 `run-lint.py` |
+| 关键索引无备份 | 改坏后无法回滚 | 加 `--backup`，.bak 文件自动保留 |
+| 数组追加用 `--operation add` | 误覆盖已有元素 | 路径用 `/-/`（如 `/trigger_words/-`）表示末尾追加 |
+| 只想更新对象部分字段 | `--operation replace` 覆盖整个对象 | 用 `--operation merge` 深度合并 |
+| 路径用了 `$.foo` 或 `.foo.bar` | 混淆 JSON Path / jq 风格与 JSON Pointer | 必须用 `/foo/bar` 格式，脚本会拦截并提示 |
 
 
 ## Stage S5.5: 版本记录更新

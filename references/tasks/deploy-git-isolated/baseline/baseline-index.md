@@ -32,7 +32,7 @@ meta:
 | [baseline-formats.md](baseline-formats.md) | 文件格式规范（3.x）+ 编码与换行符跨平台一致性（3.7） | 新建/修改文档时 |
 | [baseline-operations.md](baseline-operations.md) | 修订联动、执行路径、版本演进与归档（4.x + 5.x + 7.x） | 执行变更、发布版本时 |
 | [baseline-plugin-architecture.md](baseline-plugin-architecture.md) | 插件化架构、三层模型、命名规范、越级禁止（8.1-8.5 + 8.8 plugin） | 开发/修改 plugin 或 workflow 时 |
-| [baseline-workflow-deploy.md](baseline-workflow-deploy.md) | JS 工具链、全链条部署、Git 空目录保留、三侧冲突仲裁（8.6-8.8 workflow/JS） | 开发 workflow、跨侧工具选型时 |
+| [baseline-workflow-deploy.md](baseline-workflow-deploy.md) | JS 工具链、全链条部署、Git 空目录保留、三侧冲突仲裁、Pipeline Phase 产物统筹（8.6-8.9 workflow/JS） | 开发 workflow、跨侧工具选型时 |
 | [baseline-audit-truth.md](baseline-audit-truth.md) | Trigger 治理、外部工具引用、独立审计、决策真源集中化（8.2 + 8.9-8.10） | 设计审计机制、提取真源模块时 |
 
 
@@ -54,12 +54,14 @@ meta:
 | 12 | 禁止越级调用：Workflow 必须通过 `py_lib.load_plugins()` 获取能力 | [baseline-plugin-architecture.md](baseline-plugin-architecture.md) 8.4.5 |
 | 13 | 审计者不能审计自己，自检≠独立审计 | [baseline-audit-truth.md](baseline-audit-truth.md) 8.9 |
 | 14 | 决策真源集中化：下游只消费、不判断 | [baseline-audit-truth.md](baseline-audit-truth.md) 8.10 |
+| 15 | Pipeline phase 产物由上级通过 `--output` 显式指定，禁止内部封闭生成 | [baseline-workflow-deploy.md](baseline-workflow-deploy.md) 8.9 |
 
 
 ## 版本历史
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v2.1.0 | 2026-07-23 | baseline-workflow-deploy.md 新增 §8.9「Pipeline Phase 产物统筹与 `--output` 统一参数规范」；顶层原则速查追加第 15 条 |
 | v2.0.0 | 2026-07-03 | 从 monolithic `task-canonical-baseline.md`（1600+ 行）拆分为 8 个专题 baseline 文件 + 本导航索引 |
 | v1.9 | 2026-07-03 | 原文件最后版本，含 8.4.7a/8.9/8.10 新增 |
 | v1.8 | 2026-07-03 | 原文件版本，含 8.4.7a/8.9 新增 |

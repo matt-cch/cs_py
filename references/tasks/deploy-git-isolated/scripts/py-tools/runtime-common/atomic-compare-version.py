@@ -50,7 +50,10 @@ def normalize_version(ver: str) -> str:
 
 def _to_sortable(ver: str):
     try:
-        clean = re.sub(r'[a-zA-Z].*$', '', ver)
+        # 将字母序列替换为 .，保留字母前后的数字（如 2.55.0.windows.2 → 2.55.0.2）
+        clean = re.sub(r'[a-zA-Z]+', '.', ver)
+        # 合并连续的点并去掉首尾点
+        clean = re.sub(r'\.+', '.', clean).strip('.')
         parts = clean.split('.')
         return tuple(int(p) for p in parts if p.isdigit())
     except Exception:

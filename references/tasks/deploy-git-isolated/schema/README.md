@@ -1,8 +1,9 @@
 ---
 title: schema 目录索引
 description: deploy-git-isolated schema 子目录分类导航。按格式与职责分层，避免长期堆根。
-date: 2026-06-20
-meta: {}
+date: 2026-07-23
+meta:
+  version: 1.1
 ---
 
 # schema 目录说明
@@ -30,8 +31,10 @@ meta: {}
 | 规范文档 | `docs/plugin-result-schema.md` | 人类阅读、开发参考 |
 | Commit Message 格式模板 | `docs/commit-message-format.md` | Issue 评论中 commit 记录的标准格式（元数据 + 上下文摘要） |
 | 安全审计规范 | `docs/security-audit-spec.md` | 部署前敏感内容巡检流程、检测规则、严重等级定义 |
+| py-tools 脚本规范 | `docs/py-script-docstring-schema.md` | py-tools 脚本的命名约定、docstring schema、修订联动义务、索引登记层级 |
 | Pydantic Model | `py/models.py` | 备选强类型实现（默认 Dict，可选 Pydantic） |
 | 安全审计 Schema | `json/security-audit-schema.json` | 审计报告数据结构契约（AuditReport / PhaseResult / Finding） |
+| CSV 列转换配置 Schema | `json/csv-transform-config-schema.json` | atomic-csv-column-transform.py 的配置驱动契约（transforms / type / value / pattern / replacement） |
 
 
 ## 新增 schema 规则

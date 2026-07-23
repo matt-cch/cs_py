@@ -122,7 +122,12 @@ def main():
     parser = argparse.ArgumentParser(description="真源检测 Workflow")
     parser.add_argument("--devroot", default="", help="devroot 绝对路径（默认自动探测）")
     parser.add_argument("--tool", default="", help="仅检测指定工具")
+    parser.add_argument("--dry-run", action="store_true", help="仅检测，不写入任何文件（包括报告、索引、配置）")
+    parser.add_argument("--no-sync", action="store_true", help="检测并生成报告，但不回写索引和配置")
     args = parser.parse_args()
+
+    dry_run = args.dry_run
+    no_sync = args.no_sync or dry_run  # dry-run 隐含 no-sync
 
     devroot = str(get_devroot(args.devroot or None))
     paths = get_paths(devroot)
@@ -151,12 +156,14 @@ def main():
         upstream_cfg = tool.get("upstream", {})
 
         # Step 1: 本地检测
+        manifest_file = os.path.join(devroot, "venv", "tmp", f"detect-{name}.json")
         local_result = run_atomic(
             os.path.join(paths["common_dir"], "atomic-detect-local.py"),
             ["--config-json", json.dumps(local_cfg, ensure_ascii=False),
              "--devroot", paths["devroot"],
              "--tool-name", name,
-             "--index-path", paths["index_path"]]
+             "--index-path", paths["index_path"],
+             "--manifest-path", manifest_file]
         )
         print(f"  [detect] exe_exists={local_result.get('exe_exists')}, version={local_result.get('local_version') or 'N/A'}")
 
@@ -217,6 +224,7 @@ def main():
             "need_update": compare_result.get("need_update", False),
             "local_error": local_result.get("error"),
             "upstream_error": upstream_result.get("error"),
+            "manifest_path": local_result.get("manifest_path", ""),
         }
         all_results.append(entry)
         print(f"  耗时: {time.time() - step_start:.2f}s")
@@ -237,12 +245,45 @@ def main():
 
     # Step 5: 报告生成
     print("\n[生成报告]")
-    report_result = run_atomic(
-        os.path.join(paths["common_dir"], "atomic-generate-report.py"),
-        ["--results-json", json.dumps(all_results, ensure_ascii=False),
-         "--output-dir", paths["report_dir"],
-         "--script-version", "2.0.0"]
-    )
+    if dry_run:
+        print("  [DRY-RUN] 跳过报告落盘")
+        report_result = {"filepath": "", "summary": {}}
+    else:
+        report_result = run_atomic(
+            os.path.join(paths["common_dir"], "atomic-generate-report.py"),
+            ["--results-json", json.dumps(all_results, ensure_ascii=False),
+             "--output-dir", paths["report_dir"],
+             "--script-version", "2.0.0"]
+        )
+
+    # Step 6: 回写 resolved_path 到索引与配置
+    if not no_sync:
+        print("\n[回写索引与配置]")
+        sync_count = 0
+        for entry in all_results:
+            if entry.get("category") != "toolchain":
+                continue
+            if not entry.get("exe_exists"):
+                continue
+            resolved = entry.get("resolved_path")
+            local_version = entry.get("local_version")
+            if not resolved:
+                continue
+            changed = _sync_index_and_config(
+                paths["index_path"],
+                paths["tools_config"],
+                entry["name"],
+                resolved,
+                local_version,
+                entry.get("manifest_path", "")
+            )
+            if changed:
+                sync_count += 1
+                print(f"  [SYNC] {entry['name']}: executable → {resolved}")
+        if sync_count == 0:
+            print("  无需更新")
+    else:
+        print("\n[回写索引与配置] 已跳过 (--no-sync)")
 
     total_elapsed = time.time() - total_start
     print(f"\n[总耗时] {total_elapsed:.2f}s")
@@ -250,6 +291,91 @@ def main():
     # 有可更新项时返回非零
     outdated = [r for r in all_results if r.get("status") == "outdated"]
     sys.exit(1 if outdated else 0)
+
+
+def _sync_index_and_config(index_path: str, config_path: str, tool_name: str, resolved_path: str, local_version: str, manifest_path: str = "") -> bool:
+    """回写 resolved_path 到 verified-runtime-index.json 和 tools_config.json
+    返回是否有实际变更。candidate_paths 状态以 manifest 中的实测结果为准。
+    """
+    changed = False
+
+    # 读取 manifest（调用方传入，底层只消费）
+    manifest = {}
+    if manifest_path and os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                manifest = json.load(f)
+        except Exception:
+            pass
+
+    # 1. 更新 verified-runtime-index.json
+    if os.path.exists(index_path):
+        try:
+            with open(index_path, "r", encoding="utf-8") as f:
+                index = json.load(f)
+            tc = index.get("toolchain", {}).get(tool_name)
+            if tc:
+                # 更新 executable
+                old_exe = tc.get("executable", "")
+                if old_exe != resolved_path:
+                    tc["executable"] = resolved_path
+                    changed = True
+                # 更新 version
+                if local_version and tc.get("version") != local_version:
+                    tc["version"] = local_version
+                    changed = True
+                # 更新 verified_at
+                from datetime import datetime
+                tc["verified_at"] = datetime.now().isoformat(timespec="seconds")
+                # 更新 candidate_paths：以 manifest 中的实测存在性为准
+                manifest_candidates = manifest.get("candidate_paths", [])
+                for cp in tc.get("candidate_paths", []):
+                    if isinstance(cp, dict):
+                        cp_dir = cp.get("path", "")
+                        cp_exe = cp.get("exe_name", "")
+                        cp_full = os.path.join(cp_dir, cp_exe) if cp_exe else cp_dir
+                        # 解析占位符
+                        cp_full_resolved = cp_full.replace("${devroot}", "").replace("${toolchainroot}", os.environ.get("TOOLCHAINROOT", "D:\\download"))
+                        cp_full_resolved = os.path.expandvars(cp_full_resolved)
+                        # 在 manifest 中查找匹配的路径
+                        manifest_hit = False
+                        for mc in manifest_candidates:
+                            if mc.get("path") == cp_full_resolved and mc.get("exists"):
+                                manifest_hit = True
+                                break
+                        if manifest_hit or cp_full_resolved == resolved_path:
+                            if cp.get("status") != "verified_hit":
+                                cp["status"] = "verified_hit"
+                                changed = True
+                        else:
+                            if cp.get("status") == "verified_hit":
+                                cp["status"] = "missing"
+                                changed = True
+                if changed:
+                    with open(index_path, "w", encoding="utf-8", newline="\n") as f:
+                        json.dump(index, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(f"  [WARN] 索引回写失败 ({tool_name}): {e}")
+
+    # 2. 更新 tools_config.json
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            for tool in config.get("tools", []):
+                if tool.get("name") == tool_name:
+                    local_cfg = tool.get("local", {})
+                    old_exe = local_cfg.get("exe_path", "")
+                    if old_exe != resolved_path:
+                        local_cfg["exe_path"] = resolved_path
+                        changed = True
+                        with open(config_path, "w", encoding="utf-8", newline="\n") as f:
+                            json.dump(config, f, ensure_ascii=False, indent=2)
+                    break
+        except Exception as e:
+            print(f"  [WARN] 配置回写失败 ({tool_name}): {e}")
+
+    return changed
 
 
 if __name__ == "__main__":

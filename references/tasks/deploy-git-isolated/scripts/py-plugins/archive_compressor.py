@@ -96,23 +96,21 @@ def compress_group(cfg: dict, seven_zip: Path, fmt: str = "zip", force: bool = F
     # 根据格式调整后缀
     if fmt == "7z":
         zip_path = zip_path.with_suffix(".7z")
+    elif fmt == "zstd":
+        zip_path = zip_path.with_suffix(".zst")
     else:
         zip_path = zip_path.with_suffix(".zip")
 
-    # 检测另一种格式的旧包
-    alt_suffix = ".zip" if fmt == "7z" else ".7z"
-    alt_path = zip_path.with_suffix(alt_suffix)
-
-    # 删除旧包（当前格式 + 另一种格式）
-    # 原因：黑名单已排除 *.zip / *.7z，输出文件不在压缩范围内；
+    # 删除旧包（当前格式 + 其他格式）
+    # 原因：黑名单已排除 *.zip / *.7z / *.zst，输出文件不在压缩范围内；
     #       旧包是基于上一次 scan 的结果，和当前文件系统可能不一致，
-    #       必须删除后重新压缩，不能跳过。
-    if zip_path.exists():
-        os.remove(zip_path)
-        print(f"[compress] 删除旧包: {zip_path}")
-    if alt_path.exists():
-        os.remove(alt_path)
-        print(f"[compress] 删除旧包: {alt_path}")
+    #       必须删除后重新压缩，不能跳过或追加。
+    all_suffixes = [".zip", ".7z", ".zst"]
+    for suffix in all_suffixes:
+        old_path = zip_path.with_suffix(suffix)
+        if old_path.exists():
+            os.remove(old_path)
+            print(f"[compress] 删除旧包: {old_path}")
 
     # 读取文件数 + 大小统计
     file_count = 0
@@ -151,7 +149,12 @@ def compress_group(cfg: dict, seven_zip: Path, fmt: str = "zip", force: bool = F
             median_size = sizes_only[mid]
 
     # 7z 类型参数
-    type_flag = "-tzip" if fmt == "zip" else "-t7z"
+    if fmt == "7z":
+        type_flag = "-t7z"
+    elif fmt == "zstd":
+        type_flag = "-tzstd"
+    else:
+        type_flag = "-tzip"
 
     cmd = [
         str(seven_zip),

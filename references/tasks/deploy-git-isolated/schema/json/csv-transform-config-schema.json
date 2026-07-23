@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "csv-transform-config-schema",
+  "title": "CSV 列转换配置 Schema",
+  "description": "atomic-csv-column-transform.py 的配置驱动契约。定义哪些列、按什么规则转换。",
+  "type": "object",
+  "required": ["transforms"],
+  "properties": {
+    "transforms": {
+      "type": "object",
+      "description": "列名 → 转换规则映射。键为 CSV header 中的列名，值为转换配置对象。",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "转换类型",
+            "enum": [
+              "today_ymd",
+              "today_iso",
+              "fixed",
+              "regex_replace",
+              "empty"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "description": "fixed 类型的目标固定值"
+          },
+          "pattern": {
+            "type": "string",
+            "description": "regex_replace 类型的正则表达式模式"
+          },
+          "replacement": {
+            "type": "string",
+            "description": "regex_replace 类型的替换字符串"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": { "type": { "const": "fixed" } }
+            },
+            "then": {
+              "required": ["value"]
+            }
+          },
+          {
+            "if": {
+              "properties": { "type": { "const": "regex_replace" } }
+            },
+            "then": {
+              "required": ["pattern", "replacement"]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "examples": [
+    {
+      "transforms": {
+        "Invoice date": { "type": "today_ymd" },
+        "Status": { "type": "fixed", "value": "ACTIVE" },
+        "Amount": { "type": "regex_replace", "pattern": ",", "replacement": "" }
+      }
+    }
+  ]
+}

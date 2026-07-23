@@ -65,7 +65,12 @@ def stage_compress(group_name: str, cfg: dict, fmt: str, force: bool, registry, 
         print(f"[auto] 已验证 7z 更优，自动选择 7z")
 
     cfg = registry.archive_config.update_zip_extension(cfg, fmt)
-    seven_zip = registry.archive_config.find_7z_exe(devroot=cfg["src"].parents[1] if group_name == "cs_py" else cfg["src"].parent)
+    # zstd 格式必须使用 ZS 版 7z
+    variant = "zs" if fmt == "zstd" else "standard"
+    seven_zip = registry.archive_config.find_7z_exe(
+        devroot=cfg["src"].parents[1] if group_name == "cs_py" else cfg["src"].parent,
+        variant=variant
+    )
     result = registry.archive_compressor.compress_group(cfg, seven_zip, fmt=fmt, force=force, timeout=timeout)
     return result
 
@@ -142,7 +147,7 @@ def main():
     parser = argparse.ArgumentParser(description="项目归档主 CLI（py-lib 入口版）")
     parser.add_argument("--group", nargs="+", required=True, choices=["cs_py", "venv"], help="归档分组")
     parser.add_argument("--stage", default="all", help="执行阶段：scan,compress,verify，逗号分隔或 all")
-    parser.add_argument("--format", default="7z", choices=["zip", "7z", "auto"], help="输出格式")
+    parser.add_argument("--format", default="7z", choices=["zip", "7z", "zstd", "auto"], help="输出格式")
     parser.add_argument("--force", action="store_true", help="强制覆盖已存在的输出文件")
     parser.add_argument("--devroot", default=None, help="devroot 路径（默认自动探测）")
     parser.add_argument("--timeout", type=int, default=0, help="压缩阶段超时秒数，0 表示无超时")

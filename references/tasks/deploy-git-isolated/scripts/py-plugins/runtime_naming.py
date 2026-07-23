@@ -51,9 +51,10 @@ def get_asset_name(tool_name: str, target_version: str,
     return f"{tool_name}-{target_version}{ext}"
 
 
-def get_extract_dir(tool_name: str, target_version: str) -> str:
-    """唯一真源：解压/部署目录名生成。"""
-    return f"{tool_name}-{target_version}-extracted"
+def get_extract_dir(tool_name: str, target_version: str, package_type: str = "zip") -> str:
+    """唯一真源：解压/部署目录名生成。python_wheel 保留 whl 文件不解压，目录后缀为 -wheel。"""
+    suffix = "-wheel" if package_type == "python_wheel" else "-extracted"
+    return f"{tool_name}-{target_version}{suffix}"
 
 
 def get_download_paths(download_dir: str, tool_name: str, target_version: str,
@@ -61,7 +62,7 @@ def get_download_paths(download_dir: str, tool_name: str, target_version: str,
                        package_type: str = "zip") -> dict:
     """唯一真源：完整路径生成。"""
     asset = get_asset_name(tool_name, target_version, asset_name, url_template, package_type)
-    extract = get_extract_dir(tool_name, target_version)
+    extract = get_extract_dir(tool_name, target_version, package_type)
     return {
         "asset_name": asset,
         "asset_path": os.path.join(download_dir, asset),

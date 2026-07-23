@@ -298,5 +298,91 @@ Step 4.5: atomic-check-staged-after-add.py
 > 本条是 §8.8 的**最低可接受标准（Minimum Viable Standard）**。新增冲突场景但未完成上述登记的，视为架构欠债，须在下一次触及该工具时补登。
 
 
+## 8.9 Pipeline Phase 产物统筹与 `--output` 统一参数规范
+
+> **来源**：用户与 Agent 在 2026-07-23 对话中共同确认。本节固化 polyrepo / 全链条部署 pipeline 中"跨 phase 产物统筹"的设计意图。
+
+### 8.9.1 核心意图
+
+Pipeline 编排层（workflow）需要对各 phase 产生的**所有关键产物**进行统一掌控：追踪、读取、字段传递、事后清理、日志归档。这些产物不限于 JSON manifest，还包括截图、diff 文本、扫描报告等。
+
+为实现这一意图，所有产生可落盘产物的 atomic / workflow-phase 脚本，其产物路径**必须由上级调用者显式指定**，禁止由脚本内部封闭生成。
+
+### 8.9.2 `--output` 统一参数铁律
+
+**CLI 参数统一名**：`--output`
+
+| 规则 | 说明 |
+|------|------|
+| 参数语义 | 本 phase 的核心产物文件路径（不限定格式） |
+| 必填性 | workflow 调用时**必须显式传入**；独立运行时未传入可回退到默认路径 |
+| 禁止别名 | 禁止同时使用 `--manifest` / `--output` / `--outfile` 等多个参数名。已存在的 `--manifest` 等历史参数须迁移为 `--output` |
+| 回退路径 | `--output` 未传入时，默认落盘到 `venv/tmp/{tool-name}-manifest-{timestamp}.json`。`tool-name` 取脚本文件名（不含扩展名），不做额外转换 |
+
+### 8.9.3 代码内命名规范
+
+CLI 统一为 `--output`，代码内部仍保留 `manifest` 术语描述结构化审计数据：
+
+| 层级 | 变量名 | 类型 |
+|------|--------|------|
+| CLI 参数 | `args.output` | `str` |
+| 路径对象 | `output_path` | `Path` |
+| 产物数据字典 | `manifest` | `dict` |
+| 写入函数 | `save_manifest(devroot, manifest, output_path)` | 函数 |
+
+### 8.9.4 文件名命名规则
+
+**默认回退**（独立运行，无 `--output` 时）：
+```
+{devroot}/venv/tmp/{tool-name}-manifest-{timestamp}.json
+```
+> `tool-name` = 脚本文件名（不含 `.py` 扩展名），例如 `atomic-gh-repo-create`、`workflow-phase-git-local-diff-add-commit`。
+
+**编排层指定**（workflow 调用，推荐格式）：
+```
+{pipeline-id}-step{step-number}-{phase-name}-{timestamp}.{ext}
+```
+
+**示例**：
+- `polyrepo-wf-step0c-context-20260722-143000.json`
+- `polyrepo-wf-step4-diff-audit-20260722-143105.json`
+- `polyrepo-wf-step6b-preflight-20260722-143200.json`
+
+### 8.9.5 已存在脚本的迁移义务
+
+以下脚本须按本节规范整改：
+
+| 脚本 | 当前参数 | 整改动作 |
+|------|---------|---------|
+| `atomic-agent-preflight.py` | `--manifest` | 改为 `--output`；`generate-ai-summary.py` 调用处联动 |
+| `atomic-polyrepo-context-manifest.py` | `--output` | 已符合，无需改动 |
+| `atomic-check-chrome-session.py` | `--output` / `-o` | 已符合，移除 `-o` 短别名避免歧义 |
+| `workflow-security-audit.py` | `--output` | 已符合 |
+| `fetch_issue.py` | `--output` | 已符合 |
+| `atomic-gh-repo-create.py` | 无 | 新增 `--output` |
+| `atomic-git-repo-clone.py` | 无 | 新增 `--output` |
+| `atomic-git-push-smoke.py` | 无 | 新增 `--output` |
+| `workflow-phase-git-local-diff-add-commit.py` | 无 | 新增 `--output` |
+| `atomic-config-edit-json.py` | 无 | 新增 `--output` |
+
+### 8.9.6 上下游契约示例
+
+**workflow 生成侧**（指定路径）：
+```python
+output_path = toolchain_root / "venv" / "tmp" / f"polyrepo-wf-step0c-context-{ts}.json"
+cmd = [..., str(script), "--devroot", str(toolchain_root), "--output", str(output_path)]
+```
+
+**workflow 消费侧**（读取上一 phase 产物）：
+```python
+if output_path.exists():
+    manifest_data = json.loads(output_path.read_text())
+    repo_url = manifest_data.get("repo_url", "")
+    next_cmd = [..., "--repo-url", repo_url]
+```
+
+**注意**：消费侧内部变量仍可用 `manifest_data` / `manifest_path`，仅 CLI 参数统一为 `--output`。
+
+
 ***
 > **导航**：返回 [baseline-index.md](baseline-index.md)

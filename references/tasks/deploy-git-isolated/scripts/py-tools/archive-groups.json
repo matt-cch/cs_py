@@ -8,7 +8,7 @@
     "cs_py": {
       "arcname": "cs_py",
       "whitelist": [],
-      "blacklist": ["venv/", "/*.zip", "/*.7z"],
+      "blacklist": ["venv/", ".agents/", ".opencode/", "out/", "__pycache__/", ".git/", "/*.zip", "/*.7z", "/*.zst", "/*.rar"],
       "cwd_parent_level": 1,
       "zip_name": "cs_py"
     },

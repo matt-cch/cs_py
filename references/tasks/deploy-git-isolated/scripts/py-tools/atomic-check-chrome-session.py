@@ -176,7 +176,7 @@ def main():
         help="登录态标志 cookie 名，逗号或空格分隔（默认头条系）",
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
         default=None,
         help="Manifest 输出路径（默认: devroot/venv/tmp/chrome-session-manifest-{timestamp}.json）",
     )

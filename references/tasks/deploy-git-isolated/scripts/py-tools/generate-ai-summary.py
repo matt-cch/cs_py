@@ -147,7 +147,7 @@ Diff：
     # Agent Preflight: 调用 atomic-agent-preflight.py 确认 LLM 可达
     preflight_script = devroot / "references" / "tasks" / "deploy-git-isolated" / "scripts" / "py-tools" / "atomic-agent-preflight.py"
     preflight_manifest = devroot / "venv" / "tmp" / f"agent-preflight-for-ai-summary-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.json"
-    preflight_cmd = [str(devroot / "venv" / "py" / "python.exe"), str(preflight_script), "--devroot", str(devroot), "--manifest", str(preflight_manifest)]
+    preflight_cmd = [str(devroot / "venv" / "py" / "python.exe"), str(preflight_script), "--devroot", str(devroot), "--output", str(preflight_manifest)]
 
     print(f"[{datetime.now().isoformat()}] [Progress] Agent Preflight: 调用 atomic-agent-preflight.py...")
     sys.stdout.flush()

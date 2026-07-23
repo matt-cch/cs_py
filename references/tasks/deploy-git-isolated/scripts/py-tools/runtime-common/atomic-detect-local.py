@@ -94,7 +94,7 @@ def _fallback_version(exe: str) -> str:
 # 主逻辑
 # =============================================================================
 
-def detect_local(config: dict, devroot: str, tool_name: str, index_path: str = "", get_version_script: str = "") -> dict:
+def detect_local(config: dict, devroot: str, tool_name: str, index_path: str = "", get_version_script: str = "", manifest_path: str = "") -> dict:
     mode = config.get("mode", "")
     exe_path = resolve_path(config.get("exe_path", ""), devroot)
 
@@ -106,6 +106,7 @@ def detect_local(config: dict, devroot: str, tool_name: str, index_path: str = "
         "fallback_version": None,
         "error": None,
         "candidate_hit": None,
+        "manifest_path": manifest_path,
     }
 
     # 1. 检查 exe 存在性（支持 fallback_paths）
@@ -156,11 +157,19 @@ def detect_local(config: dict, devroot: str, tool_name: str, index_path: str = "
             exe_path=actual_exe,
             mode=mode,
             devroot=devroot,
+            index_path=index_path,
+            tool_name=tool_name,
+            manifest_path=manifest_path,
             version_arg=config.get("version_arg", "--version"),
             interpreter=resolve_path(config.get("interpreter", ""), devroot) if config.get("interpreter") else "",
             package_name=config.get("package_name", "")
         )
         version = rv_result.get("version")
+        # 如果 runtime_version 已经通过 fallback 命中，同步 resolved_path
+        if rv_result.get("path") and rv_result["path"] != actual_exe:
+            actual_exe = rv_result["path"]
+            result["resolved_path"] = actual_exe
+            result["exe_path"] = actual_exe
 
     # 4. 兜底
     if not version:
@@ -197,10 +206,11 @@ def main():
     parser.add_argument("--tool-name", default="", help="工具名（用于 candidate_paths 兜底）")
     parser.add_argument("--index-path", default="", help="verified-runtime-index.json 路径")
     parser.add_argument("--get-version-script", default="", help="get-runtime-version.py 绝对路径")
+    parser.add_argument("--manifest-path", default="", help="manifest 上下文输出路径（调用方传入，供上层获取完整探测过程）")
     args = parser.parse_args()
 
     config = json.loads(args.config_json)
-    result = detect_local(config, args.devroot, args.tool_name, args.index_path, args.get_version_script)
+    result = detect_local(config, args.devroot, args.tool_name, args.index_path, args.get_version_script, args.manifest_path)
 
     # 输出 JSON（无额外 stdout 干扰）
     print(json.dumps(result, ensure_ascii=False))

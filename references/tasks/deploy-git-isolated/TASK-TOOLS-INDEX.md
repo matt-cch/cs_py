@@ -1,9 +1,9 @@
 ---
 title: deploy-git-isolated 可用工具速查表
 description: 本 task 全部可用工具的索引、职责、路径与边界说明。包含本地专属脚本与外部通用工具的引用链路，防止重复造轮子。
-date: 2026-06-20
+date: 2026-07-23
 meta:
-  version: 1.3
+  version: 1.4
 ---
 
 # deploy-git-isolated 可用工具速查表
@@ -388,6 +388,12 @@ Python 版部署流水线，与 PS 版 Step 1-8 功能对等。`workflow-deploy-
 | `workflow-git-deploy-full-poly.py` | **Polyrepo 全链条部署 Workflow**：纯编排器，支持单仓库与 polyrepo 两种场景。--target 强制必填（polyrepo 调用契约），--devroot 仅验证与 CWD 一致。编排 Step 0a/0b/0c → 4 → 4.5 → 5 → 6 → 7 → 8 → 9 → 10 | 跨仓库/多根部署、polyrepo 流水线 | ready |
 | `atomic-polyrepo-context-manifest.py` | **原子：PolyrepoContext manifest 生成**。从 toolchain_root + target 构造 PolyrepoContext 并序列化（repo_url/branch/is_polyrepo 等），供 workflow Step 0c 与 Step 7/9/10 复用。--target 强制必填 | poly workflow Step 0c、运行时上下文登记 | ready |
 | `generate-ai-summary.py` | **Workflow 内嵌能力：AI 语义摘要生成器**。读取 git diff（--target 指定仓库，--cached 用 staged），调用 agent 插件体系生成中文摘要并落盘，被 poly workflow Step 4→5 之间调用。--target 强制必填 | 自动生成 commit 语义摘要、注入部署 meta | ready |
+| `atomic-gh-repo-create.py` | **原子：GitHub 远程仓库创建**。通过 GH CLI 创建仓库，自动注入 PAT、脱敏 stdout、生成 manifest。支持 --public/--private/--add-readme/--description | polyrepo 初始化 Step 0（创建远程仓库） | ready |
+| `atomic-git-repo-clone.py` | **原子：本地仓库 clone 与身份配置**。隔离 git.exe clone + local git config（user.name/email）+ 验证 remote/branch/status + manifest | polyrepo 初始化 Step 1（clone 远程仓库到本地） | ready |
+| `atomic-git-push-smoke.py` | **原子：无弹窗安全 smoke push**。构造 PAT 认证 URL + 阻断 GCM 弹窗 + 双路 preflight（staged + 未 push commit）+ manifest | polyrepo 初始化验证、workflow Step 7 push | ready |
+| `workflow-phase-git-local-diff-add-commit.py` | **Phase：本地 diff + add + commit**。输出 diff 审阅 → git add（-A 或 --files）→ git commit（自动生成或 --message）。执行后进入「已 commit 未 push」状态，下游接 atomic-git-push-smoke.py | 本地变更提交（独立 phase，不触及 remote） | ready |
+| `atomic-config-edit-json.py` | **原子：JSON 配置结构化编辑**。RFC 6902 JSON Pointer + JSON Patch，支持单条/批量（@file）、add/replace/remove/merge、强制 LF、备份、dry-run | 修订 JSON 索引/配置文件（替代手敲 edit） | ready |
+| `atomic-csv-column-transform.py` | **原子：CSV 列无损转换**。读取源 CSV，按配置规则对指定列进行无损转换（today_ymd / today_iso / fixed / regex_replace / empty），写入新 CSV，生成 manifest。配置驱动，改 JSON 配置即可适配新场景，py 框架不变。源于 feiliks-invoice-csv 工具的泛化 | CSV 列内容转换、Invoice date 批量更新、CSV 数据处理 | ready |
 
 **架构**：
 ```

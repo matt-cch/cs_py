@@ -14,7 +14,7 @@ atomic-agent-preflight.py — Agent / LLM 探活预检原子工具
 参数：
     --devroot   工具链根路径（默认 Path.cwd()）
     --prompt    自定义探活 prompt（默认：请仅回复'OK'...）
-    --manifest  manifest 输出路径（默认：devroot/venv/tmp/agent-preflight-{ts}.json）
+    --output    产物输出路径（默认：devroot/venv/tmp/agent-preflight-{ts}.json）
 
 返回（stdout 最后一行 JSON）：
     {"success": true, "model": "kimi-k2.6", "base_url": "...", "response_time_ms": 2710, "response_preview": "OK", "manifest": "..."}
@@ -41,7 +41,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Agent / LLM 探活预检原子工具")
     parser.add_argument("--devroot", default=None, help="工具链根路径（默认 Path.cwd()）")
     parser.add_argument("--prompt", default="请仅回复'OK'，不要添加任何其他内容。", help="自定义探活 prompt")
-    parser.add_argument("--manifest", default=None, help="manifest 输出路径。由上游 workflow 显式命名传入，便于上下文追踪。未传入时回退到 devroot/venv/tmp/agent-preflight-{ts}.json")
+    parser.add_argument("--output", default=None, help="产物输出路径。由上游 workflow 显式命名传入，便于上下文追踪。未传入时回退到 devroot/venv/tmp/agent-preflight-{ts}.json")
     args = parser.parse_args()
 
     devroot = Path(args.devroot) if args.devroot else Path.cwd()
@@ -134,11 +134,11 @@ def main() -> int:
     manifest_dir = devroot / "venv" / "tmp"
     manifest_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    manifest_path = Path(args.manifest) if args.manifest else manifest_dir / f"agent-preflight-{ts}.json"
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    result["manifest"] = str(manifest_path)
+    output_path = Path(args.output) if args.output else manifest_dir / f"agent-preflight-{ts}.json"
+    output_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    result["manifest"] = str(output_path)
 
-    print(f"[{datetime.now().isoformat()}] [Progress] Manifest 已生成: {manifest_path}")
+    print(f"[{datetime.now().isoformat()}] [Progress] Manifest 已生成: {output_path}")
     sys.stdout.flush()
 
     # stdout 最后一行输出 JSON，供上游脚本解析

@@ -169,6 +169,8 @@ def discover_tools(devroot: Path) -> list:
     for md_file in sorted(version_dir.glob("*.md")):
         if md_file.name.endswith("-history.md"):
             continue
+        if md_file.name.lower() == "readme.md":
+            continue
         tool_name = md_file.stem
         history_path = version_dir / f"{tool_name}-history.md"
         tools.append((tool_name, md_file, history_path))
@@ -212,6 +214,11 @@ def build_detect_kwargs(tool_config: dict, devroot: str) -> dict:
         pass
     elif mode == "file-version":
         pass
+
+    # 传入 tools_config 中声明的 fallback_paths，供 detect() 第一层 fallback 使用
+    fallback_paths = local.get("fallback_paths", [])
+    if fallback_paths:
+        kwargs["fallback_paths"] = fallback_paths
 
     return kwargs
 
@@ -286,7 +293,16 @@ def main():
         kwargs = build_detect_kwargs(tool_cfg, devroot_str)
 
         # 3. 实测本地版本（通过 registry 调用底座插件）
-        result = registry.runtime_version.detect(exe_path, mode=mode, devroot=devroot_str, **kwargs)
+        # 传入 index_path 和 tool_name，让 detect() 在路径 miss 时 fallback 扫描索引 candidate_paths
+        # manifest 由调用方传入路径，底层负责写出完整探测上下文
+        index_path = str(devroot / "references" / "runtime" / "verified-runtime-index.json")
+        manifest_file = str(devroot / "venv" / "tmp" / f"update-version-detect-{config_name}.json")
+        result = registry.runtime_version.detect(
+            exe_path, mode=mode, devroot=devroot_str,
+            index_path=index_path, tool_name=config_name,
+            manifest_path=manifest_file,
+            **kwargs
+        )
         actual_ver = result.get("version")
         print(f"  实测版本: {actual_ver} (status: {result['status']}, path: {result['path']})")
 

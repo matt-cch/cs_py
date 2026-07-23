@@ -89,6 +89,9 @@ def detect(
     exe_path: str,
     mode: str = "subprocess-version",
     devroot: str = "",
+    index_path: str = "",
+    tool_name: str = "",
+    manifest_path: str = "",
     **kwargs
 ) -> dict:
     """
@@ -98,20 +101,25 @@ def detect(
         exe_path: 可执行文件路径（支持 ${devroot} 占位符）
         mode: 检测模式（见模块文档）
         devroot: devroot 绝对路径（自动探测时可不传）
+        index_path: 索引路径（用于 candidate_paths fallback）
+        tool_name: 工具名（用于 candidate_paths fallback）
+        manifest_path: manifest 输出路径（调用方传入，底层只负责写出完整上下文）
         **kwargs: 模式特定参数
             - subprocess-version: version_arg="--version"
             - package-import: interpreter, package_name
             - python-self: interpreter
             - cursor-special: 无
             - file-version: 无
+            - fallback_paths: list[str]
 
     返回:
         {
             "version": str|None,
-            "path": str,          # 解析后的绝对路径
+            "path": str,          # 最终解析后的绝对路径
             "status": "OK"|"ERROR",
             "source": str,        # 版本来源标识
-            "error": str|None
+            "error": str|None,
+            "manifest_path": str  # 若传入则返回相同路径
         }
     """
     resolved = resolve_path(exe_path, devroot)
@@ -121,11 +129,59 @@ def detect(
         "status": "ERROR",
         "source": mode,
         "error": None,
+        "manifest_path": manifest_path,
+    }
+
+    # manifest 上下文（调用方通过 manifest_path 获取完整探测过程）
+    manifest = {
+        "tool_name": tool_name,
+        "mode": mode,
+        "primary_path": {"path": resolved, "exists": os.path.exists(resolved)},
+        "fallback_paths": [],
+        "candidate_paths": [],
+        "resolved_path": None,
+        "local_version": None,
+        "status": "ERROR",
+        "error": None,
     }
 
     if not os.path.exists(resolved):
+        # fallback 1: kwargs 中的 fallback_paths
+        fallback_hit = None
+        for fb in kwargs.get("fallback_paths", []):
+            fb_resolved = resolve_path(fb, devroot)
+            fb_exists = os.path.exists(fb_resolved)
+            manifest["fallback_paths"].append({"path": fb_resolved, "exists": fb_exists})
+            if fb_exists and not fallback_hit:
+                resolved = fb_resolved
+                fallback_hit = fb_resolved
+
+        # fallback 2: 扫描索引中的 candidate_paths
+        if not os.path.exists(resolved) and index_path and tool_name:
+            candidates = _load_candidate_paths(index_path, tool_name)
+            for candidate in candidates:
+                if isinstance(candidate, dict):
+                    candidate_dir = resolve_path(candidate.get("path", ""), devroot)
+                    candidate_exe_name = candidate.get("exe_name", "")
+                    candidate_full = os.path.join(candidate_dir, candidate_exe_name) if candidate_exe_name else candidate_dir
+                else:
+                    candidate_full = resolve_path(candidate, devroot)
+                cp_exists = os.path.exists(candidate_full)
+                manifest["candidate_paths"].append({"path": candidate_full, "exists": cp_exists})
+                if cp_exists and not fallback_hit:
+                    resolved = candidate_full
+                    fallback_hit = candidate_full
+
+        if fallback_hit:
+            result["path"] = resolved
+
+    if not os.path.exists(resolved):
         result["error"] = f"文件不存在: {resolved}"
+        manifest["error"] = result["error"]
+        _write_manifest(manifest_path, manifest)
         return result
+
+    manifest["resolved_path"] = resolved
 
     try:
         if mode == "subprocess-version":
@@ -144,17 +200,36 @@ def detect(
             ver = _detect_subprocess_version(kwargs.get("interpreter") or resolved, "--version")
         else:
             result["error"] = f"未知的检测模式: {mode}"
+            manifest["error"] = result["error"]
+            _write_manifest(manifest_path, manifest)
             return result
 
         if ver:
             result["version"] = ver
             result["status"] = "OK"
+            manifest["local_version"] = ver
+            manifest["status"] = "OK"
         else:
             result["error"] = "未能提取到版本号"
+            manifest["error"] = result["error"]
     except Exception as e:
         result["error"] = str(e)
+        manifest["error"] = str(e)
 
+    _write_manifest(manifest_path, manifest)
     return result
+
+
+def _write_manifest(manifest_path: str, manifest: dict):
+    """将 manifest 上下文写入指定路径（调用方负责传参定位）"""
+    if not manifest_path:
+        return
+    try:
+        os.makedirs(os.path.dirname(manifest_path) or ".", exist_ok=True)
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
 
 # =============================================================================
@@ -306,6 +381,18 @@ def _detect_package_import(interpreter: str, package: str, devroot: str) -> Opti
     except Exception:
         pass
     return _detect_package_import_whl(package, devroot)
+
+
+def _load_candidate_paths(index_path: str, tool_name: str) -> list:
+    """从 verified-runtime-index.json 读取 candidate_paths"""
+    if not os.path.exists(index_path):
+        return []
+    try:
+        with open(index_path, "r", encoding="utf-8") as f:
+            index = json.load(f)
+        return index.get("toolchain", {}).get(tool_name, {}).get("candidate_paths", [])
+    except Exception:
+        return []
 
 
 # =============================================================================

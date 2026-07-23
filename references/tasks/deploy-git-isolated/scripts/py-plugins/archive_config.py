@@ -14,8 +14,11 @@ import json
 import os
 from pathlib import Path
 
-# 默认 7z 路径（fallback）
+# 默认 7z 路径（fallback，标准版）
 _DEFAULT_7Z_PATH = Path(r"D:\download\7-Zip\7z.exe")
+
+# ZS 版 7z 路径模板（支持 zstd）
+_7Z_ZS_PATH = Path(r"D:\download\7-Zip-ZS\7z.exe")
 
 # verified-runtime-index.json 路径模板
 _RUNTIME_INDEX_TEMPLATE = Path(r"${devroot}") / "references" / "runtime" / "verified-runtime-index.json"
@@ -84,17 +87,19 @@ def _find_toolchainroot(devroot: Path) -> Path:
     return Path(r"D:\download")
 
 
-def find_7z_exe(devroot = None) -> Path:
+def find_7z_exe(devroot = None, variant: str = "standard") -> Path:
     r"""
     查找 7z 可执行文件路径。
 
     优先级：
     1. 环境变量 SEVEN_ZIP
     2. verified-runtime-index.json -> toolchainroot/7-Zip/7z.exe
-    3. 默认 D:\download\7-Zip\7z.exe
+    3. 默认 D:\download\7-Zip\7z.exe（标准版）
+    4. ZS 版 fallback: D:\download\7-Zip-ZS\7z.exe（当 variant="zs" 时）
 
     参数:
         devroot: devroot 路径，用于读取 verified-runtime-index.json
+        variant: "standard" 或 "zs"，zs 时优先查找 7-Zip-ZS 路径
 
     返回:
         Path: 7z.exe 绝对路径
@@ -102,6 +107,11 @@ def find_7z_exe(devroot = None) -> Path:
     异常:
         FileNotFoundError: 找不到 7z.exe
     """
+    # ZS 版优先检查（当显式要求 zs 时）
+    if variant == "zs":
+        if _7Z_ZS_PATH.exists():
+            return _7Z_ZS_PATH.resolve()
+
     # 1. 环境变量
     env_7z = os.environ.get("SEVEN_ZIP", "")
     if env_7z:
@@ -116,12 +126,12 @@ def find_7z_exe(devroot = None) -> Path:
         if candidate.exists():
             return candidate.resolve()
 
-    # 3. 默认 fallback
+    # 3. 默认 fallback（标准版）
     if _DEFAULT_7Z_PATH.exists():
         return _DEFAULT_7Z_PATH.resolve()
 
     raise FileNotFoundError(
-        f"找不到 7z.exe。"
+        f"找不到 7z.exe (variant={variant})。"
         f"已尝试: 环境变量 SEVEN_ZIP={env_7z}, "
         f"toolchainroot/7-Zip/7z.exe, "
         f"默认路径 {_DEFAULT_7Z_PATH}"
@@ -197,15 +207,16 @@ def update_zip_extension(cfg: dict, fmt: str) -> dict:
 
     参数:
         cfg: get_group_config 返回的配置字典
-        fmt: "zip" 或 "7z"
+        fmt: "zip"、"7z" 或 "zstd"
 
     返回:
         更新后的配置字典（zip 路径已变更）
     """
     cfg = dict(cfg)  # 浅拷贝
-    name = cfg["name"]
     if fmt == "7z":
         cfg["zip"] = cfg["zip"].with_suffix(".7z")
+    elif fmt == "zstd":
+        cfg["zip"] = cfg["zip"].with_suffix(".zst")
     else:
         cfg["zip"] = cfg["zip"].with_suffix(".zip")
     return cfg

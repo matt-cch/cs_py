@@ -105,6 +105,14 @@ meta: {}
 | [env-migration-deploy-git-polyrepo-index-completion-2026-07-10-151251.md](env-migration-deploy-git-polyrepo-index-completion-2026-07-10-151251.md) | deploy-git-isolated polyrepo 脚本索引补全与 staged 回滚能力建设（poly.py 语法修复 + Step 4.5 消除越级 + 索引全量登记） | 2026-07-10-151251 |
 | [env-migration-download-article-index-docstring-2026-07-10-162824.md](env-migration-download-article-index-docstring-2026-07-10-162824.md) | 头条文章下载工具链索引补全与 docstring 增强（ENTRY.json 登记 + docstring 重写 + 浏览器工具聚合导航） | 2026-07-10-162824 |
 | [env-migration-deploy-git-gh-toolchain-docs-registration-2026-07-10-173616.md](env-migration-deploy-git-gh-toolchain-docs-registration-2026-07-10-173616.md) | deploy-git-isolated gh 工具链文档补登记（4 文件补登 + docstring 增强 + team-docs playbook 新建） | 2026-07-10-173616 |
+| [env-migration-verify-runtime-auto-sync-2026-07-11-132155.md](env-migration-verify-runtime-auto-sync-2026-07-11-132155.md) | verify-runtime 自动回写机制建设（manifest 上下文 + 索引/配置联动回写 + `--dry-run`/`--no-sync`） | 2026-07-11-132155 |
+| [env-migration-runtime-download-wheel-fix-and-version-compare-logic-2026-07-19-110331.md](env-migration-runtime-download-wheel-fix-and-version-compare-logic-2026-07-19-110331.md) | 运行时下载 whl 解压修复与版本比较逻辑修正（package_type 统一命名 + git windows 版本号比较修复） | 2026-07-19-110331 |
+| [env-migration-archive-blacklist-fix-and-venv-size-discovery-2026-07-19-123601.md](env-migration-archive-blacklist-fix-and-venv-size-discovery-2026-07-19-123601.md) | 归档黑名单匹配修复与 venv.7z 大小发现（match_blacklist 第三项检查 + cs_py 黑名单补全 + 旧包删除 bug 修复） | 2026-07-19-123601 |
+| [env-migration-ftp-toolchain-test-and-workflow-staged-rollback-2026-07-19-142559.md](env-migration-ftp-toolchain-test-and-workflow-staged-rollback-2026-07-19-142559.md) | FTP 工具链测试与 workflow-poly staged 回滚验证（连通性/manifest/下载 + Step 4 回滚验证） | 2026-07-19-142559 |
+| [env-migration-verify-runtime-json-crlf-fix-2026-07-21-142408.md](env-migration-verify-runtime-json-crlf-fix-2026-07-21-142408.md) | 修复 verify-runtime JSON 回写 CRLF 缺陷（open newline="\n" 根治） | 2026-07-21-142408 |
+| [env-migration-jywl-settlement-polyrepo-init-2026-07-21-173210.md](env-migration-jywl-settlement-polyrepo-init-2026-07-21-173210.md) | jywl-settlement Polyrepo 初始化与 Atomic 工具链建设（仓库创建、安全基线、IDE 集成、smoke push） | 2026-07-21-173210 |
+| [env-migration-pipeline-output-unification-2026-07-23-104308.md](env-migration-pipeline-output-unification-2026-07-23-104308.md) | Pipeline Phase 产物统筹与 `--output` 统一参数规范整改 | 2026-07-23-104308 |
+| [env-migration-csv-column-transform-tool-2026-07-23-134521.md](env-migration-csv-column-transform-tool-2026-07-23-134521.md) | CSV 列无损转换原子工具泛化建设（配置驱动 + schema + 文档索引） | 2026-07-23-134521 |
 
 
 ## 上级导航
