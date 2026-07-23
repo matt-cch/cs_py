@@ -489,7 +489,7 @@ def main():
 
     all_ok = True
     meta_path = None
-    manifest_path = None
+    # manifest_path 已在 Step 0c 中生成，此处禁止重置为 None
     commit_executed = False
     summary_path = None
     remote_comment_path = None
