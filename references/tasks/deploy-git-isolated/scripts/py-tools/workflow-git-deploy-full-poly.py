@@ -489,7 +489,7 @@ def main():
 
     all_ok = True
     meta_path = None
-    manifest_path = None  # 默认值；全量模式下 Step 0c 会覆盖为实际路径
+    # manifest_path 由 Step 0c 赋值，此处禁止重置
     commit_executed = False
     summary_path = None
     remote_comment_path = None
