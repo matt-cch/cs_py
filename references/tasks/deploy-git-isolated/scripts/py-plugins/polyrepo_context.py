@@ -42,19 +42,49 @@ def _run_git(git_exe: Path, args: list, cwd: Path) -> subprocess.CompletedProces
     )
 
 
-def _resolve_repo_url(toolchain_root: Path, target: Path, git_exe: Path) -> str:
+def _resolve_repo_url(toolchain_root: Path, target: Path, git_exe: Path) -> tuple[str, str]:
     """
-    解析目标仓库的 remote URL。
+    解析目标仓库的 remote URL（基准 vs 实测对碰模型）。
 
-    仅从 target 的 git remote 读取，不 fallback 到 .env，
-    防止 polyrepo 场景下 repo_url 错位。
+    返回 (resolved_url, source_hint):
+      - resolved_url: 解析到的 URL（空字符串表示未找到）
+      - source_hint: 来源标记，用于日志（git-remote / git-security / .env / none）
+
+    对碰逻辑：
+      1. 读取 git-security.json 中的 repo_url（基准/审计真源）
+      2. 读取 git remote get-url origin（实测值）
+      3. 两者均存在但不一致 → 返回 ("", "mismatch")，调用方应报错阻断
+      4. 仅 git-security 有值 → 返回该值（适用于初次 clone 未设置 origin 的场景）
+      5. 仅 git-remote 有值 → 返回该值
+      6. 两者均无 → fallback 到 .env（兼容旧场景，已淘汰）
     """
-    # 1. 优先从 target 的 git remote 读取
+    # 1. 读取基准（git-security.json）
+    security_url = ""
+    security_path = target / "git-security.json"
+    if security_path.exists():
+        try:
+            data = json.loads(security_path.read_text(encoding="utf-8"))
+            security_url = data.get("repo_url", "").strip()
+        except Exception:
+            pass
+
+    # 2. 读取实测（git remote）
     r = _run_git(git_exe, ["-C", str(target), "remote", "get-url", "origin"], cwd=target)
-    if r.returncode == 0 and r.stdout.strip():
-        return r.stdout.strip()
+    remote_url = r.stdout.strip() if (r.returncode == 0 and r.stdout.strip()) else ""
 
-    # 2. fallback 到 .env
+    # 3. 对碰
+    if security_url and remote_url:
+        if security_url == remote_url:
+            return remote_url, "git-remote+git-security"
+        return "", "mismatch"
+
+    if security_url:
+        return security_url, "git-security"
+
+    if remote_url:
+        return remote_url, "git-remote"
+
+    # 4. fallback 到 .env（已淘汰的 anti-pattern）
     env_path = toolchain_root / ".env"
     if env_path.exists():
         try:
@@ -62,17 +92,66 @@ def _resolve_repo_url(toolchain_root: Path, target: Path, git_exe: Path) -> str:
                 for line in f:
                     line = line.strip()
                     if line.startswith("GITHUB_REPO_URL="):
-                        return line.split("=", 1)[1].strip().strip('"').strip("'")
+                        return line.split("=", 1)[1].strip().strip('"').strip("'"), ".env"
         except Exception:
             pass
 
-    return ""
+    return "", "none"
 
 
 def _resolve_branch(target: Path, git_exe: Path) -> str:
     """读取 target 仓库当前分支。"""
     r = _run_git(git_exe, ["-C", str(target), "branch", "--show-current"], cwd=target)
     return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def _resolve_default_branch(target: Path) -> str:
+    """
+    读取 target 仓库的默认分支。
+
+    优先级：
+      1. git-security.json → default_branch
+      2. 返回 "main"（兜底，符合当前潮流）
+    """
+    security_path = target / "git-security.json"
+    if security_path.exists():
+        try:
+            data = json.loads(security_path.read_text(encoding="utf-8"))
+            db = data.get("default_branch", "").strip()
+            if db:
+                return db
+        except Exception:
+            pass
+    return "main"
+
+
+def _load_security_config(target: Path) -> dict:
+    """
+    读取 target 仓库的 git-security.json，返回安全策略字典。
+
+    返回字段：
+      - repo_url: str
+      - default_branch: str
+      - allow_direct_push_to: list[str]
+      - security_level: str
+    """
+    defaults = {
+        "repo_url": "",
+        "default_branch": "main",
+        "allow_direct_push_to": [],
+        "security_level": "normal",
+    }
+    security_path = target / "git-security.json"
+    if security_path.exists():
+        try:
+            data = json.loads(security_path.read_text(encoding="utf-8"))
+            defaults["repo_url"] = data.get("repo_url", "").strip()
+            defaults["default_branch"] = data.get("default_branch", "main").strip()
+            defaults["allow_direct_push_to"] = data.get("allow_direct_push_to", [])
+            defaults["security_level"] = data.get("security_level", "normal").strip()
+        except Exception:
+            pass
+    return defaults
 
 
 @dataclass
@@ -89,6 +168,9 @@ class PolyrepoContext:
     git_security: Path     # target 下的 git-security.json 路径
     repo_url: str
     branch: str
+    default_branch: str
+    allow_direct_push_to: list
+    security_level: str
     session_id: str
     timestamp: str
     manifest_path: Path = None
@@ -123,8 +205,9 @@ class PolyrepoContext:
         session_id = detect_session_id(toolchain_root)
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
 
-        repo_url = _resolve_repo_url(toolchain_root, target, git_exe)
+        repo_url, _ = _resolve_repo_url(toolchain_root, target, git_exe)
         branch = _resolve_branch(target, git_exe)
+        sec_cfg = _load_security_config(target)
 
         return cls(
             toolchain_root=toolchain_root,
@@ -137,6 +220,9 @@ class PolyrepoContext:
             git_security=target / "git-security.json",
             repo_url=repo_url,
             branch=branch,
+            default_branch=sec_cfg["default_branch"],
+            allow_direct_push_to=sec_cfg["allow_direct_push_to"],
+            security_level=sec_cfg["security_level"],
             session_id=session_id,
             timestamp=timestamp,
         )
@@ -154,6 +240,9 @@ class PolyrepoContext:
             "git_security": str(self.git_security),
             "repo_url": self.repo_url,
             "branch": self.branch,
+            "default_branch": self.default_branch,
+            "allow_direct_push_to": self.allow_direct_push_to,
+            "security_level": self.security_level,
             "session_id": self.session_id,
             "timestamp": self.timestamp,
             "manifest_path": str(self.manifest_path),
@@ -180,6 +269,9 @@ class PolyrepoContext:
             git_security=Path(data.get("git_security", str(Path(data["target"]) / "git-security.json"))),
             repo_url=data["repo_url"],
             branch=data["branch"],
+            default_branch=data.get("default_branch", "main"),
+            allow_direct_push_to=data.get("allow_direct_push_to", []),
+            security_level=data.get("security_level", "normal"),
             session_id=data["session_id"],
             timestamp=data["timestamp"],
             manifest_path=Path(data["manifest_path"]),

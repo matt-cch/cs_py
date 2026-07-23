@@ -55,12 +55,17 @@ meta:
 | 13 | 审计者不能审计自己，自检≠独立审计 | [baseline-audit-truth.md](baseline-audit-truth.md) 8.9 |
 | 14 | 决策真源集中化：下游只消费、不判断 | [baseline-audit-truth.md](baseline-audit-truth.md) 8.10 |
 | 15 | Pipeline phase 产物由上级通过 `--output` 显式指定，禁止内部封闭生成 | [baseline-workflow-deploy.md](baseline-workflow-deploy.md) 8.9 |
+| 16 | devroot = 可用公共资源根，target = 操作对象；CWD 锚定保障公共资源可用性，target 显性隔离保障 polyrepo 互不污染 | [baseline-principles.md](baseline-principles.md) 0.7.3 |
+| 17 | git-security.json = Repo 身份卡；repo_url 基准 vs 实测对碰；default_branch 消除 master/main 硬编码 | [baseline-workflow-deploy.md](baseline-workflow-deploy.md) 8.7.6 |
 
 
 ## 版本历史
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v2.4.0 | 2026-07-23 | baseline-workflow-deploy.md §8.7.6.2 改为「基准 vs 实测对碰模型」；新增 §8.7.6.6「default_branch 与分支保护策略」；代码层面完成 polyrepo_context.py / atomic-deploy-preflight.py / workflow-git-deploy-full-poly.py / gh-* 脚本的 default_branch 动态读取改造；顶层原则速查追加第 17 条 |
+| v2.3.0 | 2026-07-23 | baseline-structure.md §2.3 扩展为完整 Polyrepo Git 配置四件套（`.git/`、`.gitignore`、`.gitattributes`、`git-security.json`），新增「Repo 身份卡」设计意图；baseline-workflow-deploy.md §8.7.6.2 更新 `repo_url` 解析优先级（`git-security.json` 升至第 2 优先级）；明确 `.env` 不再承载 `repo_url` 的 anti-pattern |
+| v2.2.0 | 2026-07-23 | baseline-principles.md 0.7.3 新增「语义清晰化：公共资源 vs 操作对象」及「CWD 锚定的实质」；baseline-workflow-deploy.md 新增 §8.7.6「Polyrepo 部署架构设计共识」；顶层原则速查追加第 16 条 |
 | v2.1.0 | 2026-07-23 | baseline-workflow-deploy.md 新增 §8.9「Pipeline Phase 产物统筹与 `--output` 统一参数规范」；顶层原则速查追加第 15 条 |
 | v2.0.0 | 2026-07-03 | 从 monolithic `task-canonical-baseline.md`（1600+ 行）拆分为 8 个专题 baseline 文件 + 本导航索引 |
 | v1.9 | 2026-07-03 | 原文件最后版本，含 8.4.7a/8.9/8.10 新增 |

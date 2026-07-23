@@ -307,6 +307,21 @@ python workflow-deploy-full.py --devroot "D:\workspace\other-repo" --auto
 3. 工具链根通过 `Path.cwd()` 推导（CWD 入参确定后保持不变），**禁止**用 `Path(__file__)` 回溯
 4. 工具链根与操作目标根**相互独立**（代码中作为独立变量处理），但**不一定是不同路径**——`cs_py` 单仓库场景下二者为同一目录
 
+**语义清晰化：公共资源 vs 操作对象**:
+
+| 参数 | 本质语义 | 类比 |
+|------|---------|------|
+| `--devroot` | **可用公共资源根**：所有工具链（`venv/`）、脚本（`scripts/`）、配置（`.env`）的来源 | 手术室里的器械台——所有无菌器械都在这里取用，位置固定不漂移 |
+| `--target` | **操作对象**：当前 `git add/commit/push` 等副作用实际作用的仓库 | 手术台上的病人——每次只能有一个主操作对象，且必须明确指定 |
+
+**CWD 锚定的实质**:
+
+workflow 的执行路径（CWD）必须锚定在 `--devroot`，这不是形式主义，而是**公共资源可用性保障**:
+
+- `venv/py/python.exe`、`venv/git/cmd/git.exe`、`.env` 等公共资源均通过 `Path.cwd()` 或 `--devroot` 拼接绝对路径定位
+- 若 CWD 漂移（如用户在 `apps/repos/jywl-lab` 子目录执行），所有公共资源路径将错位，导致调用到系统全局工具或找不到 `.env`
+- 操作对象（`--target`）通过 `git -C <absolute_path>` 显式指定，与 CWD 解耦，确保 polyrepo 场景下多个仓库的操作**天然隔离、互不污染**
+
 
 ### 0.8 仓库性质分级与操作权限铁律
 

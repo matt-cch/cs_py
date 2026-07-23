@@ -239,6 +239,148 @@ Step 4.5: atomic-check-staged-after-add.py
 ```
 
 
+### 8.7.6 Polyrepo 部署架构设计共识
+
+> **来源**：用户与 Agent 在 2026-07-23 对话中共同确认。本节固化 polyrepo 场景下 workflow 的上下文管理、远程 URL 解析、认证缓存与输出脱敏等设计共识。
+
+#### 8.7.6.1 `PolyrepoContext` 与 manifest 机制
+
+`workflow-git-deploy-full-poly.py` 在 Step 0c 调用 `atomic-polyrepo-context-manifest.py`，生成 `PolyrepoContext` 并序列化为 manifest JSON。manifest 是 polyrepo 部署的**运行时上下文真源**，下游步骤消费而非自行推导。
+
+**核心字段**:
+
+| 字段 | 来源 | 说明 |
+|------|------|------|
+| `toolchain_root` / `devroot` | 传入参数 | 工具链根 |
+| `target` | 传入参数 | 操作目标 |
+| `is_polyrepo` | `target.resolve() != devroot.resolve()` | 自动判定 |
+| `repo_url` | **优先 target 的 git remote** | 见 8.7.6.2 |
+| `branch` | target 的 `git branch --show-current` | 操作目标的真实分支 |
+| `git_exe` / `python_exe` | toolchain_root + 固定子路径 | 隔离工具链 |
+| `env_file` | toolchain_root / `.env` | 认证信息来源 |
+
+**调用契约**:
+```powershell
+& "${devroot}\venv\py\python.exe" atomic-polyrepo-context-manifest.py --devroot "${devroot}" --target "${target}" --output "${manifest_path}"
+```
+
+**下游消费**：Step 7/8/9 从 manifest 读取 `repo_url`，注入步骤参数，避免各步骤自行推导导致不一致。
+
+#### 8.7.6.2 `repo_url` 基准 vs 实测对碰模型
+
+**铁律**：polyrepo 场景下，`repo_url` 不是"谁先谁后"的优先级 fallback，而是**基准值与实测值的交叉验证**。
+
+```
+┌─────────────────┐     对碰      ┌─────────────────┐
+│  git-security   │  ←──────→   │  git remote     │
+│  .repo_url      │   一致/不一致 │  get-url origin │
+│  (基准/审计真源) │              │  (实测值)       │
+└─────────────────┘              └─────────────────┘
+        ↓ origin 未设置
+   以基准指导操作
+   （自动设置 remote）
+```
+
+**对碰规则**：
+
+| git-security 基准 | git-remote 实测 | 结果 | 行为 |
+|------------------|----------------|------|------|
+| 有值 | 有值，且 **一致** | ✅ 审计通过 | 返回该值，继续部署 |
+| 有值 | 有值，但 **不一致** | ❌ 审计失败 | **阻断部署**，提示检查是否操作了错误仓库 |
+| 有值 | 无值 | ⚠️ 初始化场景 | 返回基准值，提示建议设置 origin remote |
+| 无值 | 有值 | ⚠️ 无基准 | 返回实测值（git-security.json 未配置 repo_url） |
+| 无值 | 无值 | ❌ 无来源 | fallback 到 `.env`（已淘汰的 anti-pattern，兼容旧场景） |
+
+**核心设计意图**：
+- `git-security.json` 是每个 repo 的**身份卡**，`repo_url` 写在该 repo 内部，操作谁就读谁的——天然避免"拿错地址、推到别人仓库"
+- `.env` 中的 `GITHUB_REPO_URL` 是 devroot（cs_py）**自身的**仓库地址，**绝不应**作为 polyrepo 的推送目标
+- `.env` 只保留**全局认证信息**（`GITHUB_PAT`、`GITHUB_USERNAME`），不保留**仓库特定信息**（`repo_url`）
+- 安全扫描规则（`required_ignore_patterns`、`sensitive_tracked_patterns`）同样因仓库而异，从 target 自身的 `git-security.json` 读取
+
+#### 8.7.6.3 认证信息缓存
+
+Step 7（push）读取 `.env` 获取 `GITHUB_PAT` 和 `GITHUB_USERNAME` 后，将三者缓存为模块变量，供 Step 8（upstream）复用：
+
+- `auth_repo_url`：解析后的仓库路径
+- `auth_pat`：PAT（全程内存变量，不输出到日志）
+- `auth_username`：GitHub 用户名
+
+**禁止**：Step 8 不复读 `.env`，避免 polyrepo 场景下认证信息错位。
+
+#### 8.7.6.4 PAT 脱敏输出
+
+所有含 PAT 的命令行输出必须经过 `_mask_pat()` 处理：
+
+```python
+def _mask_pat(text: str) -> str:
+    return re.sub(r"(https?://[^:]+:)([^@]+)(@)", r"\1***\3", text)
+```
+
+**生效范围**：`git push` 的认证 URL、任何日志/stdout 中可能暴露 PAT 的字符串。
+
+#### 8.7.6.5 产出文件
+
+| 产物 | 路径模板 | 说明 |
+|------|---------|------|
+| PolyrepoContext manifest | `venv/tmp/polyrepo-context-wf-{timestamp}.json` | Step 0c 生成 |
+| diff 审计 | `venv/tmp/diff-audit-for-ai-summary-{timestamp}.json` | Step 6a 生成 |
+| Agent Preflight | `venv/tmp/agent-preflight-for-ai-summary-{timestamp}.json` | Step 6b 生成 |
+| AI Summary | `venv/tmp/ai-summary-{timestamp}.json` | Step 6c 生成 |
+| Workflow meta | `venv/tmp/workflow-meta-{timestamp}.json` | Step 5 前生成 |
+
+#### 8.7.6.6 `default_branch` 与分支保护策略
+
+**来源**：用户与 Agent 在 2026-07-23 对话中共同确认。本节固化 default_branch 的来源、allow_direct_push_to 的语义、以及各脚本消除硬编码 master/main 的改造原则。
+
+**`default_branch` 的来源**：
+
+| 来源 | 优先级 | 说明 |
+|------|--------|------|
+| `git-security.json` → `default_branch` | **唯一真源** | 每个 repo 自声明，代码全部从此读取 |
+| 代码兜底 | 最后防线 | 若 `git-security.json` 缺失该字段，返回 `"main"`（符合当前潮流） |
+
+**禁止**：任何脚本中硬编码 `"master"` 或 `"main"` 作为默认分支。
+
+**`allow_direct_push_to` 语义**：
+
+| 值 | 含义 | 示例 |
+|----|------|------|
+| `[]`（空数组） | **严格模式**：任何分支禁止直接 push，必须 PR merge | `cs_py`（security_level=strict） |
+| `["main"]` | **白名单模式**：列表中的分支允许直接 push，其余禁止 | `jywl-settlement` |
+| `["main", "dev"]` | **扩展白名单**：多个分支允许直接 push | — |
+
+**分支保护检测时序**：
+
+```
+Step 0b (atomic-deploy-preflight.py):
+  读取 git-security.json → default_branch + allow_direct_push_to
+  若 current_branch 不在 allow_direct_push_to 中:
+    → [WARN] + [FAIL] Preflight 终止（主动阻止）
+
+Step 7 (workflow-git-deploy-full-poly.py push):
+  若 push 被 remote reject:
+    → 根据 allow_direct_push_to 给出精确提示（被动兜底）
+    - 白名单允许但仍失败 → 提示检查远程额外保护规则
+    - 严格模式 → 提示必须走 feature 分支 + PR merge
+    - 一般保护 → 提示使用 PR merge 流程
+```
+
+**脚本改造清单（消除硬编码）**：
+
+| 脚本 | 改造前 | 改造后 |
+|------|--------|--------|
+| `atomic-deploy-preflight.py` | 硬编码 `if current_branch == "master"` | 读取 `git-security.json` 的 `default_branch` + `allow_direct_push_to` |
+| `polyrepo_context.py` | 无 `default_branch` 字段 | 新增字段，从 `git-security.json` 读取 |
+| `gh-branch-protect.py` | `--branch` 默认 `"master"` | 默认从 `git-security.json` 读取 `default_branch` |
+| `gh-pr-create.py` | `--base` 默认 `"master"` | 默认从 `git-security.json` 读取 `default_branch` |
+| `gh-pr-merge.py` | 提示 `checkout master` | 动态读取 `default_branch` |
+| `workflow-gh-pr.py` | `--base` 默认 `"master"` | 默认从 `git-security.json` 读取 `default_branch` |
+
+**历史遗留策略**：
+- `cs_py` 的默认分支为 `master`（创建时设定），**不改**
+- 所有后续新仓库默认 `main`，代码通过 `git-security.json` 自识别，无需硬编码
+
+
 ## 8.8 三类型三层架构的交叉引用与冲突仲裁
 
 > **来源**：用户与 Agent 在 2026-06-24 对话中共同确认。本 task 存在三套平行的三层架构（PS、PY、JS/TS），它们之间天然产生数据面交叉和路由面冲突。随着三侧工具链扩展，仲裁机制会渐进式明晰。

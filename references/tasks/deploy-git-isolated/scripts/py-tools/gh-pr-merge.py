@@ -133,8 +133,19 @@ def main():
         print(r.stdout.strip())
 
     # Step 4: 本地同步（可选提示）
+    # 读取默认分支用于提示
+    sec_path = devroot / "git-security.json"
+    default_branch = "main"
+    if sec_path.exists():
+        try:
+            data = json.loads(sec_path.read_text(encoding="utf-8"))
+            db = data.get("default_branch", "").strip()
+            if db:
+                default_branch = db
+        except Exception:
+            pass
     print(f"\n[Tip] 如需本地同步最新代码，请执行:")
-    print(f"      git -C {devroot} checkout master && git -C {devroot} pull")
+    print(f"      git -C {devroot} checkout {default_branch} && git -C {devroot} pull")
 
 
 if __name__ == "__main__":

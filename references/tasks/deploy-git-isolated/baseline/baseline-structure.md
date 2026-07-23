@@ -100,16 +100,42 @@ references/tasks/deploy-git-isolated/
 
 ## 2.3 Polyrepo 嵌套仓库的 Git 配置分层
 
-> **来源**：用户与 Agent 在 2026-07-08 对话中共同确认。本节基于「隔离 Git 优先」原则（见 `baseline-principles.md` §0.7.2），记录 monorepo 内嵌独立 polyrepo 时的 `.gitattributes` 分层建设原则。
+> **来源**：用户与 Agent 在 2026-07-08 对话中共同确认。本节基于「隔离 Git 优先」原则（见 `baseline-principles.md` §0.7.2），记录 monorepo 内嵌独立 polyrepo 时的 Git 配置隔离原则。
 
-### 2.3.1 前提：隔离 Git 模式
+### 2.3.1 前提：每个 workspace repo 是独立 Git 仓库
 
-本项目严格使用**隔离 Git**（`venv/data-git/` 下的独立配置与可执行文件），所有 Git 操作通过 `git -C <path>` 显式指定工作目录。在此模式下：
-- 主仓库（cs_py）与嵌套仓库（jywl-lab）的 Git 操作**天然隔离**
-- 不存在"根级配置越界影响嵌套仓库"的风险
-- 但每个 `.git/` 仍须独立配置 `.gitattributes`，否则其内部文件将退回到隔离 Git 全局配置或 Git 默认值
+`.code-workspace` 中的每个 `folder`（无论 devroot 还是 polyrepo）都是**独立 Git 仓库**，各自拥有完整的 Git 配置四件套：
 
-### 2.3.2 分层配置原则
+| 文件 | 职责 | 是否强制 |
+|------|------|---------|
+| `.git/` | 独立版本库 | ✅ 必须 |
+| `.gitignore` | 独立忽略规则 | ✅ 必须 |
+| `.gitattributes` | 独立行尾符/编码策略 | ✅ 必须 |
+| `git-security.json` | **Repo 身份卡**：`repo_url` + 安全策略 + 分支保护规则 | ✅ 必须 |
+
+**铁律**：
+- 每个 polyrepo **不共享、不继承** devroot 的 git 配置
+- `git-security.json` 不是"安全附件"，而是每个 repo 的**身份与策略真源**
+- workflow 操作 polyrepo 时，所有与该 repo 相关的元数据（`repo_url`、`security_level`、`allow_direct_push_to` 等）**必须从 target 自身的 `git-security.json` 读取**，禁止从 devroot 的 `.env` 推断
+
+### 2.3.2 `git-security.json` —— Repo 身份卡
+
+`git-security.json` 是每个仓库的**自描述元数据文件**，其 `repo_url` 字段是 workflow 识别"这个仓库应该推送到哪里"的**首要依据**。
+
+**示例对照**（三个仓库各自独立）：
+
+| 仓库 | `git-security.json` 中的 `repo_url` |
+|------|--------------------------------------|
+| `cs_py` (devroot) | `https://github.com/matt-cch/cs_py.git` |
+| `jywl-lab` (polyrepo) | `https://github.com/jywl-team/jywl-lab.git` |
+| `jywl-settlement` (polyrepo) | `https://github.com/matt-cch/jywl-settlement.git` |
+
+**关键设计意图**：
+- `repo_url` 写在各自仓库里，而不是集中在 devroot 的 `.env` 中——避免 polyrepo 操作时"拿错地址、推到别人仓库"
+- `.env` 只保留**全局认证信息**（`GITHUB_PAT`、`GITHUB_USERNAME`），不保留**仓库特定信息**（`repo_url` 已被淘汰出 `.env`）
+- 安全扫描规则（`required_ignore_patterns`、`sensitive_tracked_patterns`）也因仓库而异——Lab 仓有 `web/node_modules/`，Settlement 仓有 `.venv/`
+
+### 2.3.3 分层配置原则
 
 | 层级 | 位置 | 作用域 | 配置内容 |
 |------|------|--------|---------|
@@ -117,24 +143,26 @@ references/tasks/deploy-git-isolated/
 | **嵌套仓库（polyrepo）** | `jywl-lab/.gitattributes` | 独立仓库 `.git/` 管辖的全部文件 | 与主仓库**相互独立**的配置，可相同也可不同 |
 
 **关键约束**：
-1. **配置不继承**：嵌套仓库**不继承**主仓库的 `.gitattributes`，必须**独立建立**
+1. **配置不继承**：嵌套仓库**不继承**主仓库的 `.gitattributes`、`.gitignore`、`git-security.json`，必须**独立建立**
 2. **内容可差异**：不同仓库可根据自身技术栈调整豁免列表（如某仓库无 `.ps1` 则可不配置 `-text` 豁免）
-3. **Agent 义务**：操作嵌套 polyrepo 时必须**分别检查**各仓库的 `.gitattributes` 存在性，禁止假设根级配置对嵌套仓库有效
+3. **Agent 义务**：操作嵌套 polyrepo 时必须**分别检查**各仓库的四件套存在性，禁止假设根级配置对嵌套仓库有效
 
-### 2.3.3 与 workflow 多端多 devroot 的关系
+### 2.3.4 与 workflow 多端多 devroot 的关系
 
 `baseline-principles.md` §0.7.1 已规定 workflow 工具链通过 `--devroot` 参数支持多端多 polyrepo。本节是同一原则在 **Git 层面** 的具体化：
 
 | 层面 | 机制 | 控制什么 |
 |------|------|---------|
-| **Workflow 执行层** | `--devroot` 参数 | Python/PS/JS 脚本操作哪个仓库 |
+| **Workflow 执行层** | `--devroot` / `--target` 参数 | Python/PS/JS 脚本操作哪个仓库 |
 | **Git 行为层** | 隔离 Git + `-C <path>` + 各仓库独立的 `.gitattributes` | `git checkout` 时换行符如何转换 |
 | **环境变量层** | 隔离 Git 的 `.gitconfig`（`venv/data-git/.gitconfig`） | Git 默认行为（被 `.gitattributes` 覆盖） |
+| **Repo 身份层** | 各仓库独立的 `git-security.json` | `repo_url`、安全策略、分支保护规则 |
 
 **铁律**：
 - 隔离 Git 模式下，各仓库的操作天然隔离，但**配置仍需独立维护**
 - 禁止在任何脚本中使用系统全局 Git 或 IDE 内置 Git 作为默认执行器
 - 禁止假设"因为操作隔离了，所以配置也自动一致"
+- **禁止从 devroot `.env` 读取 `GITHUB_REPO_URL` 作为 polyrepo 的推送目标**——这是已淘汰的 anti-pattern
 
 
 ## 6. 文件位置约定

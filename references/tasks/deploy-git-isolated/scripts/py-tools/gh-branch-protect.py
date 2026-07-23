@@ -45,10 +45,28 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 
+def _get_default_branch(devroot: Path) -> str:
+    """读取 devroot 的 git-security.json 获取默认分支。"""
+    sec_path = devroot / "git-security.json"
+    if sec_path.exists():
+        try:
+            data = json.loads(sec_path.read_text(encoding="utf-8"))
+            db = data.get("default_branch", "").strip()
+            if db:
+                return db
+        except Exception:
+            pass
+    return "main"
+
+
 def main():
+    # 先读取 devroot 确定默认分支
+    devroot = Path(r"D:\pjt\cursor\cs_py")
+    default_branch = _get_default_branch(devroot)
+
     parser = argparse.ArgumentParser(description="设置 GitHub 分支保护规则")
-    parser.add_argument("--devroot", default=r"D:\pjt\cursor\cs_py", help="Devroot 路径")
-    parser.add_argument("--branch", default="master", help="要保护的分支名（默认 master）")
+    parser.add_argument("--devroot", default=str(devroot), help="Devroot 路径")
+    parser.add_argument("--branch", default=default_branch, help=f"要保护的分支名（默认 {default_branch}）")
     parser.add_argument("--required-reviewers", type=int, default=1, help="要求的审批人数（默认 1）")
     parser.add_argument("--dismiss-stale-reviews", action="store_true", default=True, help="新 commit 后驳回旧审批")
     parser.add_argument("--include-admin", action="store_true", help="保护规则也限制 admin")

@@ -113,6 +113,8 @@ meta: {}
 | [env-migration-jywl-settlement-polyrepo-init-2026-07-21-173210.md](env-migration-jywl-settlement-polyrepo-init-2026-07-21-173210.md) | jywl-settlement Polyrepo 初始化与 Atomic 工具链建设（仓库创建、安全基线、IDE 集成、smoke push） | 2026-07-21-173210 |
 | [env-migration-pipeline-output-unification-2026-07-23-104308.md](env-migration-pipeline-output-unification-2026-07-23-104308.md) | Pipeline Phase 产物统筹与 `--output` 统一参数规范整改 | 2026-07-23-104308 |
 | [env-migration-csv-column-transform-tool-2026-07-23-134521.md](env-migration-csv-column-transform-tool-2026-07-23-134521.md) | CSV 列无损转换原子工具泛化建设（配置驱动 + schema + 文档索引） | 2026-07-23-134521 |
+| [env-migration-bash-timeout-guard-verify-2026-07-23-150955.md](env-migration-bash-timeout-guard-verify-2026-07-23-150955.md) | bash-timeout-guard Hook 生效实测验证（130s 完全静默，确认 timeout 提升到 600s） | 2026-07-23-150955 |
+| [env-migration-polyrepo-git-security-identity-and-default-branch-2026-07-23-164411.md](env-migration-polyrepo-git-security-identity-and-default-branch-2026-07-23-164411.md) | Polyrepo Git-Security 身份卡与 default_branch 机制建设（repo_url 对碰 + 消除 master/main 硬编码） | 2026-07-23-164411 |
 
 
 ## 上级导航

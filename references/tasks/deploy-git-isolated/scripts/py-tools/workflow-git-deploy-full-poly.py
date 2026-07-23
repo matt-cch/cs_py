@@ -620,20 +620,26 @@ def main():
             pat = env.get("GITHUB_PAT", "").strip()
             username = env.get("GITHUB_USERNAME", "").strip()
 
-            # repo_url 优先从 manifest 读取（polyrepo 场景），fallback 到 .env
+            # repo_url 从 manifest 读取（manifest 生成时已做对碰审计）
             repo_url = ""
+            default_branch = "main"
+            allow_direct_push = []
             if manifest_path and manifest_path.exists():
                 try:
                     manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
                     repo_url = manifest_data.get("repo_url", "").strip()
-                    print(f"[OK] repo_url 来自 manifest: {repo_url}")
+                    default_branch = manifest_data.get("default_branch", "main")
+                    allow_direct_push = manifest_data.get("allow_direct_push_to", [])
+                    if repo_url:
+                        print(f"[OK] repo_url 来自 manifest: {repo_url}")
                 except Exception as e:
-                    print(f"[WARN] manifest 读取失败: {e}，fallback 到 .env")
+                    print(f"[WARN] manifest 读取失败: {e}")
 
+            # manifest 无 repo_url 时的兜底（不应发生，但保留容错）
             if not repo_url:
                 repo_url = env.get("GITHUB_REPO_URL", "").strip()
                 if repo_url:
-                    print(f"[OK] repo_url 来自 .env: {repo_url}")
+                    print(f"[WARN] repo_url 来自 .env（已淘汰）: {repo_url}")
 
             if not repo_url or not pat or not username:
                 print("[FAIL] GITHUB_PAT/REPO_URL/USERNAME 未配置")
@@ -681,11 +687,27 @@ def main():
                 print(result.stderr, end="")
             if result.returncode != 0:
                 stderr_lower = result.stderr.lower() if result.stderr else ""
-                if "rejected" in stderr_lower or "protected" in stderr_lower:
-                    print("[FAIL] git push 被远程拒绝（分支保护规则）")
-                    print(f"[HINT] 当前分支 '{branch}' 可能受保护，请使用 feature 分支 + PR merge 流程")
+                is_protected = "rejected" in stderr_lower or "protected" in stderr_lower
+
+                if branch in allow_direct_push:
+                    # 本地白名单允许，但仍失败 → 非策略原因
+                    print(f"[FAIL] git push 失败（分支 '{branch}' 在 allow_direct_push_to 白名单中，但远程仍拒绝）")
+                    if is_protected:
+                        print("[HINT] 远程 GitHub 可能额外配置了分支保护，请检查 Web 端 Settings → Branches")
+                    else:
+                        print("[HINT] 请检查网络、PAT 有效性、或远程仓库状态")
+                elif branch == default_branch and not allow_direct_push:
+                    # 严格模式：默认分支禁止直接 push
+                    print(f"[FAIL] git push 被远程拒绝（严格模式：默认分支 '{default_branch}' 禁止直接 push）")
+                    print("[HINT] 本仓库 security_level=strict，必须走 feature 分支 + PR merge 流程")
+                    print(f"  git checkout -b feat/xxx")
+                    print(f"  git push origin feat/xxx")
+                    print(f"  gh pr create --base {default_branch}")
                 else:
-                    print("[FAIL] git push 失败")
+                    # 一般保护
+                    print(f"[FAIL] git push 被远程拒绝（分支保护规则）")
+                    print(f"[HINT] 当前分支 '{branch}' 不在 allow_direct_push_to 白名单中")
+                    print("[HINT] 请使用 feature 分支 + PR merge 流程")
                 all_ok = False
                 break
             print(f"[OK] push 成功: {repo_url} [{branch}]")

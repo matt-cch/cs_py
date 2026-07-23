@@ -68,44 +68,56 @@ def main():
             key, val = line.split("=", 1)
             env[key] = val
 
-    # 2. 解析 repo_url（仅从 target 的 git remote 读取，不 fallback 到 .env）
-    repo_url = ""
+    # 2. 读取 git-security.json（Repo 身份卡）
+    sec_cfg = {}
+    security_json = target / "git-security.json"
+    if security_json.exists():
+        try:
+            sec_cfg = json.loads(security_json.read_text(encoding="utf-8"))
+        except Exception as e:
+            print(f"[WARN] git-security.json 解析失败: {e}")
+    else:
+        print("[WARN] target 下无 git-security.json")
+
+    # 3. 解析 repo_url（基准 vs 实测对碰）
     git_exe = devroot / "venv" / "git" / "cmd" / "git.exe"
+    security_url = sec_cfg.get("repo_url", "").strip()
+    remote_url = ""
     if git_exe.exists():
         result = subprocess.run(
             [str(git_exe), "-C", str(target), "remote", "get-url", "origin"],
             capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         if result.returncode == 0 and result.stdout.strip():
-            repo_url = result.stdout.strip()
+            remote_url = result.stdout.strip()
 
-    if not repo_url:
-        print("[FAIL] target 仓库无 origin remote，无法确定 repo_url")
-        print("[HINT] 请在 target 仓库执行: git remote add origin <url>")
-        sys.exit(1)
-    print(f"[OK] repo_url (来自 target git remote): {repo_url}")
-
-    # 2b. 审计比对：实测 repo_url vs git-security.json 预置值
-    security_json = target / "git-security.json"
-    if security_json.exists():
-        try:
-            sec_cfg = json.loads(security_json.read_text(encoding="utf-8"))
-            expected_url = sec_cfg.get("repo_url", "").strip()
-            if expected_url:
-                if repo_url == expected_url:
-                    print(f"[OK] git-security.json 审计通过: repo_url 与预置值一致")
-                else:
-                    print(f"[FAIL] git-security.json 审计失败: repo_url 不匹配")
-                    print(f"  实测值: {repo_url}")
-                    print(f"  预置值: {expected_url}")
-                    print(f"[HINT] 请检查是否操作了错误的仓库，或更新 git-security.json")
-                    sys.exit(1)
-            else:
-                print(f"[WARN] git-security.json 中未配置 repo_url，跳过审计比对")
-        except Exception as e:
-            print(f"[WARN] git-security.json 解析失败: {e}，跳过审计比对")
+    # 对碰
+    repo_url = ""
+    if security_url and remote_url:
+        if security_url == remote_url:
+            repo_url = remote_url
+            print(f"[OK] repo_url 审计通过: git-remote 与 git-security 一致 ({repo_url})")
+        else:
+            print("[FAIL] repo_url 审计失败: git-remote 与 git-security 不匹配")
+            print(f"  git-remote: {remote_url}")
+            print(f"  git-security: {security_url}")
+            print("[HINT] 请检查是否操作了错误仓库，或更新 git-security.json")
+            sys.exit(1)
+    elif security_url:
+        repo_url = security_url
+        print(f"[OK] repo_url 来自 git-security（origin 未设置）: {repo_url}")
+        print("[HINT] 建议执行: git remote add origin <url>")
+    elif remote_url:
+        repo_url = remote_url
+        print(f"[OK] repo_url 来自 git-remote: {repo_url}")
     else:
-        print(f"[WARN] target 下无 git-security.json，跳过 repo_url 审计比对")
+        # fallback 到 .env（已淘汰的 anti-pattern）
+        repo_url = env.get("GITHUB_REPO_URL", "").strip()
+        if repo_url:
+            print(f"[WARN] repo_url 来自 .env（已淘汰）: {repo_url}")
+        else:
+            print("[FAIL] 无法确定 repo_url（git-remote 无 origin、git-security 无配置、.env 无 GITHUB_REPO_URL）")
+            sys.exit(1)
 
     pat = env.get("GITHUB_PAT", "").strip()
     if not pat or pat == "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx":
@@ -113,20 +125,32 @@ def main():
         sys.exit(1)
     print("[OK] .env 部署配置完整")
 
-    # 3. 分支保护检测（在 target 仓库执行）
+    # 4. 分支保护检测（从 git-security.json 读取策略，不再硬编码 master）
+    default_branch = sec_cfg.get("default_branch", "main").strip()
+    allow_direct_push = sec_cfg.get("allow_direct_push_to", [])
+    security_level = sec_cfg.get("security_level", "normal").strip()
+
     if git_exe.exists():
         result = subprocess.run(
             [str(git_exe), "-C", str(target), "branch", "--show-current"],
             capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         current_branch = result.stdout.strip()
-        if current_branch == "master":
-            print("[WARN] 当前在 master 分支，直接 push 将被分支保护规则拒绝")
-            print("[WARN] 建议：git checkout -b feat/xxx 后重新执行 workflow")
+
+        if current_branch in allow_direct_push:
+            print(f"[OK] 当前分支 '{current_branch}' 在 allow_direct_push_to 白名单中，允许直接 push")
+        elif current_branch == default_branch and not allow_direct_push:
+            print(f"[WARN] 当前在默认分支 '{current_branch}'，且 allow_direct_push_to 为空")
+            print("[WARN] 直接 push 将被拒绝，请使用 feature 分支 + PR merge 流程")
+            print("[FAIL] Preflight 终止")
+            sys.exit(1)
+        elif current_branch == default_branch and allow_direct_push and current_branch not in allow_direct_push:
+            print(f"[WARN] 当前在默认分支 '{current_branch}'，但不在 allow_direct_push_to 白名单中")
+            print("[WARN] 直接 push 将被拒绝，请使用 feature 分支 + PR merge 流程")
             print("[FAIL] Preflight 终止")
             sys.exit(1)
         else:
-            print(f"[OK] 当前分支: {current_branch}（非受保护分支）")
+            print(f"[OK] 当前分支: {current_branch}（默认分支: {default_branch}, 安全级别: {security_level}）")
 
     # 4. 验证 agent 插件体系（AI 摘要需要）
     try:

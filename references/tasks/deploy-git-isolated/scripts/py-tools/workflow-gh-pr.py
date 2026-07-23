@@ -274,10 +274,27 @@ def _run_py_tool(name: str, script: Path, args: list) -> bool:
         return False
 
 
+def _get_default_branch(devroot: Path) -> str:
+    """读取 devroot 的 git-security.json 获取默认分支。"""
+    sec_path = devroot / "git-security.json"
+    if sec_path.exists():
+        try:
+            data = json.loads(sec_path.read_text(encoding="utf-8"))
+            db = data.get("default_branch", "").strip()
+            if db:
+                return db
+        except Exception:
+            pass
+    return "main"
+
+
 def main():
+    devroot = Path(r"D:\pjt\cursor\cs_py")
+    default_branch = _get_default_branch(devroot)
+
     parser = argparse.ArgumentParser(description="GitHub PR 自闭环 Workflow")
-    parser.add_argument("--devroot", default=r"D:\pjt\cursor\cs_py", help="Devroot 路径")
-    parser.add_argument("--base", default="master", help="目标分支")
+    parser.add_argument("--devroot", default=str(devroot), help="Devroot 路径")
+    parser.add_argument("--base", default=default_branch, help=f"目标分支（默认 {default_branch}）")
     parser.add_argument("--title", default=None, help="PR 标题（与 --auto 互斥）")
     parser.add_argument("--auto", action="store_true", help="AI 自动生成 PR title + body（基于 feature 分支全部 commits 聚合）")
     parser.add_argument("--admin", action="store_true", help="使用管理员权限绕过分支保护")
