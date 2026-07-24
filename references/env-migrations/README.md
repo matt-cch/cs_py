@@ -115,6 +115,7 @@ meta: {}
 | [env-migration-csv-column-transform-tool-2026-07-23-134521.md](env-migration-csv-column-transform-tool-2026-07-23-134521.md) | CSV 列无损转换原子工具泛化建设（配置驱动 + schema + 文档索引） | 2026-07-23-134521 |
 | [env-migration-bash-timeout-guard-verify-2026-07-23-150955.md](env-migration-bash-timeout-guard-verify-2026-07-23-150955.md) | bash-timeout-guard Hook 生效实测验证（130s 完全静默，确认 timeout 提升到 600s） | 2026-07-23-150955 |
 | [env-migration-polyrepo-git-security-identity-and-default-branch-2026-07-23-164411.md](env-migration-polyrepo-git-security-identity-and-default-branch-2026-07-23-164411.md) | Polyrepo Git-Security 身份卡与 default_branch 机制建设（repo_url 对碰 + 消除 master/main 硬编码） | 2026-07-23-164411 |
+| [env-migration-polyrepo-git-security-manifest-bug-2026-07-23-174127.md](env-migration-polyrepo-git-security-manifest-bug-2026-07-23-174127.md) | **详细版** — Polyrepo Git-Security 身份卡、default_branch 机制与 manifest_path 反复踩坑全记录 | 2026-07-23-174127 |
 
 
 ## 上级导航
