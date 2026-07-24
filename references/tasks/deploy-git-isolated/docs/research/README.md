@@ -27,6 +27,7 @@ meta:
 | [task-agent-self-explanation-validation.md](task-agent-self-explanation-validation.md) | Task Agent 自解释验证 | — |
 | [task-dependency-graph.md](task-dependency-graph.md) | Task 依赖图分析 | — |
 | [workflow-entry-plugins-architecture-research.md](workflow-entry-plugins-architecture-research.md) | Workflow 入口插件架构调研 | — |
+| [ontology-5-layer-7-mismatch-harness-injection-research-2026-07-24-135229.md](ontology-5-layer-7-mismatch-harness-injection-research-2026-07-24-135229.md) | 本体论落地错配与 Agent Harness 注入框架深度研究 | 2026-07-24 |
 | [zvec-vs-sqlite-vec-2026-07-20-135428.md](zvec-vs-sqlite-vec-2026-07-20-135428.md) | Zvec 与 SQLite+sqlite-vec 对比分析 | 2026-07-20 |
 
 ## 上级导航

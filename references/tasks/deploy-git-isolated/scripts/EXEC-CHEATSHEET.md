@@ -751,6 +751,140 @@ py-plugins/*         → 底座层（具体检测/修复能力）
 ```
 
 
+## Stage S6.5.5: Chrome 交互式登录 / 续期
+
+> **设计意图**：提供标准化交互式登录 CLI，让用户在持久化 Chrome Profile 中手动完成登录或续期操作。与 `run.py` 等临时脚本不同，本 CLI 是 pipeline 的一环，通过 `--output` 显式指定 manifest 路径供下游复用。
+> **禁止行为**：禁止自行写 Playwright 登录脚本；所有登录/续期操作必须通过本入口复用已有 browser_session 插件和持久化 Profile。
+
+### 基本用法（交互式窗口）
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-chrome-login-interactive.py" --output "${devroot}\venv\tmp\login-manifest.json"
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-chrome-login-interactive.py" --output "${devroot}\venv\tmp\login-manifest.json"
+```
+
+> 执行后自动弹出 Chrome 窗口，在目标网站完成登录/续期后关闭窗口即可。
+> `--output` 为**必填**参数，指定 manifest 落盘路径，供 pipeline 连贯复用。
+
+### 指定 Chrome Profile 路径
+
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-chrome-login-interactive.py" --output "${devroot}\venv\tmp\login-manifest.json" --user-data-dir "D:\custom\chrome-profile"
+```
+
+### 指定初始导航 URL
+
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-chrome-login-interactive.py" --output "${devroot}\venv\tmp\login-manifest.json" --start-url "https://www.toutiao.com"
+```
+
+### 参数语义
+
+| 参数 | 语义 | 必填 | 说明 |
+|------|------|------|------|
+| `--output` | manifest 输出路径 | ✅ | JSON 文件路径，记录登录后 Cookies 摘要和元数据 |
+| `--user-data-dir` | Chrome Profile 路径 | 可选 | 默认 `devroot/venv/data-chrome` |
+| `--start-url` | 初始导航 URL | 可选 | 窗口打开后首先访问的页面，默认不导航 |
+| `--devroot` | devroot 路径 | 可选 | 默认自动探测；polyrepo 场景下显式传入 |
+
+
+## Stage S6.6: 文章下载（头条 / 通用 URL）
+
+> **设计意图**：将「从 URL 提取文章正文」封装为标准化 CLI 工具。对头条域名额外执行 Session 登录态检测门禁，未登录则拒绝执行，防止在登录墙前做无效提取。
+> **禁止行为**：禁止自行写 Playwright 脚本下载文章；所有文章提取必须通过本入口复用已有 Chrome Session 和 JS 注入链路。
+
+### 基本用法（headless，默认输出到 devroot/out/articles/）
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-article.py" --url "https://www.toutiao.com/article/123456/"
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-article.py" --url "https://www.toutiao.com/article/123456/"
+```
+
+> 前置：Chrome Session 已登录头条（通过 `atomic-chrome-login-interactive.py --output <path>` 交互式登录）
+> 输出：`devroot/out/articles/<slug>.md` + `<slug>_files/img-001.jpg`
+
+
+### 指定标签（写入 Markdown frontmatter）
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-article.py" --url "https://example.com/post" --tags "AI,编程"
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-article.py" --url "https://example.com/post" --tags "AI,编程"
+```
+
+
+### 指定输出目录
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-article.py" --url "https://example.com/post" --output-dir "D:/articles"
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-article.py" --url "https://example.com/post" --output-dir "D:/articles"
+```
+
+
+### 显示浏览器窗口（headed，调试用）
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-article.py" --url "https://example.com/post" --headed
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-article.py" --url "https://example.com/post" --headed
+```
+
+
+### 显式指定 devroot（polyrepo 场景）
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-article.py" --url "https://example.com/post" --devroot "D:/workspace/other-repo"
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-article.py" --url "https://example.com/post" --devroot "D:/workspace/other-repo"
+```
+
+
+### 参数语义
+
+| 参数 | 语义 | 必填 | 说明 |
+|------|------|------|------|
+| `--url` | 文章 URL | ✅ | 支持任意 URL；头条域名（toutiao.com/cn）会额外触发 Session 检测 |
+| `--tags` | 标签列表 | 可选 | 逗号分隔，如 `"AI,编程"`，写入输出 Markdown 的 frontmatter |
+| `--output-dir` | 输出目录 | 可选 | 默认 `devroot/out/articles/` |
+| `--headed` | 显示浏览器窗口 | 可选 | 非 headless 模式，用于调试；与 `--headless` 互斥 |
+| `--devroot` | devroot 路径 | 可选 | 默认自动探测；polyrepo 场景下显式传入以定位 Chrome Profile 和输出目录 |
+| `--skip-preflight` | 跳过前置检查 | 可选 | ⚠️ **仅本地调试，生产环境禁止** |
+
+
+### 输出格式
+
+- **Markdown 文件**：`{slug}.md`，含 YAML frontmatter（title / description / date / source / tags）
+- **图片目录**：`{slug}_files/`（文章中引用的图片下载到本地，Markdown 改为相对路径）
+- **Obsidian 兼容**：frontmatter 和链接格式均兼容 Obsidian 解析
+
+
 ## Stage S7: Issue 同步
 
 ### 追加评论（记录 commit）

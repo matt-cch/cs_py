@@ -85,12 +85,16 @@ def _build_conclusion(state: dict, ttl: dict) -> str:
       C. 残缺   — 部分登录态标志缺失（如只有 sessionid 无 passport_auth_status）
       D. 失效   — 无登录态标志 或 TTL 已过期
 
-    注意：chrome_session.check_login_state() 返回的登录态标志在 has_flags 嵌套字典中。
+    TTL 解读优先级：
+      1. core_session_ttl — sessionid / passport_auth_status 系列，决定服务端是否认可登录态
+      2. conservative_ttl — 全部 key cookie 最短值（含非核心追踪 cookie，仅供参考）
     """
     has_flags = state.get("has_flags", {})
     fresh = bool(state.get("fresh_cookies"))
-    ttl_ok = ttl.get("ok") and ttl.get("conservative_ttl")
-    remaining_days = ttl["conservative_ttl"]["remaining_days"] if ttl_ok else None
+
+    # 优先取核心登录态 TTL
+    ttl_entry = ttl.get("core_session_ttl") or ttl.get("conservative_ttl")
+    remaining_days = ttl_entry["remaining_days"] if ttl_entry else None
 
     # 判定核心标志是否齐全
     core_ok = (
@@ -113,7 +117,7 @@ def _build_conclusion(state: dict, ttl: dict) -> str:
         status = "失效"
         detail = "未检测到有效登录态 cookie"
 
-    ttl_info = f"，有效期 {remaining_days} 天" if remaining_days is not None else ""
+    ttl_info = f"，核心登录态有效期 {remaining_days} 天" if remaining_days is not None else ""
     return f"Session {status}{ttl_info}。{detail}"
 
 
@@ -250,8 +254,9 @@ def main():
         manifest_path = Path(_devroot()) / "venv" / "tmp" / f"chrome-session-manifest-{ts}.json"
     _write_manifest(manifest, manifest_path)
 
-    # 返回码
-    if flags and ttl.get("conservative_ttl"):
+    # 返回码：以 core_session_ttl 为准判断 session 是否可用
+    ttl_entry = ttl.get("core_session_ttl") or ttl.get("conservative_ttl")
+    if flags and ttl_entry:
         sys.exit(0)
     sys.exit(1)
 

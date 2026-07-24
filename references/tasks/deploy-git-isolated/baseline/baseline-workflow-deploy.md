@@ -343,11 +343,53 @@ def _mask_pat(text: str) -> str:
 
 **`allow_direct_push_to` 语义**：
 
-| 值 | 含义 | 示例 |
-|----|------|------|
-| `[]`（空数组） | **严格模式**：任何分支禁止直接 push，必须 PR merge | `cs_py`（security_level=strict） |
-| `["main"]` | **白名单模式**：列表中的分支允许直接 push，其余禁止 | `jywl-settlement` |
-| `["main", "dev"]` | **扩展白名单**：多个分支允许直接 push | — |
+> **约束范围**：白名单仅对 **`default_branch`** 生效。非 `default_branch` 的分支（如 `feature/xxx`）不受白名单约束，本地 preflight 无条件放行。remote 是否接受由 GitHub 分支保护策略独立决定。
+>
+> **历史原因**：早期只处理 `main`/`master` 的 push 管控场景，feature 分支不在设计范围内。保持现状的原因是：① feature 分支通常无严重后果；② 若严格管控 feature 分支，每新增一个 feature 都需同步修改 `git-security.json` 和 remote 保护策略，维护成本过高。
+
+**本地配置与 Remote 规则的端点独立性**：
+
+```
+┌─────────────────────────────────────┐     ┌─────────────────────────────┐
+│ 本地端点                              │     │ Remote 端点                  │
+│ git-security.json + atomic-deploy-    │     │ GitHub 分支保护策略           │
+│ preflight.py                          │     │ (Settings → Branches)        │
+├─────────────────────────────────────┤     ├─────────────────────────────┤
+│ • 自声明规则，由 repo 维护者写入       │     │ • 由仓库 Owner/Admin 配置     │
+│ • 代码读取并执行判定（exit 0/1）       │     │ • 网络请求时的实际裁决         │
+│ • 只控制"走现成脚本"的路径            │     │ • 控制所有 git push 请求      │
+│ • 手工直接 git push → bypass         │     │ • 无法 bypass                 │
+└─────────────────────────────────────┘     └─────────────────────────────┘
+         ↓                                              ↓
+    【预判】本地提前拦截，避免无效请求           【终审】实际决定是否接受 push
+```
+
+**关键认知**：
+
+| 维度 | 本地 `git-security.json` + code | Remote push policy |
+|------|-------------------------------|-------------------|
+| **性质** | 本地配置文件 + 脚本判定 | 远程服务器规则 |
+| **受众** | `atomic-deploy-preflight.py` 等现成脚本 | GitHub/Git 服务 |
+| **强制力** | 仅对走现成脚本的路径有效 | 对所有 push 请求有效（无法 bypass） |
+| **手工 push** | ❌ 不控制（直接 bypass） | ✅ 控制（照样 reject） |
+| **对齐关系** | 本地配置**反映** remote 规则的事实 | 独立配置，不受本地影响 |
+| **典型场景** | `cs_py` 写 `[]` 是因为 remote 实际 reject main push | 仓库 Settings 中配置了 branch protection |
+
+**示例对照**：
+
+| 仓库 | 本地 `allow_direct_push_to` | Remote 实际规则 | 本地脚本行为 | Remote 实际结果 |
+|------|---------------------------|----------------|------------|---------------|
+| `cs_py` | `[]` | `main` 受保护，reject push | preflight 主动 `exit(1)` | push 被拒绝 |
+| `jywl-settlement` | `["main"]` | `main` 允许 push | preflight 放行 | push 成功 |
+| 某仓库（假设） | `["main"]` | `main` 受保护，reject push | preflight 放行 | push 被拒绝 |
+
+> **最后一行说明**：本地配置与 remote 规则**可能不一致**。`git-security.json` 只是"本地脚本的行为预期"，不代表 remote 一定配合。当两端不一致时，以 remote 实际返回为准。
+
+| 值 | 对 `default_branch` 的效果 | 对 `feature/*` 等非默认分支的效果 |
+|----|-------------------------|--------------------------------|
+| `[]`（空数组） | **禁止**直接 push，`preflight` 主动 `exit(1)` | 不受约束，`preflight` 放行 |
+| `["main"]` | **允许**直接 push | 不受约束，`preflight` 放行 |
+| `["main", "dev"]` | **允许**直接 push | 不受约束，`preflight` 放行 |
 
 **分支保护检测时序**：
 

@@ -116,6 +116,10 @@ meta: {}
 | [env-migration-bash-timeout-guard-verify-2026-07-23-150955.md](env-migration-bash-timeout-guard-verify-2026-07-23-150955.md) | bash-timeout-guard Hook 生效实测验证（130s 完全静默，确认 timeout 提升到 600s） | 2026-07-23-150955 |
 | [env-migration-polyrepo-git-security-identity-and-default-branch-2026-07-23-164411.md](env-migration-polyrepo-git-security-identity-and-default-branch-2026-07-23-164411.md) | Polyrepo Git-Security 身份卡与 default_branch 机制建设（repo_url 对碰 + 消除 master/main 硬编码） | 2026-07-23-164411 |
 | [env-migration-polyrepo-git-security-manifest-bug-2026-07-23-174127.md](env-migration-polyrepo-git-security-manifest-bug-2026-07-23-174127.md) | **详细版** — Polyrepo Git-Security 身份卡、default_branch 机制与 manifest_path 反复踩坑全记录 | 2026-07-23-174127 |
+| [env-migration-workflow-poly-manifest-validation-2026-07-24-110227.md](env-migration-workflow-poly-manifest-validation-2026-07-24-110227.md) | workflow-poly Step 0c manifest 内容完整性校验增强（字段必填 + 异常阻断） | 2026-07-24-110227 |
+| [env-migration-session-ttl-semantic-fix-2026-07-24-121216.md](env-migration-session-ttl-semantic-fix-2026-07-24-121216.md) | Session TTL 语义修正：核心登录态与非核心追踪 cookie 分离，确保续期前后同一维度对比 | 2026-07-24-121216 |
+| [env-migration-polyrepo-structure-and-git-security-alignment-2026-07-24-171616.md](env-migration-polyrepo-structure-and-git-security-alignment-2026-07-24-171616.md) | Polyrepo 结构理解加深与 git-security 语义对齐全记录（6 项认知纠正 + 3 个 baseline 文件变更 + worktree 规划） | 2026-07-24-171616 |
+| [env-migration-git-security-semantic-and-human-ai-boundary-2026-07-24-154103.md](env-migration-git-security-semantic-and-human-ai-boundary-2026-07-24-154103.md) | git-security 语义澄清与人机协同边界认知对齐（allow_direct_push_to 语义 + 确定性 vs 概率性分工 + 端点独立性） | 2026-07-24-154103 |
 
 
 ## 上级导航

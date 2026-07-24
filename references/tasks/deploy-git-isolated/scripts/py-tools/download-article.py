@@ -38,6 +38,19 @@ download-article.py — 文章正文下载 CLI  (v1.0.0)
 
   # 显式指定 devroot（polyrepo 场景）
   python download-article.py --url "https://example.com/post" --devroot "D:/workspace/other-repo"
+
+参数
+  --url            文章 URL（必填）。支持任意 URL；头条域名会额外触发 Session 检测门禁
+  --tags           标签列表，逗号分隔，如 "AI,编程"，写入输出 Markdown 的 frontmatter
+  --output-dir     输出目录（默认 devroot/out/articles/）
+  --headed         显示浏览器窗口（非 headless，调试用）
+  --devroot        devroot 路径（默认自动探测）
+  --skip-preflight 跳过前置检查（⚠️ 仅本地调试，生产环境禁止）
+
+输出格式
+  - Markdown 文件：{slug}.md，含 YAML frontmatter（title / description / date / source / tags）
+  - 图片目录：{slug}_files/（文章中引用的图片下载到本地，Markdown 改为相对路径）
+  - Obsidian 兼容：frontmatter 和链接格式均兼容 Obsidian 解析
 """
 import argparse
 import asyncio

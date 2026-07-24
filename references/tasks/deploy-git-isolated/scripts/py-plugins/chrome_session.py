@@ -171,6 +171,7 @@ def analyze_ttl(
             "analyzed_at": str,
             "total_cookies": int,
             "key_cookies_found": [...],
+            "core_session_ttl": {"cookie": str, "remaining_days": float, "expires": str} | None,
             "conservative_ttl": {"cookie": str, "remaining_days": float, "expires": str} | None,
             "longest_ttl": {"cookie": str, "remaining_days": float, "expires": str} | None,
             "summary": str,
@@ -212,11 +213,19 @@ def analyze_ttl(
         }
 
     now = datetime.now(timezone.utc)
+    # 核心登录态 cookie（决定服务端是否认可登录态）
+    core_session_cookies = {
+        "sessionid", "sessionid_ss",
+        "passport_auth_status", "passport_auth_status_ss",
+    }
+
     cookie_list = []
     min_remaining = None
     max_remaining = None
     min_cookie = None
     max_cookie = None
+    core_min_remaining = None
+    core_min_cookie = None
 
     for host, name, expires_utc, last_access_utc in rows:
         expires = _chrome_time_to_dt(expires_utc)
@@ -240,6 +249,20 @@ def analyze_ttl(
             if max_remaining is None or remaining > max_remaining:
                 max_remaining = remaining
                 max_cookie = entry
+            # 核心登录态单独统计
+            if name in core_session_cookies:
+                if core_min_remaining is None or remaining < core_min_remaining:
+                    core_min_remaining = remaining
+                    core_min_cookie = entry
+
+    core_ttl = None
+    if core_min_cookie:
+        core_ttl = {
+            "cookie": core_min_cookie["name"],
+            "remaining_days": core_min_cookie["remaining_days"],
+            "expires": core_min_cookie["expires"],
+            "note": "核心登录态有效期：sessionid / passport_auth_status 系列中最短的一个",
+        }
 
     conservative = None
     if min_cookie:
@@ -247,7 +270,7 @@ def analyze_ttl(
             "cookie": min_cookie["name"],
             "remaining_days": min_cookie["remaining_days"],
             "expires": min_cookie["expires"],
-            "note": "保守有效期：该 cookie 过期后服务端可能拒绝登录态",
+            "note": "全部 key cookie 中的最短有效期（含非核心追踪 cookie，仅供参考）",
         }
 
     report = {
@@ -256,6 +279,7 @@ def analyze_ttl(
         "analyzed_at": now.isoformat(),
         "total_cookies": len(rows),
         "key_cookies_found": [c for c in cookie_list if c["is_key"]],
+        "core_session_ttl": core_ttl,
         "conservative_ttl": conservative,
         "longest_ttl": {
             "cookie": max_cookie["name"],
@@ -265,18 +289,20 @@ def analyze_ttl(
         "summary": "",
     }
 
-    if conservative:
-        d = conservative["remaining_days"]
+    # 结论以 core_session_ttl 为准，conservative_ttl 仅作参考
+    ttl_source = core_ttl if core_ttl else conservative
+    if ttl_source:
+        d = ttl_source["remaining_days"]
         if d is None:
             report["summary"] = "存在关键 cookie 但无法计算有效期"
         elif d <= 1:
-            report["summary"] = f"Session 即将过期（{d} 天），建议立即重新登录"
+            report["summary"] = f"核心登录态即将过期（{d} 天），建议立即重新登录"
         elif d <= 7:
-            report["summary"] = f"Session 有效期紧张（{d} 天），建议本周内续期"
+            report["summary"] = f"核心登录态有效期紧张（{d} 天），建议本周内续期"
         elif d <= 30:
-            report["summary"] = f"Session 正常（约 {int(d)} 天），续期窗口: {conservative['expires'][:10]}"
+            report["summary"] = f"核心登录态正常（约 {int(d)} 天），续期窗口: {ttl_source['expires'][:10]}"
         else:
-            report["summary"] = f"Session 长期有效（{int(d)} 天+），无需近期关注"
+            report["summary"] = f"核心登录态长期有效（{int(d)} 天+），无需近期关注"
     else:
         report["summary"] = "未检测到有效登录态 cookie"
 
