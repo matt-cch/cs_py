@@ -455,13 +455,23 @@ def main():
     print(f"\n[Step 0c] PolyrepoContext manifest 已生成: {manifest_path}")
     try:
         manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        required_fields = ["repo_url", "default_branch", "target", "toolchain_root"]
+        missing = [f for f in required_fields if not manifest_data.get(f)]
+        if missing:
+            print(f"[FAIL] Step 0c: manifest 缺少关键字段: {', '.join(missing)}")
+            sys.exit(1)
         print(f"  toolchain_root: {manifest_data.get('toolchain_root')}")
         print(f"  target:         {manifest_data.get('target')}")
         print(f"  is_polyrepo:    {manifest_data.get('is_polyrepo')}")
         print(f"  repo_url:       {manifest_data.get('repo_url')}")
+        print(f"  default_branch: {manifest_data.get('default_branch')}")
         print(f"  branch:         {manifest_data.get('branch')}")
+    except json.JSONDecodeError as e:
+        print(f"[FAIL] Step 0c: manifest JSON 解析失败: {e}")
+        sys.exit(1)
     except Exception as e:
-        print(f"[WARN] manifest 内容读取失败: {e}")
+        print(f"[FAIL] Step 0c: manifest 内容读取失败: {e}")
+        sys.exit(1)
 
     # 仅审计 preflight + manifest，不执行后续部署步骤
     if args.step == "0":
