@@ -58,6 +58,17 @@
       }
     }
   },
+  "outfile_naming": {
+    "description": "--outfile 文件名构造约定（由调用者/Agent 按规则生成，不传入脚本自动处理）。",
+    "rule": "基于源文件名，将日期部分替换为当天日期（YYYYMMDD），并去掉版本后缀（如 -2607）。",
+    "pattern": "源文件名中的 YYYYMMDD 日期段",
+    "replacement": "当天 UTC 日期 YYYYMMDD",
+    "example": {
+      "source": "FEILIKS_FAPINV.20260722-2607.csv",
+      "outfile": "FEILIKS_FAPINV.20260727.csv",
+      "note": "20260722 → 20260727（当天日期），并去掉 -2607 后缀"
+    }
+  },
   "examples": [
     {
       "transforms": {

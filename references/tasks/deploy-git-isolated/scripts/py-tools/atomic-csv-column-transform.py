@@ -18,6 +18,13 @@ py-tools/atomic-csv-column-transform.py — CSV 列无损转换原子工具（v1
   3. 写入 outfile（编码/换行符/BOM 与源文件保持一致）
   4. 生成 manifest 落盘到 --output 指定路径（默认 venv/tmp/）
 
+【调用者义务（--outfile 构造约定）】
+  1. 先定位源 CSV 所在目录，检查该目录下是否存在 csv-transform-<场景>.json 配置
+  2. 若存在，读取配置中的 "outfile_naming" 字段，按其中 rule + example 构造 outfile 文件名
+  3. 若不存在或配置中无 outfile_naming，由调用者自行决定 outfile（建议保持与源文件同目录）
+  4. 构造完成后，将 outfile 绝对路径显式传入 --outfile，再执行本脚本
+  > 本脚本不负责自动推断 outfile 名称，命名规则由配置真源驱动，调用者必须显式构造。
+
 【依赖】
 底层能力（py-plugins/）：无（纯 Python 标准库）
 外部工具：无

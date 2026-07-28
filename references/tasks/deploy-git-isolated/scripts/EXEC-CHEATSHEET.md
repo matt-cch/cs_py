@@ -381,6 +381,21 @@ write → venv/tmp/patch.json
 > **适用范围**：任何需要 CSV 列内容转换的场景（如 Invoice date 批量更新、状态字段替换、正则清洗等）。
 > **核心原则**：配置驱动，改 JSON 配置即可适配新场景，py 框架不变。
 
+### 调用链条（调用者义务）
+
+```
+1. 定位源 CSV 所在目录
+      ↓
+2. 检查该目录下是否存在 csv-transform-<场景>.json 配置
+      ↓
+3. 若存在 → 读取其中 "outfile_naming" 规则 → 按 rule + example 构造 outfile 文件名
+   若不存在 → 调用者自行决定 outfile（建议与源文件同目录）
+      ↓
+4. 将构造好的 outfile 绝对路径显式传入 --outfile → 执行本脚本
+```
+
+> **铁律**：本脚本不负责自动推断 outfile 名称，命名规则由配置真源驱动，调用者必须显式构造后传入。
+
 ### 标准调用（默认配置：Invoice date → today_ymd）
 
 ```powershell
@@ -419,7 +434,7 @@ write → venv/tmp/patch.json
 | 参数 | 语义 | 必填 | 说明 |
 |------|------|------|------|
 | `--input` | 源 CSV 路径（或目录） | ✅ | 目录时自动扫描 *.csv 取最新 |
-| `--outfile` | 业务产物：转换后的 CSV | ✅ | 只读源文件，写入新文件 |
+| `--outfile` | 业务产物：转换后的 CSV | ✅ | 只读源文件，写入新文件。命名约定：基于源文件名，将日期段替换为当天 YYYYMMDD，去掉版本后缀（如 `-2607`）。例：`FEILIKS_FAPINV.20260722-2607.csv` → `FEILIKS_FAPINV.20260727.csv` |
 | `--output` | 审计产物：manifest JSON | 可选 | workflow 调用时必须显式传入；未传时回退 `venv/tmp/atomic-csv-column-transform-manifest-{ts}.json` |
 | `--config` | 转换规则配置 JSON | 可选 | 未传时使用内置默认 |
 | `--dry-run` | 预览模式 | 可选 | 输出前 3 行转换对比，不写入任何文件 |

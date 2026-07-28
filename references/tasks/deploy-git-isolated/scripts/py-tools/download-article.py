@@ -141,16 +141,24 @@ def _preflight(url: str, devroot: str | None = None) -> tuple[bool, str]:
             )
 
         ttl = cs.analyze_ttl(user_data_dir)
-        if ttl["ok"] and ttl.get("conservative_ttl"):
-            days = ttl["conservative_ttl"]["remaining_days"]
-            print(f"[Preflight] [OK] 头条 Session 标志: {', '.join(flags)}")
-            print(f"[Preflight] [OK] Session 有效期: {days} 天")
+        # 统一选择真源：优先 core_session_ttl，否则 fallback 到 conservative_ttl
+        active_ttl = None
+        if ttl.get("ok"):
+            active_ttl = ttl.get("core_session_ttl") or ttl.get("conservative_ttl")
+
+        print(f"[Preflight] [OK] 头条 Session 标志: {', '.join(flags)}")
+        if active_ttl:
+            days = active_ttl["remaining_days"]
+            label = "核心登录态有效期" if ttl.get("core_session_ttl") else "Session 有效期"
+            print(f"[Preflight] [OK] {label}: {days} 天")
+            if ttl.get("core_session_ttl") and ttl.get("conservative_ttl"):
+                c_days = ttl["conservative_ttl"]["remaining_days"]
+                print(f"[Preflight] [INFO] 保守有效期（含追踪 cookie）: {c_days} 天（仅供参考）")
             if days <= 1:
                 return False, f"头条 Session 即将过期（{days} 天），建议立即重新登录"
             if days <= 7:
                 print(f"[Preflight] [WARN] Session 有效期紧张（{days} 天），建议本周内续期")
         else:
-            print(f"[Preflight] [OK] 头条 Session 标志: {', '.join(flags)}")
             print(f"[Preflight] [WARN] 无法计算 Session 有效期")
     else:
         print("[Preflight] [SKIP] 非头条 URL，跳过 Session 检测")

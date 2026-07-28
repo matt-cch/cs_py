@@ -119,7 +119,9 @@ meta: {}
 | [env-migration-workflow-poly-manifest-validation-2026-07-24-110227.md](env-migration-workflow-poly-manifest-validation-2026-07-24-110227.md) | workflow-poly Step 0c manifest 内容完整性校验增强（字段必填 + 异常阻断） | 2026-07-24-110227 |
 | [env-migration-session-ttl-semantic-fix-2026-07-24-121216.md](env-migration-session-ttl-semantic-fix-2026-07-24-121216.md) | Session TTL 语义修正：核心登录态与非核心追踪 cookie 分离，确保续期前后同一维度对比 | 2026-07-24-121216 |
 | [env-migration-polyrepo-structure-and-git-security-alignment-2026-07-24-171616.md](env-migration-polyrepo-structure-and-git-security-alignment-2026-07-24-171616.md) | Polyrepo 结构理解加深与 git-security 语义对齐全记录（6 项认知纠正 + 3 个 baseline 文件变更 + worktree 规划） | 2026-07-24-171616 |
+| [env-migration-csv-outfile-naming-chain-2026-07-27-114147.md](env-migration-csv-outfile-naming-chain-2026-07-27-114147.md) | CSV 列转换工具 outfile 命名约定闭环建设（配置真源 → 调用者义务 → 显式入参） | 2026-07-27-114147 |
 | [env-migration-git-security-semantic-and-human-ai-boundary-2026-07-24-154103.md](env-migration-git-security-semantic-and-human-ai-boundary-2026-07-24-154103.md) | git-security 语义澄清与人机协同边界认知对齐（allow_direct_push_to 语义 + 确定性 vs 概率性分工 + 端点独立性） | 2026-07-24-154103 |
+| [env-migration-api-moo-polyrepo-init-and-mootdx-verification-2026-07-28-164019.md](env-migration-api-moo-polyrepo-init-and-mootdx-verification-2026-07-28-164019.md) | api-moo Polyrepo 初始化与 mootdx 验证全记录（目录结构、隔离环境、编码踩坑、配置隔离、HITL 违规） | 2026-07-28-164019 |
 
 
 ## 上级导航
