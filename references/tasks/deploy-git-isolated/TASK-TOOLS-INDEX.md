@@ -395,6 +395,7 @@ Python 版部署流水线，与 PS 版 Step 1-8 功能对等。`workflow-deploy-
 | `workflow-phase-git-local-diff-add-commit.py` | **Phase：本地 diff + add + commit**。输出 diff 审阅 → git add（-A 或 --files）→ git commit（自动生成或 --message）。执行后进入「已 commit 未 push」状态，下游接 atomic-git-push-smoke.py | 本地变更提交（独立 phase，不触及 remote） | ready |
 | `atomic-config-edit-json.py` | **原子：JSON 配置结构化编辑**。RFC 6902 JSON Pointer + JSON Patch，支持单条/批量（@file）、add/replace/remove/merge、强制 LF、备份、dry-run | 修订 JSON 索引/配置文件（替代手敲 edit） | ready |
 | `atomic-csv-column-transform.py` | **原子：CSV 列无损转换**。读取源 CSV，按配置规则对指定列进行无损转换（today_ymd / today_iso / fixed / regex_replace / empty），写入新 CSV，生成 manifest。配置驱动，改 JSON 配置即可适配新场景，py 框架不变。源于 feiliks-invoice-csv 工具的泛化 | CSV 列内容转换、Invoice date 批量更新、CSV 数据处理 | ready |
+| `atomic-npm-isolated-install.py` | **原子：npm 隔离安装**。将 npm 包安全安装到隔离目录，支持 Local（带 package.json）和 Global（单包）双模式。内置重组安全检查、CWD 切换检查、--show-progress 实时输出、bin 可用性验证（--version/--help）。生成 JSON manifest。 | 安装 node 工具到隔离目录、scriptc 等 npm 包隔离安装 | ready |
 
 **架构**：
 ```

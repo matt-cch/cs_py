@@ -122,6 +122,7 @@ meta: {}
 | [env-migration-csv-outfile-naming-chain-2026-07-27-114147.md](env-migration-csv-outfile-naming-chain-2026-07-27-114147.md) | CSV 列转换工具 outfile 命名约定闭环建设（配置真源 → 调用者义务 → 显式入参） | 2026-07-27-114147 |
 | [env-migration-git-security-semantic-and-human-ai-boundary-2026-07-24-154103.md](env-migration-git-security-semantic-and-human-ai-boundary-2026-07-24-154103.md) | git-security 语义澄清与人机协同边界认知对齐（allow_direct_push_to 语义 + 确定性 vs 概率性分工 + 端点独立性） | 2026-07-24-154103 |
 | [env-migration-api-moo-polyrepo-init-and-mootdx-verification-2026-07-28-164019.md](env-migration-api-moo-polyrepo-init-and-mootdx-verification-2026-07-28-164019.md) | api-moo Polyrepo 初始化与 mootdx 验证全记录（目录结构、隔离环境、编码踩坑、配置隔离、HITL 违规） | 2026-07-28-164019 |
+| [env-migration-atomic-npm-isolated-install-and-scriptc-2026-07-29-112454.md](env-migration-atomic-npm-isolated-install-and-scriptc-2026-07-29-112454.md) | atomic-npm-isolated-install 原子 CLI 新增 + scriptc 隔离安装实测 + 索引修订联动 | 2026-07-29-112454 |
 
 
 ## 上级导航

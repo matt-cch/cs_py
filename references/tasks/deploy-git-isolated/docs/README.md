@@ -38,7 +38,8 @@ meta: {}
 | [research/git-local-remote-state-timeline-clarification.md](research/git-local-remote-state-timeline-clarification.md) | research | Git 本地/Remote 生效机制时间线 — workflow-deploy 与 workflow-gh 的衔接前提与常见误判 |
 | [research/branch-vs-worktree-equivalence-and-differences.md](research/branch-vs-worktree-equivalence-and-differences.md) | research | Branch 与 Worktree 模式在 PR 闭环中的等价性与差异 |
 | [research/crlf-lf-line-ending-governance-research-2026-07-08-111237.md](research/crlf-lf-line-ending-governance-research-2026-07-08-111237.md) | research | CRLF/LF 换行符治理深度研究 — 全仓库文本文件强制 LF 的决策路径 |
+| [research/scriptc-windows-native-build-investigation-2026-07-29-111400.md](research/scriptc-windows-native-build-investigation-2026-07-29-111400.md) | research | scriptc Windows 原生编译踩坑实录 — 冲动试错 vs 先搜 Issues 的教训 |
 
 
-*导航版本: v1.6*  
+*导航版本: v1.7*  
 *更新时间: 2026-07-08*

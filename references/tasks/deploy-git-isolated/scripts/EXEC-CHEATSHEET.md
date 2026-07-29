@@ -1002,6 +1002,48 @@ $env:GH_CONFIG_DIR = "${devroot}\venv\data-gh"
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\download-runtime\wf-download-runtime.py" --devroot "${devroot}" --tool-name node --show-progress
 ```
 
+## Stage S8.5: npm 隔离安装
+
+> **设计意图**：将 npm 包安全安装到隔离目录（`venv/<工具名>/`），避免污染全局 node_modules 或系统 PATH。支持 Local（带 package.json 的完整安装）和 Global（无 package.json 的单包安装）双模式。
+> **禁止行为**：禁止直接用系统 npm 安装到全局目录；禁止在已有 node_modules 但无 package.json 的目录执行 Local install（会触发重组安全检查拒绝）。
+
+### Local 模式（推荐，生成 package.json）
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-npm-isolated-install.py" `
+    --devroot "${devroot}" `
+    --mode local `
+    --target-dir "${devroot}\venv\scriptc" `
+    --packages "scriptc@0.0.17" `
+    --show-progress
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-npm-isolated-install.py" --devroot "${devroot}" --mode local --target-dir "${devroot}\venv\scriptc" --packages "scriptc@0.0.17" --show-progress
+```
+
+### Global 模式（单包，无 package.json）
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-npm-isolated-install.py" `
+    --devroot "${devroot}" `
+    --mode global `
+    --target-dir "${devroot}\venv\uipro-cli" `
+    --packages "uipro-cli" `
+    --show-progress
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-npm-isolated-install.py" --devroot "${devroot}" --mode global --target-dir "${devroot}\venv\uipro-cli" --packages "uipro-cli" --show-progress
+```
+
+> 验证：安装完成后自动执行 `bin 可用性验证`（`--version` 或 `--help`），失败则报错并保留现场供排查。
+
+
 ## CI/CD 自动化调用
 
 ```powershell
