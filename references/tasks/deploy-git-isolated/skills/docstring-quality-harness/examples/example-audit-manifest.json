@@ -1,0 +1,44 @@
+{
+    "audit_id": "docstring-audit-20260731-110434",
+    "timestamp": "2026-07-31T11:04:34+08:00",
+    "tool_path": "D:\\pjt\\cursor\\cs_py\\references\\tasks\\deploy-git-isolated\\scripts\\py-tools\\workflow-git-deploy-full-poly.py",
+    "tool_type": "python",
+    "user_prompt": "用 references/tasks/deploy-git-isolated/scripts/py-tools/workflow-git-deploy-full-poly.py 部署 cs_py 项目，帮我构造正确的命令行。",
+    "subagent_command_line": "& \"D:\\pjt\\cursor\\cs_py\\venv\\py\\python.exe\" \"D:\\pjt\\cursor\\cs_py\\references\\tasks\\deploy-git-isolated\\scripts\\py-tools\\workflow-git-deploy-full-poly.py\" --devroot \"D:\\pjt\\cursor\\cs_py\" --target \"D:\\pjt\\cursor\\cs_py\"",
+    "subagent_reasoning": [
+        {
+            "claim": "--target 是必填参数",
+            "docstring_quote": "| --target | str | 无 | 操作目标仓库绝对路径（polyrepo 调用契约要求，必须显式传入，即使与 --devroot 相同） |",
+            "judgment": "correct"
+        },
+        {
+            "claim": "单仓库示例需同时传 --target",
+            "docstring_quote": "& \"${devroot}\\venv\\py\\python.exe\" ... --devroot \"${devroot}\" --target \"${devroot}\"",
+            "judgment": "correct"
+        }
+    ],
+    "expected_command_line": "& \"D:\\pjt\\cursor\\cs_py\\venv\\py\\python.exe\" \"D:\\pjt\\cursor\\cs_py\\references\\tasks\\deploy-git-isolated\\scripts\\py-tools\\workflow-git-deploy-full-poly.py\" --devroot \"D:\\pjt\\cursor\\cs_py\" --target \"D:\\pjt\\cursor\\cs_py\"",
+    "audit_result": "pass",
+    "gaps_found": [
+        {
+            "dimension": "required_consistency",
+            "severity": "critical",
+            "description": "参数表中 --target 曾标记为可选（❌）且默认值为 --devroot，与代码 required=True 矛盾",
+            "docstring_location": "Line 71: | --target | str | ❌ | --devroot | ...",
+            "fix_suggestion": "将必填列改为 ✅，默认值改为 无，说明文字补充'必须显式传入'"
+        },
+        {
+            "dimension": "example_completeness",
+            "severity": "critical",
+            "description": "单仓库完整部署示例曾漏传 --target 参数",
+            "docstring_location": "Line 80: # 单仓库完整部署示例",
+            "fix_suggestion": "在示例中补全 --target \"${devroot}\""
+        }
+    ],
+    "auditor_notes": "本次测试为修复后的回归验证。subagent 在修复后的 docstring 指导下成功构建了正确的命令行，证明文档改造有效。修复前同一 subagent 曾因参数表歧义错误判断 --target 为可选。",
+    "baseline_references": [
+        "baseline-v0.1.0-required_consistency-001",
+        "baseline-v0.1.0-example_completeness-001"
+    ],
+    "iteration_tag": "v0.1"
+}

@@ -501,7 +501,8 @@ Pipeline 编排层（workflow）需要对各 phase 产生的**所有关键产物
 | 参数语义 | 本 phase 的核心产物文件路径（不限定格式） |
 | 必填性 | workflow 调用时**必须显式传入**；独立运行时未传入可回退到默认路径 |
 | 禁止别名 | 禁止同时使用 `--manifest` / `--output` / `--outfile` 等多个参数名。已存在的 `--manifest` 等历史参数须迁移为 `--output` |
-| 回退路径 | `--output` 未传入时，默认落盘到 `venv/tmp/{tool-name}-manifest-{timestamp}.json`。`tool-name` 取脚本文件名（不含扩展名），不做额外转换 |
+| 回退路径 | `--output` 未传入时，优先写到系统 `TMP`/`TEMP` 目录；若未配置，则默认落盘到 `venv/tmp/{tool-name}-manifest-{timestamp}.json`。`tool-name` 取脚本文件名（不含扩展名），不做额外转换 |
+| 实现真源 | 落盘目录与文件名组装统一通过 `manifest_path` 插件（`py-plugins/manifest_path.py`）或原子 CLI `atomic-get-manifest-path.py` 获取，禁止脚本自行拼接路径 |
 
 ### 8.9.3 代码内命名规范
 
@@ -517,6 +518,10 @@ CLI 统一为 `--output`，代码内部仍保留 `manifest` 术语描述结构�
 ### 8.9.4 文件名命名规则
 
 **默认回退**（独立运行，无 `--output` 时）：
+```
+{TMP or TEMP}/{tool-name}-manifest-{timestamp}.json
+```
+若系统未配置 `TMP` / `TEMP`：
 ```
 {devroot}/venv/tmp/{tool-name}-manifest-{timestamp}.json
 ```

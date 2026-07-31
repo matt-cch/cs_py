@@ -1,0 +1,125 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Docstring Quality Audit Manifest",
+    "description": "记录单次 docstring 质量测试的完整审计信息，用于追溯 subagent 判断依据与 docstring 缺陷",
+    "type": "object",
+    "required": [
+        "audit_id",
+        "tool_path",
+        "user_prompt",
+        "subagent_command_line",
+        "subagent_reasoning",
+        "expected_command_line",
+        "audit_result",
+        "gaps_found",
+        "auditor_notes",
+        "baseline_references"
+    ],
+    "properties": {
+        "audit_id": {
+            "type": "string",
+            "description": "唯一审计标识，格式：docstring-audit-{timestamp}"
+        },
+        "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "审计执行时间（ISO 8601）"
+        },
+        "tool_path": {
+            "type": "string",
+            "description": "被测工具的绝对路径"
+        },
+        "tool_type": {
+            "type": "string",
+            "enum": ["python", "powershell", "batch", "node", "other"],
+            "description": "被测工具类型"
+        },
+        "user_prompt": {
+            "type": "string",
+            "description": "发送给 subagent 的原始用户视角 prompt"
+        },
+        "subagent_command_line": {
+            "type": "string",
+            "description": "subagent 基于 docstring 自行构建的命令行"
+        },
+        "subagent_reasoning": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["claim", "docstring_quote", "judgment"],
+                "properties": {
+                    "claim": {
+                        "type": "string",
+                        "description": "subagent 的判断声明"
+                    },
+                    "docstring_quote": {
+                        "type": "string",
+                        "description": "subagent 引用的 docstring 原文"
+                    },
+                    "judgment": {
+                        "type": "string",
+                        "enum": ["correct", "misled", "ambiguous", "unsupported"],
+                        "description": "审计员对 subagent 判断的评定"
+                    }
+                }
+            },
+            "description": "subagent 的逐条判断理由及审计员评定"
+        },
+        "expected_command_line": {
+            "type": "string",
+            "description": "审计员独立阅读 docstring 后判断的正确命令行"
+        },
+        "audit_result": {
+            "type": "string",
+            "enum": ["pass", "fail", "partial"],
+            "description": "pass=命令行完全正确; fail=有明显错误; partial=部分正确但有小偏差"
+        },
+        "gaps_found": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["dimension", "severity", "description", "docstring_location"],
+                "properties": {
+                    "dimension": {
+                        "type": "string",
+                        "enum": ["required_consistency", "example_completeness", "default_accuracy", "description_clarity", "path_explicitness", "other"],
+                        "description": "缺陷所属维度"
+                    },
+                    "severity": {
+                        "type": "string",
+                        "enum": ["critical", "major", "minor", "info"],
+                        "description": "严重程度"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "缺陷描述"
+                    },
+                    "docstring_location": {
+                        "type": "string",
+                        "description": "缺陷在 docstring 中的位置（行号/章节）"
+                    },
+                    "fix_suggestion": {
+                        "type": "string",
+                        "description": "修复建议"
+                    }
+                }
+            },
+            "description": "发现的 docstring 缺陷清单"
+        },
+        "auditor_notes": {
+            "type": "string",
+            "description": "审计员总体评价与改进建议"
+        },
+        "baseline_references": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "本次审计引用的 baseline 条目 ID"
+        },
+        "iteration_tag": {
+            "type": "string",
+            "description": "迭代标记，如 v0.1, v0.2，用于追踪 baseline 演进"
+        }
+    }
+}

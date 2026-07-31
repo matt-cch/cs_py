@@ -97,6 +97,12 @@ references/tasks/deploy-git-isolated/
 │   ├── js-plugins/                     # JS 可复用模块
 │   ├── js-tools/                       # JS 工具脚本（readability、turndown、extract-article）
 │   └── EXEC-CHEATSHEET.md              # 执行速查：命令+配置+参数
+├── skills/                             # Skill 规范与质量 Harness
+│   └── docstring-quality-harness/      # 工具文档自说明质量测试（subagent 探针 + baseline 积累）
+│       ├── SKILL.md
+│       ├── schema/
+│       ├── baseline/
+│       └── examples/
 └── archive/                            # 旧版归档
 ```
 

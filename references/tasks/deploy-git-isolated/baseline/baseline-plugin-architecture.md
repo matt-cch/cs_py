@@ -242,26 +242,37 @@ for p in list_plugins():
 
 ### 8.4.8 产出文件默认落盘到 `venv/tmp/`
 
-> **来源**：用户与 Agent 在 2026-06-22 对话中共同确认。
+> **来源**：用户与 Agent 在 2026-06-22 对话中共同确认。2026-07-30 补充 TMP/TEMP 优先规则。
 
-**规则**：任何脚本（workflow / atomic / plugin 的 CLI 入口）生成的**产出文件**（报告、日志、中间产物），若用户**没有显式指定输出路径**，默认落盘到 `${devroot}/venv/tmp/`。
+**规则**：任何脚本（workflow / atomic / plugin 的 CLI 入口）生成的**产出文件**（报告、日志、中间产物），若用户**没有显式指定输出路径**，落盘位置按以下优先级确定：
+
+1. **优先**：系统环境变量 `TMP` / `TEMP` 指定的目录（由外部终端/工作区配置统一控制）
+2. **Fallback**：若系统未配置 `TMP` / `TEMP`，则默认落盘到 `${devroot}/venv/tmp/`
 
 **原因**：
-1. `venv/` 已在 `.gitignore` 中，产出文件不会被意外提交到 GitHub
-2. `tmp/` 是公认的临时目录，用户清楚里面的内容可被随时清理
-3. 避免 task 目录被中间产物污染，保持仓库整洁
+1. `TMP`/`TEMP` 是操作系统级约定，外部配置（如 `.code-workspace` 中 `terminal.env`）可统一控制所有子进程的临时目录
+2. `venv/` 已在 `.gitignore` 中，fallback 路径不会被意外提交到 GitHub
+3. `tmp/` 是公认的临时目录，用户清楚里面的内容可被随时清理
+4. 避免 task 目录被中间产物污染，保持仓库整洁
 
 **实现要求**：
 
 | 场景 | 行为 | 示例 |
 |------|------|------|
 | 用户显式传 `--output /path/to/file.json` | 写到指定路径 | `--output out/audit.json` → `out/audit.json` |
-| 用户未传 `--output` | 自动写到 `venv/tmp/{script-name}-{timestamp}.{ext}` | 无参数 → `venv/tmp/security-audit-report-20260622-094202.json` |
+| 用户未传 `--output`，系统配置了 TMP/TEMP | 自动写到 `TMP/{script-name}-{timestamp}.{ext}` | 无参数 → `D:\...\tmp\security-audit-report-20260622-094202.json` |
+| 用户未传 `--output`，系统未配置 TMP/TEMP | 自动写到 `venv/tmp/{script-name}-{timestamp}.{ext}` | 无参数 → `venv/tmp/security-audit-report-20260622-094202.json` |
 | 用户传 `--output-dir /custom/dir` | 在该目录下自动生成文件名 | `--output-dir debug/` → `debug/security-audit-report-20260622-094202.json` |
 
 **禁止行为**：
 - ❌ 默认写到 task 根目录或 `scripts/` 子目录（可能被 git 追踪）
 - ❌ 默认覆盖已有文件（应使用时间戳或序号避免冲突）
+- ❌ 各脚本自行推算路径（如 `target_dir.parents[2]`、硬编码 `venv/tmp/` 等）
+
+**实现真源**：
+- 统一通过 `manifest_path` 插件（`py-plugins/manifest_path.py`）获取落盘目录与完整路径
+- 原子 CLI 入口：`atomic-get-manifest-path.py`
+- 禁止绕过插件直接拼接路径
 
 ### 8.4.9 案例讲解：workflow-lint-amend-lint.py 的正确实现
 

@@ -278,6 +278,13 @@
       "depends": [],
       "tags": ["runtime", "naming", "core"],
       "description": "运行时产物命名唯一真源：集中管理 ZIP/解压目录/文件名的生成规则，下游消费不各自拼接"
+    },
+    {
+      "name": "manifest_path",
+      "module": "manifest_path",
+      "depends": [],
+      "tags": ["core", "utility"],
+      "description": "产物落盘路径唯一真源：TMP/TEMP 环境变量优先，未配置则 fallback 到 devroot/venv/tmp/，提供目录获取与完整路径组装能力。遵循 baseline-plugin-architecture.md §8.4.8 与 baseline-workflow-deploy.md §8.9"
     }
   ],
   "profiles": {

@@ -346,6 +346,7 @@ print(ts["utc_iso"])     # 2026-01-15T01:00:00Z
 | 脚本 | 职责 | 典型场景 | 状态 |
 |------|------|---------|------|
 | `download-article.py` | **文章下载 CLI 入口**（Layer 3 Workflow）：调用 `article_extractor.py` → 从 URL 提取文章 → 输出 Markdown + 元数据 JSON | 下载在线文章为本地 Markdown 文件 | ready |
+| `workflow-download-article-to-vault.py` | **文章下载到 Vault Workflow**（Layer 3 Workflow）：编排 validate → download → verify → extract → mkdir → move → nav → cleanup 8 步闭环。自动维护 `clippings/README.md` 导航表 | 头条文章下载并直接归档到 vault-demo/raw/clippings/ | ready |
 | `atomic-chrome-login-interactive.py` | **Chrome 交互式登录 CLI**（Layer 3 原子）：启动持久化 Chrome 窗口让用户手动完成登录/续期，`--output` 必填，manifest 供 pipeline 复用 | 头条/其他网站 Session 续期、首次登录 | ready |
 
 **调用链路（用于排查）**：

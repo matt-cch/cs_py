@@ -40,7 +40,7 @@ Agent 用 `edit` 工具修改 JSON 文件时高频失败：缩进微差导致 ol
   --value         <str, 可选>                JSON 值（JSON 字符串，如 '{"x":1}' 或 '"hello"'）
   --batch         <str, 可选>                JSON Patch 批量操作（RFC 6902 数组格式）
   --indent        <int, 可选, 默认=4>         JSON 输出缩进空格数
-  --backup        <flag, 可选>               修改前备份原文件为 .json.bak
+  --backup        <flag, 可选>               修改前备份原文件，bak 落盘位置由 manifest_path 插件统一决定（TMP/TEMP 优先，fallback 到 devroot/venv/tmp/），禁止在 JSON 同目录生成 .bak
   --dry-run       <flag, 可选>               仅预览修改结果，不写入磁盘
   --output        <str, 可选>                产物输出路径（workflow 调用时必须显式传入；未传时回退到 devroot/venv/tmp/atomic-config-edit-json-manifest-{timestamp}.json）
 
@@ -458,9 +458,19 @@ def main():
         print(f"[Manifest] 已落盘: {mp}")
         sys.exit(0)
 
-    # 备份
+    # 备份（落盘路径由 manifest_path 插件统一决定，禁止硬编码 venv/tmp/）
     if args.backup:
-        bak_path = file_path.with_suffix(file_path.suffix + ".bak")
+        _scripts_dir = Path(__file__).parent.parent.resolve()
+        if str(_scripts_dir) not in sys.path:
+            sys.path.insert(0, str(_scripts_dir))
+        from py_lib import load_plugins
+        registry = load_plugins(devroot=str(devroot), tags=["utility"])
+        manifest_path = registry.manifest_path
+        bak_dir = manifest_path.get_manifest_dir(devroot)
+        bak_dir.mkdir(parents=True, exist_ok=True)
+
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        bak_path = bak_dir / f"atomic-config-edit-json-{file_path.stem}-{ts}.bak"
         bak_path.write_text(original_text, encoding="utf-8", newline="\n")
         manifest["backup_path"] = str(bak_path)
         print(f"[Backup] 已备份: {bak_path}")

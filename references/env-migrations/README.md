@@ -123,7 +123,14 @@ meta: {}
 | [env-migration-git-security-semantic-and-human-ai-boundary-2026-07-24-154103.md](env-migration-git-security-semantic-and-human-ai-boundary-2026-07-24-154103.md) | git-security 语义澄清与人机协同边界认知对齐（allow_direct_push_to 语义 + 确定性 vs 概率性分工 + 端点独立性） | 2026-07-24-154103 |
 | [env-migration-api-moo-polyrepo-init-and-mootdx-verification-2026-07-28-164019.md](env-migration-api-moo-polyrepo-init-and-mootdx-verification-2026-07-28-164019.md) | api-moo Polyrepo 初始化与 mootdx 验证全记录（目录结构、隔离环境、编码踩坑、配置隔离、HITL 违规） | 2026-07-28-164019 |
 | [env-migration-atomic-npm-isolated-install-and-scriptc-2026-07-29-112454.md](env-migration-atomic-npm-isolated-install-and-scriptc-2026-07-29-112454.md) | atomic-npm-isolated-install 原子 CLI 新增 + scriptc 隔离安装实测 + 索引修订联动 | 2026-07-29-112454 |
-
+| [env-migration-vaults-polyvaults-and-article-workflow-2026-07-29-153113.md](env-migration-vaults-polyvaults-and-article-workflow-2026-07-29-153113.md) | vaults/ polyvaults 知识库骨架建设 + download-article workflow 固化（3 次实测） | 2026-07-29-153113 |
+| [env-migration-vaults-research-dolt-zvec-sqlite-2026-07-29-161613.md](env-migration-vaults-research-dolt-zvec-sqlite-2026-07-29-161613.md) | vault-demo 知识补充：Dolt/zvec/SQLite 调研对比分析报告 | 2026-07-29-161613 |
+| [env-migration-atomic-config-edit-json-bak-tmp-and-cli-docstring-2026-07-30-173057.md](env-migration-atomic-config-edit-json-bak-tmp-and-cli-docstring-2026-07-30-173057.md) | atomic-config-edit-json bak 路径改造与 CLI docstring 显式化 | 2026-07-30-173057 |
+| [env-migration-archive-project-cs-py-venv-backup-2026-07-30-172705.md](env-migration-archive-project-cs-py-venv-backup-2026-07-30-172705.md) | archive_project.py 全量备份 cs_py + venv | 2026-07-30-172705 |
+| [env-migration-workflow-download-article-cli-defaults-2026-07-30-161210.md](env-migration-workflow-download-article-cli-defaults-2026-07-30-161210.md) | workflow-download-article CLI 默认值显式化与多端兼容改造 | 2026-07-30-161210 |
+| [env-migration-fix-workflow-download-article-to-vault-img-dir-bug-2026-07-30-100239.md](env-migration-fix-workflow-download-article-to-vault-img-dir-bug-2026-07-30-100239.md) | 修复 workflow-download-article-to-vault 无图片场景崩溃 bug | 2026-07-30-100239 |
+| [env-migration-manifest-path-plugin-and-article-workflow-fix-2026-07-30-115354.md](env-migration-manifest-path-plugin-and-article-workflow-fix-2026-07-30-115354.md) | manifest_path 插件体系建设与 article workflow 修复 | 2026-07-30-115354 |
+| [env-migration-deploy-git-docstring-quality-harness-skill-2026-07-31-114345.md](env-migration-deploy-git-docstring-quality-harness-skill-2026-07-31-114345.md) | deploy-git-isolated 新增 docstring-quality-harness skill 与 docstring 修正 | 2026-07-31-114345 |
 
 ## 上级导航
 - [references 总索引](../README.md)

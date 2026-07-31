@@ -900,6 +900,64 @@ py-plugins/*         → 底座层（具体检测/修复能力）
 - **Obsidian 兼容**：frontmatter 和链接格式均兼容 Obsidian 解析
 
 
+## Stage S6.7: 文章下载到 Vault Workflow（8 步全自动）
+
+> **设计意图**：将「download-article → 产物验证 → vault 目录整理 → 导航更新」固化为确定性 Workflow，替代 Agent 临场手动后处理。
+
+### 基本用法
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-download-article-to-vault.py" `
+    --devroot "${devroot}" `
+    --vault-dir "${devroot}\vaults\vault-demo" `
+    --url "https://www.toutiao.com/article/..." `
+    --show-progress
+```
+
+**终端:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-download-article-to-vault.py" --devroot "${devroot}" --vault-dir "${devroot}\vaults\vault-demo" --url "https://www.toutiao.com/article/..." --show-progress
+```
+
+### 自定义 slug（短名称）
+
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-download-article-to-vault.py" `
+    --devroot "${devroot}" `
+    --vault-dir "${devroot}\vaults\vault-demo" `
+    --url "https://www.toutiao.com/article/..." `
+    --slug "dolt-2-0" `
+    --show-progress
+```
+
+### 8 步流程
+
+| 步骤 | 动作 | 说明 |
+|------|------|------|
+| Step 1 | 参数与路径验证 | 校验 vault-dir、clippings/、创建临时目录 |
+| Step 2 | 调用 download-article.py | 实际下载文章和图片（复用既有工具链） |
+| Step 3 | 产物验证 | 验证 .md 存在、图片引用匹配 |
+| Step 4 | 提取文章标识 | 从 frontmatter 提取 title/slug/source |
+| Step 5 | 创建 vault 子目录 | 在 `raw/clippings/{slug}/` 下新建目录 |
+| Step 6 | 整目录移入 | 移动 .md + _files/ 并验证图片引用路径 |
+| Step 7 | 更新导航表 | 自动追加/初始化 clippings/README.md 剪藏列表 |
+| Step 8 | 清理临时目录 | 删除临时文件，输出 manifest |
+
+### 参数语义
+
+| 参数 | 语义 | 必填 | 说明 |
+|------|------|------|------|
+| `--vault-dir` | 目标 vault 目录 | ✅ | 如 `${devroot}\vaults\vault-demo` |
+| `--url` | 文章 URL | ✅ | 支持任意 URL，头条域名自动 Session 检测 |
+| `--slug` | 自定义子目录名 | 可选 | 默认从文件名提取（中文 slug 较长） |
+| `--tags` | 标签列表 | 可选 | 逗号分隔，传递给 download-article.py |
+| `--headed` | 显示浏览器窗口 | 可选 | 调试用 |
+| `--devroot` | devroot 路径 | 可选 | 默认自动探测 |
+| `--dry-run` | 只检测不移动 | 可选 | 预览模式 |
+| `--show-progress` | 实时输出进度 | 可选 | 含每步耗时统计 |
+
+
 ## Stage S7: Issue 同步
 
 ### 追加评论（记录 commit）

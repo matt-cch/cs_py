@@ -68,7 +68,7 @@ AI 集成：
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
 | --devroot | str | ✅ | 无 | 工具链根绝对路径（必须与 CWD 一致） |
-| --target | str | ❌ | --devroot | 操作目标仓库（polyrepo 时传入） |
+| --target | str | ✅ | 无 | 操作目标仓库绝对路径（polyrepo 调用契约要求，必须显式传入，即使与 --devroot 相同） |
 | --message | str | 否 | None | commit message（如未传入，自动从 staged 文件生成） |
 | --auto | flag | 否 | False | [已废弃] 现默认自动从 staged 文件生成 commit message，无需显式指定 |
 | --step | str | 否 | all | 执行单步：0(仅preflight+manifest)/4/5/6/7/8/9/10/all |
@@ -77,7 +77,7 @@ AI 集成：
 调用示例：
 
   # 单仓库完整部署（cs_py 自身）
-  & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}"
+  & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}" --target "${devroot}"
 
   # Polyrepo 完整部署（jywl-lab）
   & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-git-deploy-full-poly.py" --devroot "${devroot}" --target "${devroot}\apps\repos\jywl-team\jywl-lab"
