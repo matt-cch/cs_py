@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 r"""
-py-tools/atomic-gh-pr-create.py — GitHub Pull Request 创建原子脚本（v1.0.0）
+py-tools/atomic-gh-pr-create.py — GitHub Pull Request 创建原子脚本（v1.0.2）
 标签：py-tools
-版本：v1.0.0
-日期：2026-08-03
+版本：v1.0.2
+日期：2026-08-04
 
 【意图】
 在 polyrepo worktree 开发模式下，feature 分支的代码已 push 到 origin 后，
@@ -11,6 +11,21 @@ py-tools/atomic-gh-pr-create.py — GitHub Pull Request 创建原子脚本（v1.
 创建 GitHub Pull Request，填补 workflow-poly 部署后缺少 PR 创建步骤的缺口。
 与 legacy 的 gh-pr-create.py 不同：本脚本遵循 atomic 命名规范，支持 --target
 指向 worktree 目录，满足 polyrepo 契约。
+
+【真实意图：消除 gh CLI 的 CWD 依赖陷阱】
+gh CLI（如 `gh pr create`）默认从当前工作目录（CWD）推断要操作的仓库。
+在 polyrepo 工作区中，Agent/bash 的 CWD 是 devroot（cs_py），而 --target 指向
+另一个仓库（jywl-settlement）。如果脚本只传 --target 给 Python，但 Python 调用
+gh CLI 时不显式指定仓库，gh CLI 会在 cs_py 仓库上执行，导致：
+  - Head sha can't be blank
+  - No commits between main and task/deploy-git-isolated
+  - 或更隐蔽地：在错误仓库上创建了 PR
+
+解法：
+  1. 调用 gh_preflight.verify(devroot, target) 时传入 target
+  2. preflight 从 target 的 git remote 解析 owner/repo，并向 GitHub 验证真源
+  3. 所有 gh CLI 命令（pr create / pr view）显式传 `--repo ctx.owner_repo`
+  4. 彻底消除 CWD 依赖，确保操作对象与 --target 语义一致
 
 【职责】
   1. 通过 GH CLI 在指定 worktree 中创建 GitHub Pull Request
@@ -20,6 +35,7 @@ py-tools/atomic-gh-pr-create.py — GitHub Pull Request 创建原子脚本（v1.
   5. stdout 中所有 PAT 出现处自动替换为 ***
   6. 生成 manifest 落盘到 venv/tmp/ 供追踪审计
   7. 预检：当前分支 ≠ base、远程分支已存在
+  8. Post-Audit：PR 创建后通过 `gh pr view` 验证远程 PR 确实存在，并将验证结果写入 manifest
 
 【依赖】
 底层能力（py-plugins/）：
@@ -87,7 +103,7 @@ py-tools/atomic-gh-pr-create.py — GitHub Pull Request 创建原子脚本（v1.
     ${devroot}/venv/tmp/atomic-gh-pr-create-manifest-{timestamp}.json:
       {
         "atomic_tool": "atomic-gh-pr-create",
-        "version": "1.0.0",
+        "version": "1.0.2",
         "devroot": "...",
         "target": "...",
         "title": "...",
@@ -102,6 +118,14 @@ py-tools/atomic-gh-pr-create.py — GitHub Pull Request 创建原子脚本（v1.
         "dry_run": true|false,
         "exit_code": 0|1,
         "exit_at": "...",
+        "post_audit": {
+          "verified": true,
+          "method": "gh_pr_view",
+          "state": "OPEN",
+          "title": "...",
+          "url": "https://github.com/owner/repo/pull/2",
+          "errors": []
+        },
         "errors": []
       }
 
@@ -220,7 +244,7 @@ def main():
     # Manifest 数据收集
     manifest = {
         "atomic_tool": "atomic-gh-pr-create",
-        "version": "1.0.0",
+        "version": "1.0.2",
         "devroot": str(devroot),
         "target": str(target),
         "title": args.title,
@@ -244,7 +268,7 @@ def main():
     print("\n" + "=" * 50)
     print("[Step 1] GH CLI 前置验证")
     print("=" * 50)
-    ctx = gh_preflight.verify(devroot)
+    ctx = gh_preflight.verify(devroot, target)
     if not ctx.ok:
         for e in ctx.errors:
             print(f"[FAIL] {e}")
@@ -326,7 +350,7 @@ def main():
     print("[Step 3] 创建 GitHub Pull Request")
     print("=" * 50)
 
-    gh_args = ["pr", "create", "--title", args.title, "--base", args.base]
+    gh_args = ["pr", "create", "--repo", ctx.owner_repo, "--title", args.title, "--base", args.base]
     if args.body:
         gh_args.extend(["--body", args.body])
     if args.draft:
@@ -356,7 +380,7 @@ def main():
     _print_cmd([str(ctx.gh_exe)] + gh_args)
     sys.stdout.flush()
 
-    result = ctx.run_gh(gh_args, check=False)
+    result = ctx.run_gh(gh_args, check=False, cwd=str(target))
 
     if result.stdout:
         print(_mask_pat(result.stdout), end="")
@@ -387,6 +411,37 @@ def main():
         print(f"  PR Number: #{pr_number}")
     if pr_url:
         print(f"  URL: {pr_url}")
+
+    # Step 5: Post-Audit — 验证 PR 在远程确实存在
+    print("\n" + "=" * 50)
+    print("[Step 5] Post-Audit: 验证远程 PR")
+    print("=" * 50)
+
+    audit_result = {"verified": False, "method": "", "state": None, "errors": []}
+
+    if pr_number and ctx.owner_repo:
+        view_args = ["pr", "view", str(pr_number), "--repo", ctx.owner_repo, "--json", "number,state,url,title"]
+        view_result = ctx.run_gh(view_args, check=False)
+        if view_result.returncode == 0:
+            try:
+                view_data = json.loads(view_result.stdout)
+                audit_result["verified"] = True
+                audit_result["method"] = "gh_pr_view"
+                audit_result["state"] = view_data.get("state")
+                audit_result["title"] = view_data.get("title")
+                audit_result["url"] = view_data.get("url")
+                print(f"[OK] Post-audit 通过: PR #{pr_number} 状态={view_data.get('state')}")
+            except Exception as e:
+                audit_result["errors"].append(f"解析 gh pr view 输出失败: {e}")
+                print(f"[WARN] Post-audit 解析失败: {e}")
+        else:
+            audit_result["errors"].append(f"gh pr view 失败: {view_result.stderr.strip()}")
+            print(f"[WARN] Post-audit 失败: gh pr view 返回非零")
+    else:
+        audit_result["errors"].append("pr_number 缺失，无法执行 post-audit")
+        print("[WARN] Post-audit 跳过: pr_number 缺失")
+
+    manifest["post_audit"] = audit_result
 
     manifest["pr_number"] = pr_number
     manifest["pr_url"] = pr_url
