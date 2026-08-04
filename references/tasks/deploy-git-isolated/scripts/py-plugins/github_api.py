@@ -13,11 +13,18 @@
     from py_lib import load_plugins
     registry = load_plugins(devroot="D:/pjt/cursor/cs_py", tags=["github", "api"])
 
+    # 获取 Issue 评论
     creds = registry.github_api.get_credentials()
     issue = registry.github_api.get_issue(owner=creds["owner"], repo=creds["repo"],
                                           number=1, pat=creds["pat"])
     comments = registry.github_api.list_comments(owner=creds["owner"], repo=creds["repo"],
                                                  number=1, pat=creds["pat"])
+
+    # 获取仓库服务端真源元数据（server-side canonical truth）
+    meta = registry.github_api.fetch_repo_metadata("matt-cch", "jywl-settlement", creds["pat"])
+    print(meta["clone_url"])   # https://github.com/matt-cch/jywl-settlement.git
+    print(meta["html_url"])    # https://github.com/matt-cch/jywl-settlement
+    print(meta["default_branch"])  # main
 """
 import json
 import os
@@ -248,3 +255,26 @@ def create_comment(owner: str, repo: str, number: int, pat: str, body: str) -> D
     """在 Issue 下追加评论。"""
     uri = f"https://api.github.com/repos/{owner}/{repo}/issues/{number}/comments"
     return invoke_api("POST", uri, pat, body={"body": body})
+
+
+def _canonicalize_url(url: str) -> str:
+    """URL 规范化：去掉尾部斜杠和 .git 后缀，统一小写。"""
+    url = url.rstrip("/")
+    if url.lower().endswith(".git"):
+        url = url[:-4]
+    return url.lower()
+
+
+def fetch_repo_metadata(owner: str, repo: str, pat: str) -> Dict[str, Any]:
+    """
+    从 GitHub REST API 获取仓库服务端真源元数据（server-side canonical truth）。
+
+    返回包含 clone_url（带 .git）、html_url（不带 .git）、default_branch 等字段。
+    注意：这是网络请求，不是读取本地 .git/config 或 git remote get-url。
+
+    异常:
+        urllib.error.HTTPError: HTTP 错误（如 404 仓库不存在）
+        urllib.error.URLError: 网络错误
+    """
+    uri = f"https://api.github.com/repos/{owner}/{repo}"
+    return invoke_api("GET", uri, pat)

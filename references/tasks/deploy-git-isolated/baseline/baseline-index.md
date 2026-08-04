@@ -3,7 +3,7 @@ title: deploy-git-isolated — Baseline 导航索引
 description: 规范基线总入口，提供全部 baseline 文件的导航与顶层原则速查。取代原 monolithic task-canonical-baseline.md。
 date: 2026-07-24
 meta:
-  version: "2.5.2"
+  version: "2.7.0"
   source: task-canonical-baseline.md 拆分
 ---
 
@@ -35,6 +35,7 @@ meta:
 | [baseline-workflow-deploy.md](baseline-workflow-deploy.md) | JS 工具链、全链条部署、Git 空目录保留、三侧冲突仲裁、Pipeline Phase 产物统筹（8.6-8.9 workflow/JS） | 开发 workflow、跨侧工具选型时 |
 | [baseline-audit-truth.md](baseline-audit-truth.md) | Trigger 治理、外部工具引用、独立审计、决策真源集中化（8.2 + 8.9-8.10） | 设计审计机制、提取真源模块时 |
 | [baseline-human-ai-boundary.md](baseline-human-ai-boundary.md) | 人机协同边界：确定性事务按规范执行，概率性事务才由 Agent 临场判断（9.x） | Agent 面临"要不要自己判断"的决策点时 |
+| [baseline-naming-intent.md](baseline-naming-intent.md) | 文件命名与主体意图表达：文件名、docstring、README.md、index.json 如何协同承载意图，提高搜索命中率 | 新建/重命名文件、编写 docstring、维护索引时 |
 
 
 ## 顶层原则速查（一句话铁律）
@@ -59,13 +60,14 @@ meta:
 | 16 | devroot = 可用公共资源根，target = 操作对象；CWD 锚定保障公共资源可用性，target 显性隔离保障 polyrepo 互不污染 | [baseline-principles.md](baseline-principles.md) 0.7.3 |
 | 17 | git-security.json = Repo 身份卡；repo_url 基准 vs 实测对碰；default_branch 消除 master/main 硬编码 | [baseline-workflow-deploy.md](baseline-workflow-deploy.md) 8.7.6 |
 | 18 | **确定性规范优先于 Agent 判断**：有配置/schema/rule/workflow 覆盖的，Agent 只执行不推断；概率性地带才临场判断 | [baseline-human-ai-boundary.md](baseline-human-ai-boundary.md) 9.1-9.2 |
+| 19 | **文件名必须承载主体意图**：文件名、docstring、README.md、index.json 四大载体语义一致，协同提高搜索命中率 | [baseline-naming-intent.md](baseline-naming-intent.md) §1-5 |
 
 
 ## 版本历史
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v2.6.0 | 2026-07-30 | baseline-plugin-architecture.md §8.4.8 与 baseline-workflow-deploy.md §8.9 同步更新：产出文件落盘位置由「固定 devroot/venv/tmp/」改为「TMP/TEMP 环境变量优先，未配置时 fallback 到 devroot/venv/tmp/」 |
+| v2.7.0 | 2026-08-03 | 新增 `baseline-naming-intent.md`：文件命名与主体意图表达规范——文件名、docstring、README.md、index.json 四大载体协同承载意图，提高搜索工具命中率；顶层原则速查后续追加第 19 条 |
 | v2.5.0 | 2026-07-24 | 新增 `baseline-human-ai-boundary.md`（§9.x）：人机协同边界与分工——确定性事务由配置/schema/rule/workflow 按规范执行，概率性事务才由 Agent 临场判断；以 `git-security.json` 为反例固化"规范优先于判断"原则；顶层原则速查追加第 18 条 |
 | v2.4.0 | 2026-07-23 | baseline-workflow-deploy.md §8.7.6.2 改为「基准 vs 实测对碰模型」；新增 §8.7.6.6「default_branch 与分支保护策略」；代码层面完成 polyrepo_context.py / atomic-deploy-preflight.py / workflow-git-deploy-full-poly.py / gh-* 脚本的 default_branch 动态读取改造；顶层原则速查追加第 17 条 |
 | v2.3.0 | 2026-07-23 | baseline-structure.md §2.3 扩展为完整 Polyrepo Git 配置四件套（`.git/`、`.gitignore`、`.gitattributes`、`git-security.json`），新增「Repo 身份卡」设计意图；baseline-workflow-deploy.md §8.7.6.2 更新 `repo_url` 解析优先级（`git-security.json` 升至第 2 优先级）；明确 `.env` 不再承载 `repo_url` 的 anti-pattern |

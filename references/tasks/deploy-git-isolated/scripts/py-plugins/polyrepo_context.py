@@ -28,6 +28,9 @@ from pathlib import Path
 
 from session_id import detect_session_id
 
+# 导入共享 URL 规范化工具
+from git_url_utils import canonicalize_url
+
 
 def _run_git(git_exe: Path, args: list, cwd: Path) -> subprocess.CompletedProcess:
     """执行 git 命令，输出固定 UTF-8。"""
@@ -72,9 +75,9 @@ def _resolve_repo_url(toolchain_root: Path, target: Path, git_exe: Path) -> tupl
     r = _run_git(git_exe, ["-C", str(target), "remote", "get-url", "origin"], cwd=target)
     remote_url = r.stdout.strip() if (r.returncode == 0 and r.stdout.strip()) else ""
 
-    # 3. 对碰
+    # 3. 对碰（使用规范化 URL，消除 .git 后缀和尾部斜杠差异）
     if security_url and remote_url:
-        if security_url == remote_url:
+        if canonicalize_url(security_url) == canonicalize_url(remote_url):
             return remote_url, "git-remote+git-security"
         return "", "mismatch"
 

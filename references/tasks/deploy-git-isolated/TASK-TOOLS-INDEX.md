@@ -35,6 +35,7 @@ meta:
 | `github-sync-issue.ps1` | Issue 同步入口：create / update / comment / list-comments / get-issue | commit 后同步变更历史到 Issue | ready |
 | `github-sync-issue-config.json` | 配置真源：模板、labels、endpoint 映射 | 调整 Issue 格式时修改此文件，不动脚本 | ready |
 | `fetch_issue.py` | Python CLI：获取 Issue 完整内容（含评论） | 通过 py_lib 调用 github_api 插件查看 Issue | ready |
+| `atomic-gh-issue-create.py` | **Atomic：GitHub Issue 创建**。通过 GH CLI 创建 issue，支持 --dry-run / --show-progress / --label | workflow-poly Step 9 前创建追踪 issue | ready |
 
 > **与 github-create-issue.ps1 的区别**：`github-create-issue.ps1` 是 Phase 3 的遗留脚本，功能单一（仅 create）；`github-sync-issue.ps1` 是统一入口，覆盖全部 Issue 生命周期操作，使用插件架构（github-api.ps1），推荐新场景使用。
 > **Python 版补充**：`fetch_issue.py` 走 py_lib 插件体系，与 PS 版 `github-sync-issue.ps1 -Mode get-issue/list-comments` 功能互补，输出格式对齐。

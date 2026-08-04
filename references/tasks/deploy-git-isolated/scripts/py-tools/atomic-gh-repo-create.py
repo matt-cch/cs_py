@@ -231,7 +231,7 @@ def main():
 
     visibility = "private" if args.private else "public"
     full_name = f"{args.owner}/{args.repo_name}"
-    repo_url = f"https://github.com/{full_name}"
+    repo_url = f"https://github.com/{full_name}.git"
     manifest["repo_url"] = repo_url
 
     gh_args = ["repo", "create", full_name, f"--{visibility}"]

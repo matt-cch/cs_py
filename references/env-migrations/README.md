@@ -131,6 +131,11 @@ meta: {}
 | [env-migration-fix-workflow-download-article-to-vault-img-dir-bug-2026-07-30-100239.md](env-migration-fix-workflow-download-article-to-vault-img-dir-bug-2026-07-30-100239.md) | 修复 workflow-download-article-to-vault 无图片场景崩溃 bug | 2026-07-30-100239 |
 | [env-migration-manifest-path-plugin-and-article-workflow-fix-2026-07-30-115354.md](env-migration-manifest-path-plugin-and-article-workflow-fix-2026-07-30-115354.md) | manifest_path 插件体系建设与 article workflow 修复 | 2026-07-30-115354 |
 | [env-migration-deploy-git-docstring-quality-harness-skill-2026-07-31-114345.md](env-migration-deploy-git-docstring-quality-harness-skill-2026-07-31-114345.md) | deploy-git-isolated 新增 docstring-quality-harness skill 与 docstring 修正 | 2026-07-31-114345 |
+| [env-migration-tool-discovery-skill-creation-2026-08-03-110725.md](env-migration-tool-discovery-skill-creation-2026-08-03-110725.md) | tool-discovery Skill 新建 — 解决 Agent 工具查询凭文件名推断的结构性缺陷（真源索引检索规范 + 触发条件登记） | 2026-08-03-110725 |
+| [env-migration-git-remote-url-truth-source-toolchain-2026-07-31-172914.md](env-migration-git-remote-url-truth-source-toolchain-2026-07-31-172914.md) | Git Remote URL 真源检测工具链改造（preflight 三方验证 + github_api fetch_repo_metadata + manifest 落盘） | 2026-07-31-172914 |
+| [env-migration-pr-closed-loop-atomic-toolchain-2026-08-03-145515.md](env-migration-pr-closed-loop-atomic-toolchain-2026-08-03-145515.md) | PR 自闭环 Atomic 脚本组与 Issue Sync 工具链建设（gh-pr-create/merge + sync-main + workflow 编排） | 2026-08-03-145515 |
+| [env-migration-vaultroot-default-remove-2026-08-04-113406.md](env-migration-vaultroot-default-remove-2026-08-04-113406.md) | vaultroot 默认值去歧义 — AGENTS.md / PROJECT-STRUCTURE.md 占位符修正 | 2026-08-04-113406 |
+| [env-migration-handoff-classification-mdc-2026-08-04-120622.md](env-migration-handoff-classification-mdc-2026-08-04-120622.md) | env-migration 与 handoff 分类边界 mdc 新建 + 完整记录义务固化 | 2026-08-04-120622 |
 
 ## 上级导航
 - [references 总索引](../README.md)

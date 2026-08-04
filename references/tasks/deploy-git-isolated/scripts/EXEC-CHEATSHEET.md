@@ -234,7 +234,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 > **铁律**：`--target` 强制必填，不可省略。`--devroot` 仅用于验证与 CWD 一致。
 
 
-## Stage S5.4.1: Polyrepo 初始化（Create + Clone + Smoke Push）
+## Stage S5.4.1: Polyrepo 初始化（Create + Clone + Smoke Push + Issue Create）
 
 用于从 0 到 1 新建 polyrepo 仓库并完成本地→remote 联动验证。
 
@@ -272,6 +272,14 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
     --remote "origin" `
     --branch "main" `
     --output "${devroot}\venv\tmp\polyrepo-init-step4-push.json"
+
+# Step 5: 创建追踪 Issue（workflow-poly Step 9 前置）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-gh-issue-create.py" `
+    --devroot "${devroot}" `
+    --repo "matt-cch/jywl-settlement" `
+    --title "Feature Demo 开发追踪" `
+    --body "追踪 feat/demo 分支的迭代进度" `
+    --output "${devroot}\venv\tmp\polyrepo-init-step5-issue.json"
 ```
 
 **终端:**
@@ -287,10 +295,13 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 
 # Smoke push
 "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-git-push-smoke.py" --devroot "${devroot}" --target "${devroot}\apps\repos\matt-cch\jywl-settlement" --remote "origin" --branch "main" --output "${devroot}\venv\tmp\polyrepo-init-step4-push.json"
+
+# 创建追踪 Issue
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-gh-issue-create.py" --devroot "${devroot}" --repo "matt-cch/jywl-settlement" --title "Feature Demo 开发追踪" --body "追踪 feat/demo 分支的迭代进度" --output "${devroot}\venv\tmp\polyrepo-init-step5-issue.json"
 ```
 
 > 前置：`.env` 中已配置 `GITHUB_PAT`、`GITHUB_USERNAME`、`GIT_USER_NAME`、`GIT_USER_EMAIL`
-> **调用链**：create → clone → diff-add-commit → push-smoke，四步顺序执行，前一步 exit 0 后方可进入下一步
+> **调用链**：create → clone → diff-add-commit → push-smoke → issue-create，五步顺序执行，前一步 exit 0 后方可进入下一步
 
 
 ## Stage S5.4.2: JSON 配置原子编辑
@@ -681,16 +692,23 @@ py-plugins/*         → 底座层（具体检测/修复能力）
 
 **Agent:**
 ```powershell
-& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-deploy-preflight.py"
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-deploy-preflight.py" `
+    --devroot "${devroot}" `
+    --target "${devroot}\apps\repos\matt-cch\jywl-settlement" `
+    --output "${devroot}\venv\tmp\preflight-jywl-settlement.json"
 ```
 
 **终端:**
 ```powershell
-"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-deploy-preflight.py"
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-deploy-preflight.py" `
+    --devroot "${devroot}" `
+    --target "${devroot}\apps\repos\matt-cch\jywl-settlement" `
+    --output "${devroot}\venv\tmp\preflight-jywl-settlement.json"
 ```
 
-> 前置：`.env` 中已配置 `GITHUB_REPO_URL` 和 `GITHUB_PAT`
-> 职责：验证 .env 部署配置、分支保护（禁止 master 直接 push）、agent 插件加载、git 空目录保留
+> 前置：`.env` 中已配置 `GITHUB_PAT` 和 `GITHUB_USERNAME`
+> 职责：三方 repo_url 验证（git-security + git remote + GitHub API 真源）、URL 规范化比对、manifest 落盘、分支保护、agent 插件、git 空目录保留
+> 输出：manifest JSON（含 `repo_url_audit`、`git_security`、`current_branch`、`working_tree`），供下游 workflow 消费
 
 
 ### 执行 Staged 内容安全扫描（必须在 git add 后）
