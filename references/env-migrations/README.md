@@ -136,6 +136,11 @@ meta: {}
 | [env-migration-pr-closed-loop-atomic-toolchain-2026-08-03-145515.md](env-migration-pr-closed-loop-atomic-toolchain-2026-08-03-145515.md) | PR 自闭环 Atomic 脚本组与 Issue Sync 工具链建设（gh-pr-create/merge + sync-main + workflow 编排） | 2026-08-03-145515 |
 | [env-migration-vaultroot-default-remove-2026-08-04-113406.md](env-migration-vaultroot-default-remove-2026-08-04-113406.md) | vaultroot 默认值去歧义 — AGENTS.md / PROJECT-STRUCTURE.md 占位符修正 | 2026-08-04-113406 |
 | [env-migration-handoff-classification-mdc-2026-08-04-120622.md](env-migration-handoff-classification-mdc-2026-08-04-120622.md) | env-migration 与 handoff 分类边界 mdc 新建 + 完整记录义务固化 | 2026-08-04-120622 |
+| [env-migration-source-truth-l1-l5-verification-chain-2026-08-05-133038.md](env-migration-source-truth-l1-l5-verification-chain-2026-08-05-133038.md) | source-truth L1-L5 真源推理链建设与 gh 真源认知纠偏 | 2026-08-05-133038 |
+| [env-migration-atomic-gh-pr-merge-and-gh-source-truth-2026-08-04-173941.md](env-migration-atomic-gh-pr-merge-and-gh-source-truth-2026-08-04-173941.md) | atomic-gh-pr-merge 新建与 gh 真源认知纠偏 | 2026-08-04-173941 |
+| [env-migration-gh-source-truth-verification-2026-08-05-145303.md](env-migration-gh-source-truth-verification-2026-08-05-145303.md) | GitHub 真源检测体系开发与工具登记修订联动规范 | 2026-08-05-145303 |
+| [env-migration-rg-fd-search-sed-2026-08-05-172349.md](env-migration-rg-fd-search-sed-2026-08-05-172349.md) | rg-fd-search SED 自演进目录模式建设 + fd 工具链集成 + update-version.py CRLF 修复 | 2026-08-05-172349 |
+| [env-migration-fd-toolchain-and-crlf-fix-2026-08-05-160409.md](env-migration-fd-toolchain-and-crlf-fix-2026-08-05-160409.md) | fd 工具链全链路集成与 update-version.py CRLF 根因修复 | 2026-08-05-160409 |
 
 ## 上级导航
 - [references 总索引](../README.md)

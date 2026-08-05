@@ -370,6 +370,13 @@ def query(tool_name: str, query_param: str, target_version: str = "", constraint
                 source_name="GitHub Release BurntSushi/ripgrep",
                 stable_only=stable_only
             )
+        elif query_param == "fd":
+            result = checker.query_github_release(
+                "sharkdp", "fd", target_version,
+                asset_filter=lambda n: "x86_64-pc-windows-msvc" in n and n.endswith(".zip") and not n.endswith(".sha256"),
+                source_name="GitHub Release sharkdp/fd",
+                stable_only=stable_only
+            )
         else:
             result["error"] = f"未知查询参数: {query_param}"
     except Exception as e:

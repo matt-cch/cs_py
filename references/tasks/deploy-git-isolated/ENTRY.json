@@ -124,9 +124,21 @@
                 "version": "0.23.0",
                 "date": "2026-07-31",
                 "note": "新增 docstring-quality-harness skill：通过委派 subagent 检验工具 docstring 自说明质量，渐进式积累 baseline。目录结构新增 skills/，登记 verified-trigger-index + verified-task-index + ENTRY.json"
+            },
+            {
+                "version": "0.24.0",
+                "date": "2026-08-05",
+                "slug": "source-truth-l1-l5",
+                "note": "新增 source_truth.py 插件（py-plugins/）：L1-L5 Git/GitHub 真源推理链（intent-config→local-git→worktree→remote-HEAD→PR-status），修正 gh_preflight 真源认知误区（gh_preflight 是工具链验证，非真源验证）。新增 atomic-gh-repo-verify.py 原子 CLI（py-tools/）：标准 atomic 调用契约，--devroot + --target 必填，输出 manifest 含 source_truth 全字段。修订联动 ENTRY/TASK-TOOLS-INDEX/EXEC-CHEATSHEET/verified-task-index。"
+            },
+            {
+                "version": "0.25.0",
+                "date": "2026-08-05",
+                "slug": "rg-fd-search-sed",
+                "note": "rg-fd-search skill 引入 SED（Self-Evolution Directory）模式：新增 scripts/ references/ assets/ templates/ examples/ versions/ gotchas/ evolutions/ learnings/ 九个子目录，建立 skill 自闭环骨架。SKILL.md 追加加载机制声明、三类增量 frontmatter 规范、Self-Evolution 复盘自检块。versions/manifest.json 初始创建。scripts/ 为 skill 私有实现，不对外登记。修订联动 ENTRY/README/verified-task-index。"
             }
         ],
-        "last_updated": "2026-07-10T14:30:00",
+        "last_updated": "2026-08-05T17:19:37",
         "source_of_truth": "README.md",
         "trigger_index": "references/tasks/deploy-git-isolated/task-scenario-triggers.json",
         "tools_index": "references/tasks/deploy-git-isolated/TASK-TOOLS-INDEX.md",
@@ -945,6 +957,18 @@
             "role": "原子 CLI：产物落盘路径查询入口。通过 py_lib 加载 manifest_path 插件，查询目录或组装完整路径。供 Agent/外部脚本直接调用，避免内嵌路径推算逻辑。",
             "path": "references/tasks/deploy-git-isolated/scripts/py-tools/atomic-get-manifest-path.py",
             "status": "ready"
+        },
+        {
+            "name": "source_truth.py",
+            "role": "Python 插件：Git/GitHub 真源推理链 L1-L5。在 gh_preflight 通过的基础上，执行 intent-config→local-git→worktree→remote-HEAD→PR-status 五层推理，返回 SourceTruthContext。修正 gh_preflight 真源认知误区。",
+            "path": "references/tasks/deploy-git-isolated/scripts/py-plugins/source_truth.py",
+            "status": "ready"
+        },
+        {
+            "name": "atomic-gh-repo-verify.py",
+            "role": "原子 CLI：GitHub 仓库真源验证入口。标准 atomic 调用契约（--devroot + --target 必填），调用 source_truth 插件执行 L1-L5 推理链，输出 JSON manifest 供下游 PR 创建/合并复用。",
+            "path": "references/tasks/deploy-git-isolated/scripts/py-tools/atomic-gh-repo-verify.py",
+            "status": "ready"
         }
     ],
     "maintenance_scripts": [
@@ -994,6 +1018,12 @@
             "name": "docstring-quality-harness",
             "role": "通过委派 subagent 检验工具 docstring 自说明质量，渐进式积累 baseline",
             "path": "references/tasks/deploy-git-isolated/skills/docstring-quality-harness/SKILL.md",
+            "status": "ready"
+        },
+        {
+            "name": "rg-fd-search",
+            "role": "通用搜索能力封装：rg（内容搜索）+ fd（文件查找），强制搜索优先次序（P0-P3），默认禁止原生 grep/glob。采用 SED 自演进目录模式，支持 gotchas/evolutions/learnings 渐进式积累与收敛。",
+            "path": "references/tasks/deploy-git-isolated/skills/rg-fd-search/SKILL.md",
             "status": "ready"
         }
     ]

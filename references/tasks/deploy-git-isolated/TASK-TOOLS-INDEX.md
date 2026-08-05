@@ -448,6 +448,10 @@ atomic-git-reset-staged.py（独立原子，非 workflow 编排内步骤）
 | `gh-branch-protect.py` | 子脚本：分支保护规则管理 | 配置 Require reviews 等 | ready |
 | `workflow-gh-preflight-demo.py` | 演示：gh CLI 前置验证（gh.exe + PAT + 认证状态） | gh 可用性自检 | ready |
 | `gh_preflight.py`（py-plugins） | 前置检测插件：验证 gh.exe / PAT / 认证状态，返回 `GhContext`（含 `run_gh` 封装） | 被 workflow-gh-pr / gh-pr-* 调用 | ready |
+| `atomic-gh-repo-verify.py` | **原子：GitHub 仓库真源验证**。L1-L5 推理链（intent→local-git→worktree→remote→PR），输出 manifest 供下游 PR 创建/合并复用 | PR 创建前验证本地-远程一致性 | ready |
+| `source_truth.py`（py-plugins） | **真源推理链插件**：L1-L5 层式验证，修正 gh_preflight 真源认知误区（gh_preflight 是工具链验证，非真源验证） | 被 atomic-gh-repo-verify 调用 | ready |
+
+> **L1-L5 推理链**：L1 intent-config（git-security.json）→ L2 local-git（.git/config + HEAD SHA）→ L3 worktree（分支/跟踪/上游一致性）→ L4 remote-HEAD（commit SHA 是否在远程）→ L5 PR-status（当前分支关联的 PR 状态）。唯一阻断条件：L4 commit SHA 不在远程。
 
 **headless 认证**（自动化无需 `gh auth login`）：
 ```powershell
@@ -654,7 +658,11 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 | `DESIGN.md` | 设计决策与踩坑记录 |
 
 
-*速查表版本: v1.3*  
+| `skills/rg-fd-search/SKILL.md` | **通用搜索能力**：rg + fd 标准调用，强制搜索优先次序，默认禁止原生 grep/glob。采用 SED 自演进目录模式（scripts/ references/ assets/ templates/ examples/ versions/ gotchas/ evolutions/ learnings/） |
+| `skills/tool-discovery/SKILL.md` | **工具发现**：在 deploy-git-isolated 内定位工具、查询用法、获取 entry_command |
+| `skills/docstring-quality-harness/SKILL.md` | **docstring 质量 Harness**：委派 subagent 检验工具自说明质量 |
+
+*速查表版本: v1.5*  
 *创建时间: 2026-06-16*  
-*更新时间: 2026-06-24*  
+*更新时间: 2026-08-05*  
 *关联全局索引: `references/runtime/verified-task-index.json`*

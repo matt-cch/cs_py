@@ -1,0 +1,24 @@
+{
+    "skill_name": "rg-fd-search",
+    "current_version": "1.0.0",
+    "base_version": "1.0.0",
+    "last_converged_at": "2026-08-05T16:00:00",
+    "convergence_trigger": "initial",
+    "fingerprint_index": {},
+    "evolution_history": [
+        {
+            "version": "1.0.0",
+            "date": "2026-08-05",
+            "type": "initial",
+            "description": "初始创建 SKILL.md + README.md + SED 目录骨架（scripts/ references/ assets/ templates/ examples/ versions/ gotchas/ evolutions/ learnings/）",
+            "files_changed": [
+                "SKILL.md",
+                "README.md",
+                "versions/manifest.json",
+                "scripts/__init__.py",
+                "scripts/helpers/__init__.py"
+            ]
+        }
+    ],
+    "convergence_history": []
+}

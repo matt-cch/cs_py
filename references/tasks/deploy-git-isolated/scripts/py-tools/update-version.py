@@ -118,7 +118,7 @@ def update_md_version(md_path: Path, new_version: str, today: str) -> bool:
             lines[i] = f"| **version** | {new_version} |"
             break
 
-    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     return True
 
 
@@ -146,7 +146,7 @@ def append_history(history_path: Path, today: str, old_ver: str, new_ver: str) -
     new_line = f"| {today} | **{old_ver} → {new_ver}** |"
     lines.insert(last_table_idx + 1, new_line)
 
-    history_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    history_path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     return True
 
 

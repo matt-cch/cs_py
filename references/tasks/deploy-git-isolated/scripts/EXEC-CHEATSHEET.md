@@ -1020,6 +1020,9 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\references\tasks\d
 
 # gh CLI 前置验证演示（gh.exe + PAT + 认证状态）
 & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\workflow-gh-preflight-demo.py"
+
+# GitHub 仓库真源验证（L1-L5 推理链，PR 创建前必执行）
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-gh-repo-verify.py" --devroot "${devroot}" --target "${devroot}\apps\jywl-settlement.wt\feat-demo"
 ```
 
 **headless 认证（终端/CI，无需 `gh auth login`）：**
@@ -1118,6 +1121,52 @@ $env:GH_CONFIG_DIR = "${devroot}\venv\data-gh"
 ```
 
 > 验证：安装完成后自动执行 `bin 可用性验证`（`--version` 或 `--help`），失败则报错并保留现场供排查。
+
+
+## rg/fd 搜索（通用工具链）
+
+> **前提**：rg（ripgrep）和 fd 已部署到 `${devroot}\venv\ripgrep\` 和 `${devroot}\venv\fd\`
+> **规则**：默认禁止原生 grep/glob，优先使用 rg/fd。详见 `.cursor/rules/rg-fd-search-priority.mdc`
+
+### rg（内容搜索）
+
+```powershell
+# 基础搜索（含行号）
+& "${devroot}\venv\ripgrep\rg.exe" -n "pattern" "${devroot}\目标目录"
+
+# 按文件类型
+& "${devroot}\venv\ripgrep\rg.exe" -n -t py "async def" "${devroot}"
+
+# JSON 索引上下文搜索
+& "${devroot}\venv\ripgrep\rg.exe" -n -C 2 "关键词" "${devroot}\references\runtime\verified-task-index.json"
+& "${devroot}\venv\ripgrep\rg.exe" -n -C 2 "关键词" "${devroot}\references\tasks\deploy-git-isolated\ENTRY.json"
+
+# docstring 搜索（后 15 行）
+& "${devroot}\venv\ripgrep\rg.exe" -n -A 15 "关键词" --type py "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\"
+```
+
+### fd（文件查找）
+
+```powershell
+# 按扩展名查找
+& "${devroot}\venv\fd\fd.exe" -e py "${devroot}\apps\api-demo\src"
+
+# 按 glob 模式
+& "${devroot}\venv\fd\fd.exe" -g "*.test.py" "${devroot}"
+
+# 含空格路径安全（-0 null 分隔）
+& "${devroot}\venv\fd\fd.exe" -0 -e md "${devroot}\docs" | & "${devroot}\venv\ripgrep\rg.exe" --null -0 -f - "pattern"
+```
+
+### 组合搜索（fd + rg 管道）
+
+```powershell
+# 先找所有 .py 文件，再在其中搜索 pattern
+& "${devroot}\venv\fd\fd.exe" -e py "${devroot}\apps\api-demo\src" | & "${devroot}\venv\ripgrep\rg.exe" -n "pattern" -f -
+
+# 查找所有 test 文件并统计行数
+& "${devroot}\venv\fd\fd.exe" -g "test_*.py" -X wc -l
+```
 
 
 ## CI/CD 自动化调用
