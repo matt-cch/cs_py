@@ -658,7 +658,7 @@ powershell -ExecutionPolicy Bypass -File "${devroot}\schema\tool\check-file-enco
 | `DESIGN.md` | 设计决策与踩坑记录 |
 
 
-| `skills/rg-fd-search/SKILL.md` | **通用搜索能力**：rg + fd 标准调用，强制搜索优先次序，默认禁止原生 grep/glob。采用 SED 自演进目录模式（scripts/ references/ assets/ templates/ examples/ versions/ gotchas/ evolutions/ learnings/） |
+| `skills/rg-fd-search/SKILL.md` | **通用搜索能力**：rg + fd 标准调用，强制搜索优先次序（P0-P3），默认禁止原生 grep/glob。配套 mdc：`.cursor/rules/rg-fd-search-priority.mdc`（alwaysApply）。执行前必须先加载 skill：`skill` 工具 → name=`rg-fd-search`。采用 SED 自演进目录模式 |
 | `skills/tool-discovery/SKILL.md` | **工具发现**：在 deploy-git-isolated 内定位工具、查询用法、获取 entry_command |
 | `skills/docstring-quality-harness/SKILL.md` | **docstring 质量 Harness**：委派 subagent 检验工具自说明质量 |
 

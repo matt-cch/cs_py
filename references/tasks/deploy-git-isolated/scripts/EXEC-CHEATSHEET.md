@@ -1125,6 +1125,10 @@ $env:GH_CONFIG_DIR = "${devroot}\venv\data-gh"
 
 ## rg/fd 搜索（通用工具链）
 
+> **前置步骤（不可跳过）**：执行搜索前，**必须先加载配套 skill**：`skill` 工具 → name=`rg-fd-search`。skill 文件：`${devroot}/references/tasks/deploy-git-isolated/skills/rg-fd-search/SKILL.md`。
+> **配套规则**：`.cursor/rules/rg-fd-search-priority.mdc`（alwaysApply，自动生效）。
+> **铁律**：mdc 规则与 skill 执行手册必须同时生效。禁止只遵守 mdc 而遗漏 skill 加载。
+
 > **前提**：rg（ripgrep）和 fd 已部署到 `${devroot}\venv\ripgrep\` 和 `${devroot}\venv\fd\`
 > **规则**：默认禁止原生 grep/glob，优先使用 rg/fd。详见 `.cursor/rules/rg-fd-search-priority.mdc`
 

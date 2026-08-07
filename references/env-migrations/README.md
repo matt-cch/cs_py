@@ -1,7 +1,7 @@
 ---
 title: references/env-migrations — 环境配置变更记录（一次性交接单）
 description: 存放单次 session 的环境级变更清单，供新开发环境复现后归档。与 changelog/（跨 session 时间线）区分。
-date: 2026-06-02
+date: 2026-08-07
 meta: {}
 ---
 
@@ -140,7 +140,14 @@ meta: {}
 | [env-migration-atomic-gh-pr-merge-and-gh-source-truth-2026-08-04-173941.md](env-migration-atomic-gh-pr-merge-and-gh-source-truth-2026-08-04-173941.md) | atomic-gh-pr-merge 新建与 gh 真源认知纠偏 | 2026-08-04-173941 |
 | [env-migration-gh-source-truth-verification-2026-08-05-145303.md](env-migration-gh-source-truth-verification-2026-08-05-145303.md) | GitHub 真源检测体系开发与工具登记修订联动规范 | 2026-08-05-145303 |
 | [env-migration-rg-fd-search-sed-2026-08-05-172349.md](env-migration-rg-fd-search-sed-2026-08-05-172349.md) | rg-fd-search SED 自演进目录模式建设 + fd 工具链集成 + update-version.py CRLF 修复 | 2026-08-05-172349 |
+| [env-migration-gh-work-progress-2026-08-06-111453.md](env-migration-gh-work-progress-2026-08-06-111453.md) | gh 场景工作进度梳理与下游脚本改造规划（source_truth + atomic-gh-repo-verify 稳定，P0/P1/P2 改造清单） | 2026-08-06-111453 |
 | [env-migration-fd-toolchain-and-crlf-fix-2026-08-05-160409.md](env-migration-fd-toolchain-and-crlf-fix-2026-08-05-160409.md) | fd 工具链全链路集成与 update-version.py CRLF 根因修复 | 2026-08-05-160409 |
+| [env-migration-gh-hitl-decision-and-runtime-download-2026-08-06-141710.md](env-migration-gh-hitl-decision-and-runtime-download-2026-08-06-141710.md) | jywl-settlement diverged 策略讨论、HITL 决策权 baseline 沉淀、真源检测与 4 运行时下载 | 2026-08-06-141710 |
+| [env-migration-rg-fd-search-mdc-skill-pairing-and-version-update-2026-08-06-152330.md](env-migration-rg-fd-search-mdc-skill-pairing-and-version-update-2026-08-06-152330.md) | rg-fd-search mdc-skill 配对机制建立 + 运行时版本更新 + 工具登记修订联动 | 2026-08-06-152330 |
+| [env-migration-mdc-skill-triple-loop-and-tool-audit-audit-2026-08-06-160643.md](env-migration-mdc-skill-triple-loop-and-tool-audit-audit-2026-08-06-160643.md) | mdc-skill 配套关联机制升级为三层闭环 + tool-audit 全局审计卡点 + SED 入库 | 2026-08-06-160643 |
+| [env-migration-mdc-skill-strong-association-full-session-2026-08-06-173920.md](env-migration-mdc-skill-strong-association-full-session-2026-08-06-173920.md) | mdc-skill 强关联从无效到有效——四层闭环改造 + subagent 实战验证 + SED 双轮迭代（完整 session） | 2026-08-06-173920 |
+| [env-migration-rg-fd-search-sed-convergence-2026-08-07-114952.md](env-migration-rg-fd-search-sed-convergence-2026-08-07-114952.md) | rg-fd-search Skill SED 体系建设与收敛（v2.0.0）+ 真源检测与 Chromium 版本更新 | 2026-08-07-114952 |
+| [env-migration-jsonl-lint-integration-2026-08-07-123115.md](env-migration-jsonl-lint-integration-2026-08-07-123115.md) | JSON Lines (.jsonl) 纳入 run-lint 编码与语法检测体系（lint_encoding + lint_json 双重验证） | 2026-08-07-123115 |
 
 ## 上级导航
 - [references 总索引](../README.md)

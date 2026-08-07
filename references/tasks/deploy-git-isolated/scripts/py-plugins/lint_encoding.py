@@ -35,6 +35,7 @@ NO_BOM_EXTENSIONS = {
     ".py", ".js", ".ts", ".jsx", ".tsx",
     ".html", ".css", ".md", ".json", ".jsonc",
     ".yml", ".yaml", ".toml", ".sh",
+    ".jsonl",
 }
 
 BOM_EXPECTED_EXTENSIONS = {".ps1"}

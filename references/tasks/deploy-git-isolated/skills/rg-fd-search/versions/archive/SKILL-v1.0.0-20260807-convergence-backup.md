@@ -1,6 +1,5 @@
 ---
 name: rg-fd-search
-version: "2.0.0"
 description: 通用搜索能力封装——文件查找（fd）+ 内容搜索（rg），覆盖目录/文件/内容/docstring。搜索优先次序：树状自说明 > JSON 索引 > docstring > 关键词搜索。默认禁止原生 grep/glob。触发词：搜索、查找、列出文件、找文件、搜内容、grep、glob、rg、fd。
 ---
 
@@ -37,9 +36,6 @@ description: 通用搜索能力封装——文件查找（fd）+ 内容搜索（
 | T002 — 内容搜索 | "搜一下"、"查找"、"grep"、"rg"、"ripgrep"、"搜索内容" |
 | T003 — 组合搜索 | "在所有 .py 中搜"、"找包含 xx 的文件" |
 | T004 — docstring 搜索 | "查一下 docstring"、"这个脚本是干嘛的"、"模块注释" |
-| T005 — 进度/状态查询 | "到哪里了"、"进度"、"现状"、"工作状态"、"做到哪一步了"、"完成了吗" |
-
-> **判定标准**：T005 用户意图不是"找文件"或"搜内容"，而是"了解某主题/某任务当前的工作进展、完成度、待办事项"。命中 T005 时，工作流必须追加 Step 4-6。
 
 ### 排他触发（E）
 
@@ -80,36 +76,6 @@ description: 通用搜索能力封装——文件查找（fd）+ 内容搜索（
 # EXEC-CHEATSHEET.md 命令速查
 & "${devroot}\venv\ripgrep\rg.exe" -n -C 3 "关键词" "${devroot}\references\tasks\deploy-git-isolated\scripts\EXEC-CHEATSHEET.md"
 ```
-
-**P0 扩展 — devroot/vaults/ 认知资产（T005 命中时强制触发）**
-
-当搜索意图涉及进度、设计、决策、踩坑时，P0 必须扩展至 `devroot/vaults/`（若存在）：
-
-| 搜索意图 | vaults/ 下典型对应目录 |
-|---------|----------------------|
-| 工作进度、项目进度 | `vaults/*/wiki/projects/progress/` |
-| 架构设计、技术决策 | `vaults/*/wiki/conclusions/` |
-| 踩坑记录、陷阱复盘 | `vaults/*/wiki/gotchas/` |
-| 模式沉淀、认知积累 | `vaults/*/wiki/learnings/` |
-| 基线规则、行为约束 | `vaults/*/baseline/` |
-
-**不硬编码原则**：
-1. 默认探测 `devroot/vaults/` 是否存在（`Test-Path` / `os.path.exists`）
-2. 若存在：直接纳入 P0 搜索范围
-3. 若不存在：**暂停搜索，HITL 询问用户** — "devroot 下未找到 vaults/ 目录，请确认当前 vault 挂载路径"
-4. 禁止将 vault 路径硬编码为 `devroot/vaults/` 或任何固定路径
-
-```powershell
-# Step 0: 探测 vaults 目录
-$vaultsDir = Join-Path $devroot "vaults"
-if (Test-Path $vaultsDir) {
-    & "${devroot}\venv\ripgrep\rg.exe" -n -C 3 "关键词" "$vaultsDir"
-} else {
-    Write-Host "[HITL] devroot/vaults/ 不存在，请确认 vault 挂载路径"
-}
-```
-
-> vaults/ 与 env-migrations/ 互补：env-migrations/ 回答"改了什么"，vaults/ 回答"为什么这么设计"。缺失任一都会导致上下文断裂。
 
 #### P1 — JSON 真源索引（并列查询）
 
@@ -170,90 +136,6 @@ paths = output.strip().split("\n")
 # -0 null 分隔模式
 paths = output.split("\0")
 ```
-
-### Step 4: 验证层（磁盘存在性验证，T005 强制）
-
-若搜索意图命中 T005（进度/状态查询），必须追加以下验证：
-
-```
-【磁盘存在性验证】
-- 文档/索引声称的文件列表：<列出>
-- 逐一 Test-Path / fd 验证磁盘存在性：
-  - file1 → 存在/缺失
-  - file2 → 存在/缺失
-- 发现 MISSING：<列出>
-- 发现不一致：<描述>
-```
-
-**方法**：使用 `Test-Path -LiteralPath` 或 `fd -e <ext>` 对文档/索引中声明的文件路径进行批量验证。
-
-### Step 5: 上下文补查层（env-migration / handoff 时间线，T005 强制）
-
-搜索 `references/env-migrations/` 和 `docs/projects/*/handoffs/` 中近期（7~14 天内）相关文档：
-
-```powershell
-# 列出近期 env-migration
-& "${devroot}\venv\fd\fd.exe" -e md "${devroot}\references\env-migrations" | Sort-Object
-
-# 搜索目标主题关键词
-& "${devroot}\venv\ripgrep\rg.exe" -n -i "关键词" "${devroot}\references\env-migrations"
-```
-
-**目的**：获取时间线脉络、发现隐性待办、获取设计决策与踩坑记录。
-
-### Step 6: 洞察与建议层（T005 强制）
-
-基于前面所有搜索结果，输出结构化报告：
-
-```
-## 工作进度报告
-
-### 一、整体状态
-### 二、近期时间线
-### 三、实证验证（文档声称 vs 磁盘实际）
-### 四、未改造/待完善事项
-### 五、下一步聚焦方向
-```
-
-### Step 7: SED 自检触发器（强制）
-
-执行【新认知检测】3 维度 9 项自检清单：
-
-```
-【新认知检测 — SED 自检】
-维度 1：异常/陷阱（→ gotcha）
-  [ ] 是否遇到 SKILL.md + evolutions/ 均未覆盖的异常？
-  [ ] 是否有命令失败、ParserError、编码问题？
-  [ ] Human 是否进行了纠偏或澄清？
-维度 2：规则/行为变更（→ evolution）
-  [ ] 实际执行路径是否与 SKILL.md 推荐不同？
-  [ ] 不同的做法是否更优？
-  [ ] 是否有 SKILL.md 未声明的边界条件？
-维度 3：洞察/模式/结论（→ learning）
-  [ ] 是否发现了可复用的认知、经验、基准？
-  [ ] 是否识别出两个以上不同来源之间的系统性关系？
-  [ ] 本次结论是否对后续同类任务有指导价值？
-```
-
-若命中 ≥ 1 项：在"下一步建议"末尾追加 SED 建议话术，等待 Human 决策。
-若未命中：正常结束。
-
-### Step 8: SEAS 审计记录（强制）
-
-在内存中构造符合 SEAS schema 的 JSON 对象，追加到 `versions/audit-trail.jsonl`（只增不改）。
-
-输出审计确认块：
-```
-【Skill 执行审计记录】
-- 记录时间: <timestamp>
-- 审计轨迹: versions/audit-trail.jsonl（已追加）
-- 本次执行: P0命中=是/否, P1命中=是/否, P2命中=是/否, P3命中=是/否
-- 合规状态: audit_block=✓/✗, skill_loaded=✓/✗, native_fallback=✓/✗
-- SED 事件: self_check=✓/✗, suggested=✓/✗, human_decision=<decision>
-- 异常: <count> 个
-```
-
-> SEAS 详细规范见 `baseline/baseline-skill-audit-schema.md`。
 
 ## rg 参数速查
 
@@ -316,84 +198,6 @@ paths = output.split("\0")
 
 > **关键区别**：tool-discovery 输出的是"工具名 + entry_command + 职责描述"；rg-fd-search 输出的是"文件路径 + 匹配行号 + 匹配内容"。
 
-## 配套 skill 关联机制
-
-> **配套规则**：`.cursor/rules/rg-fd-search-priority.mdc`（alwaysApply: true，搜索场景自动触发）。
-> **铁律**：mdc 规则与 skill 执行手册必须同时生效。禁止只遵守 mdc 而遗漏 skill 加载。
-
-### 铁律 1：mdc 必须显式声明配套 skill
-
-- **frontmatter**：`meta.paired_skill: "rg-fd-search"`，`meta.paired_skill_path: "references/tasks/deploy-git-isolated/skills/rg-fd-search/SKILL.md"`
-- **正文顶部**：`> **配套 Skill（必须加载）**：本 mdc 有强配套 skill **rg-fd-search**。Agent 在执行前必须先通过 skill 工具加载。`
-
-### 铁律 2：skill 声明配套 mdc
-
-skill 的 SKILL.md 正文顶部声明配套 mdc（见本文件顶部）。
-
-### 铁律 3：自检清单包含 skill 加载检查项
-
-```
-- 配套 skill rg-fd-search 是否已加载？  是/否 → 若否，立即停止当前路径，先加载 skill
-```
-
-### 铁律 4：高频任务速查表登记 skill
-
-`high-frequency-task-index.mdc` 和 `high-frequency-task-show-trigger.mdc` 包含 rg-fd-search 条目。
-
-### 铁律 5：命令示例前增加 skill 加载提示
-
-所有涉及本 skill 的命令示例前，增加：
-`> **前置步骤（不可跳过）**：执行前，必须先加载配套 skill：skill 工具 → name=rg-fd-search。`
-
-### 铁律 6：全局审计卡点兜底
-
-`high-frequency-tool-shell-audit.mdc`（alwaysApply）的审计清单必须包含：
-```
-- 当前 mdc 是否有配套 skill？    是/否 → 若是：<skill-name>
-- 配套 skill 是否已加载？        是/否 → 若否：立即停止，先加载 skill
-```
-
-### 铁律 7："是"时必须展示操作对象
-
-自检清单中"是/否"类检查项，答案为"是"时必须明确写出操作对象：
-| 合格示例 | 不合格示例 |
-|---------|-----------|
-| `是 → rg-fd-search` | `是` |
-| `是 → high-frequency-verify-runtime.mdc` | `是` |
-
-### 铁律 8：skill 加载失败时必须 fallback 到磁盘 read
-
-当 `skill` 工具返回 "not found" 时：
-1. 扫描磁盘确认 skill 存在性：`fd -g "SKILL.md" "${devroot}\references\tasks\deploy-git-isolated\skills"`
-2. 直接 `read` 工具读取磁盘 SKILL.md（路径从 mdc frontmatter 的 `paired_skill_path` 获取）
-3. 放弃获取 skill 上下文（禁止）
-
-### 铁律 9：生效 mdc 列表必须显式列出
-
-tool-audit 审计清单中追加：
-```
-- 当前已触发的生效 mdc 有哪些？  <列出本次 session 中已识别到的 alwaysApply mdc>
-```
-
-### 铁律 10：read 纳入审计范围
-
-tool-audit 的适用范围从 bash/write/edit 扩展到 read。
-
-### 铁律 11：每次 tool 调用必须独立审计
-
-禁止以"这是上一步的延续"为由跳过审计。fallback read、rg/fd 搜索优先级审计、tool-audit 审计是不同层级的审计，不可互相替代。
-
-### 配对断裂诊断
-
-| 症状 | 判定标准 |
-|------|---------|
-| mdc 已触发但 skill 未加载 | 自检清单中没有"配套 skill 加载"项，或该项为"否" |
-| Agent 声称"没有 skill 命中" | 配套 skill 存在于磁盘，但 Agent 因系统提示列表不完整而未发现 |
-| 搜索行为与 skill 定义一致 | 使用了 rg/fd，符合 skill 定义，但没加载 skill 获取模板和上下文 |
-| 输出结果缺少 SED 能力 | 报告没有使用 skill 中的标准模板、没有执行 Self-Evolution 复盘 |
-
-> **关联修订**：本机制涉及 SKILL.md（本章）、`.cursor/rules/rg-fd-search-priority.mdc`（frontmatter + 自检清单）、`high-frequency-tool-shell-audit.mdc`（审计卡点）、`high-frequency-task-index.mdc` / `high-frequency-task-show-trigger.mdc`（速查表登记）。详见各文件对应 evolution 记录。
-
 ## 关联文档
 
 - 执法规则：`.cursor/rules/rg-fd-search-priority.mdc`
@@ -418,7 +222,6 @@ tool-audit 的适用范围从 bash/write/edit 扩展到 read。
 skills/rg-fd-search/
 ├── SKILL.md              # 基准文件（本文件）
 ├── README.md             # 合并导航（聚合视图）
-├── baseline/             # 审计基准面：审计约定、Human/Agent 共同理解、工程偏好、机制规范
 ├── scripts/              # 执行面：skill 专属可执行脚本（不对外登记）
 │   ├── __init__.py
 │   └── helpers/
@@ -427,10 +230,8 @@ skills/rg-fd-search/
 ├── assets/               # 资产面：截图、数据文件
 ├── templates/            # 模板面：可复用模板
 ├── examples/             # 示例面：使用示例、测试用例
-├── versions/             # 版本面：演进时间线 + 收敛归档 + 审计轨迹
+├── versions/             # 版本面：演进时间线 + 收敛归档
 │   ├── manifest.json
-│   ├── metrics.json      # 聚合视图（由 audit-trail.jsonl 定期生成）
-│   ├── audit-trail.jsonl # 执行审计轨迹（只增不改）
 │   └── archive/
 ├── gotchas/              # 错误面：踩坑记录（时间线，不可变追加）
 ├── evolutions/           # 行为面：规则/参数/流程演进补丁
@@ -439,18 +240,15 @@ skills/rg-fd-search/
 
 ### 增量内容 frontmatter 规范
 
-所有写入 `gotchas/`、`evolutions/`、`learnings/`、`baseline/` 的 `.md` 文件必须包含标准化 frontmatter：
+所有写入 `gotchas/`、`evolutions/`、`learnings/` 的 `.md` 文件必须包含标准化 frontmatter：
 
 #### gotchas/ 模板
 
 ```yaml
 ---
 title: <一句话标题>
-description: <一句话说明>
 date: YYYY-MM-DD
 type: gotcha
-meta:
-  version: "1.0.0"
 fingerprint:
   content_sha256: <sha256(trigger_condition + 根因 + 修复)>
   semantic_key: <规范化主题标识，如 fd-path-space>
@@ -462,14 +260,11 @@ fingerprint:
 ```yaml
 ---
 title: <一句话标题>
-description: <一句话说明>
 date: YYYY-MM-DD
 type: evolution
 scope: add              # add | replace | append | override
 category: parameter     # parameter | behavior | workflow | rule
 target_section: "## <目标章节标题>"
-meta:
-  version: "1.0.0"
 fingerprint:
   content_sha256: <sha256(变更内容)>
   semantic_key: <规范化主题标识>
@@ -481,32 +276,13 @@ fingerprint:
 ```yaml
 ---
 title: <一句话标题>
-description: <一句话说明>
 date: YYYY-MM-DD
 type: learning
 category: conclusion    # insight | pattern | baseline | conclusion | heuristic
 confidence: high        # high | medium | low
 evidence_count: 1       # 支持该结论的实测/执行次数
-meta:
-  version: "1.0.0"
 fingerprint:
   content_sha256: <sha256(核心结论)>
-  semantic_key: <规范化主题标识>
----
-```
-
-#### baseline/ 模板
-
-```yaml
----
-title: <一句话标题>
-description: <一句话说明>
-date: YYYY-MM-DD
-meta:
-  version: "1.0.0"
-  tags: [baseline, audit, ...]
-fingerprint:
-  content_sha256: <sha256(核心内容)>
   semantic_key: <规范化主题标识>
 ---
 ```

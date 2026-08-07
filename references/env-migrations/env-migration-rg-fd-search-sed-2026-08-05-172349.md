@@ -213,7 +213,28 @@ meta: {}
 - **修复**：补全 learnings/ 目录及五个 category（insight/pattern/baseline/conclusion/heuristic）
 - **产物**：`skills/rg-fd-search/learnings/` + SKILL.md 中 frontmatter 规范
 
-## 四、产物路径全量清单
+## 四、部署 workflow 执行后新认知（待改进项）
+
+### 认知 1：`atomic-deploy-preflight.py` 尚未使用 `atomic-gh-repo-verify.py`
+
+- **背景**：`workflow-poly` 执行成功后，用户询问 preflight 是否已使用最新的 `atomic-gh-repo-verify`（L1-L5 真源验证链）。
+- **现状核查**：`atomic-deploy-preflight.py` 内嵌了自己的 repo_url 验证逻辑（git-security.json vs git-remote vs GitHub API `fetch_repo_metadata` 三方规范化比对），**没有调用** `atomic-gh-repo-verify`。
+- **差异对比**：
+
+| 维度 | atomic-deploy-preflight（当前） | atomic-gh-repo-verify（最新） |
+|------|-------------------------------|------------------------------|
+| 验证层级 | L1-L3（intent-config + local-git + GitHub API clone_url） | L1-L5（+ worktree + remote-HEAD commit SHA 硬阻断 + PR-status） |
+| 核心差距 | 仅比对 URL 字符串规范化 | **L4: 本地 HEAD commit SHA 必须存在于远程仓库**（硬阻断） |
+| 真源深度 | 中（知道仓库存在且 URL 一致） | 高（确认本地 commit 确实已推送到远程） |
+| 输出格式 | 内嵌在 manifest 中 | 独立 manifest，含 `source_truth` 全字段 |
+| 调用方式 | 内联函数（import github_api 插件） | 独立原子 CLI（subprocess 调用，自闭环） |
+
+- **当前够用吗？** — 基本够用。现有验证已能防止「操作错仓库」和「URL 不一致」问题。
+- **有必要升级吗？** — **推荐升级**。`atomic-gh-repo-verify` 的 L4（commit SHA 存在性验证）是真源体系的硬阻断条件，能防止「本地提交未推送却声称已部署」的虚假成功场景。
+- **推荐升级方案**：`atomic-deploy-preflight.py` 删除内嵌 repo_url 验证逻辑（第 131-195 行），替换为 subprocess 调用 `atomic-gh-repo-verify.py`，读取其 manifest 获取 `repo_url` + `source_truth` 结果，验证通过则继续，失败则 exit 1。这样 preflight 聚焦「部署特有验证」（PAT、分支、agent、空目录），真源验证交给专职原子，职责更清晰。
+- **状态**：待后续 session 执行升级。本次 env-migration 仅记录认知，不动代码。
+
+## 五、产物路径全量清单
 
 | 路径 | 类型 | 说明 |
 |------|------|------|

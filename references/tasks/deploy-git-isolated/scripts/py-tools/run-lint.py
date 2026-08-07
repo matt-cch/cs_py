@@ -47,6 +47,7 @@ EXT_TO_PLUGIN = {
     ".ps1": ["lint_ps1"],
     ".json": ["lint_json"],
     ".jsonc": ["lint_json"],
+    ".jsonl": ["lint_json", "lint_encoding"],
     ".code-workspace": ["lint_json"],
     ".md": ["md_lint", "link_checker"],
     ".mdc": ["md_lint", "link_checker"],

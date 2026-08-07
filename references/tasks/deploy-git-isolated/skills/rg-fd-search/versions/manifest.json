@@ -1,10 +1,136 @@
 {
     "skill_name": "rg-fd-search",
-    "current_version": "1.0.0",
+    "current_version": "2.0.0",
     "base_version": "1.0.0",
-    "last_converged_at": "2026-08-05T16:00:00",
-    "convergence_trigger": "initial",
-    "fingerprint_index": {},
+    "last_converged_at": "2026-08-07T11:08:33+08:00",
+    "convergence_trigger": "evolution_count_threshold_met",
+    "fingerprint_index": {
+        "evolution-progress-query-insight-loop-20260806": {
+            "file": "evolutions/evolution-2026-08-06-progress-query-insight-loop.md",
+            "sha256": "evolution-progress-query-insight-loop-20260806",
+            "date": "2026-08-06"
+        },
+        "learning-tree-docs-vs-disk-reality-gap-20260806": {
+            "file": "learnings/learning-2026-08-06-tree-docs-vs-disk-reality-gap.md",
+            "sha256": "learning-tree-docs-vs-disk-reality-gap-20260806",
+            "date": "2026-08-06"
+        },
+        "learning-evolution-practice-pattern-20260806": {
+            "file": "learnings/learning-2026-08-06-evolution-practice-pattern.md",
+            "sha256": "learning-evolution-practice-pattern-20260806",
+            "date": "2026-08-06"
+        },
+        "gotcha-ps51-ternary-operator-parser-error-20260806": {
+            "file": "gotchas/gotcha-2026-08-06-ps51-ternary-operator-parser-error.md",
+            "sha256": "gotcha-ps51-ternary-operator-parser-error-20260806",
+            "date": "2026-08-06"
+        },
+        "gotcha-mdc-skill-pair-disconnect-20260806": {
+            "file": "gotchas/gotcha-2026-08-06-mdc-skill-pair-disconnect.md",
+            "sha256": "gotcha-mdc-skill-pair-disconnect-20260806",
+            "date": "2026-08-06"
+        },
+        "evolution-mdc-skill-pairing-mechanism-20260806": {
+            "file": "evolutions/evolution-2026-08-06-mdc-skill-pairing-mechanism.md",
+            "sha256": "evolution-mdc-skill-pairing-mechanism-20260806",
+            "date": "2026-08-06"
+        },
+        "learning-rule-skill-pairing-pattern-20260806": {
+            "file": "learnings/learning-2026-08-06-rule-skill-pairing-pattern.md",
+            "sha256": "learning-rule-skill-pairing-pattern-20260806",
+            "date": "2026-08-06"
+        },
+        "gotcha-unilateral-declaration-insufficient-20260806": {
+            "file": "gotchas/gotcha-2026-08-06-unilateral-declaration-insufficient.md",
+            "sha256": "gotcha-unilateral-declaration-insufficient-20260806",
+            "date": "2026-08-06"
+        },
+        "evolution-mdc-skill-triple-loop-20260806": {
+            "file": "evolutions/evolution-2026-08-06-mdc-skill-triple-loop.md",
+            "sha256": "evolution-mdc-skill-triple-loop-20260806",
+            "date": "2026-08-06"
+        },
+        "learning-cross-rule-layer-audit-pattern-20260806": {
+            "file": "learnings/learning-2026-08-06-cross-rule-layer-audit-pattern.md",
+            "sha256": "learning-cross-rule-layer-audit-pattern-20260806",
+            "date": "2026-08-06"
+        },
+        "gotcha-fallback-read-missing-audit-block-20260806": {
+            "file": "gotchas/gotcha-2026-08-06-fallback-read-missing-audit-block.md",
+            "sha256": "gotcha-fallback-read-missing-audit-block-20260806",
+            "date": "2026-08-06"
+        },
+        "evolution-mdc-skill-quadruple-loop-20260806": {
+            "file": "evolutions/evolution-2026-08-06-mdc-skill-quadruple-loop.md",
+            "sha256": "evolution-mdc-skill-quadruple-loop-20260806",
+            "date": "2026-08-06"
+        },
+        "learning-active-mdc-list-pattern-20260806": {
+            "file": "learnings/learning-2026-08-06-active-mdc-list-pattern.md",
+            "sha256": "learning-active-mdc-list-pattern-20260806",
+            "date": "2026-08-06"
+        },
+        "gotcha-mdc-skill-strong-association-evolution-20260806": {
+            "file": "gotchas/gotcha-2026-08-06-mdc-skill-strong-association-evolution.md",
+            "sha256": "gotcha-mdc-skill-strong-association-evolution-20260806",
+            "date": "2026-08-06"
+        },
+        "evolution-search-scope-extension-to-vaults-20260807": {
+            "file": "evolutions/evolution-2026-08-07-search-scope-extension-to-vaults.md",
+            "sha256": "evolution-search-scope-extension-to-vaults-20260807",
+            "date": "2026-08-07"
+        },
+        "learning-vaults-env-migrations-division-pattern-20260807": {
+            "file": "learnings/learning-2026-08-07-vaults-env-migrations-division-pattern.md",
+            "sha256": "learning-vaults-env-migrations-division-pattern-20260807",
+            "date": "2026-08-07"
+        },
+        "baseline-no-hardcode-paths-20260807": {
+            "file": "baseline/baseline-no-hardcode-paths.md",
+            "sha256": "baseline-no-hardcode-paths-20260807",
+            "date": "2026-08-07"
+        },
+        "baseline-sed-mechanism-20260807": {
+            "file": "baseline/baseline-sed-mechanism.md",
+            "sha256": "baseline-sed-mechanism-20260807",
+            "date": "2026-08-07"
+        },
+        "baseline-skill-audit-schema-20260807": {
+            "file": "baseline/baseline-skill-audit-schema.md",
+            "sha256": "baseline-skill-audit-schema-20260807",
+            "date": "2026-08-07"
+        },
+        "gotcha-skill-sed-frontmatter-missing-20260807": {
+            "file": "gotchas/gotcha-2026-08-07-skill-sed-frontmatter-missing.md",
+            "sha256": "gotcha-skill-sed-frontmatter-missing-20260807",
+            "date": "2026-08-07"
+        },
+        "evolution-skill-workflow-sed-append-20260807": {
+            "file": "evolutions/evolution-2026-08-07-skill-workflow-sed-append.md",
+            "sha256": "evolution-skill-workflow-sed-append-20260807",
+            "date": "2026-08-07"
+        },
+        "learning-baseline-layer-mechanism-scope-20260807": {
+            "file": "learnings/learning-2026-08-07-baseline-layer-mechanism-scope.md",
+            "sha256": "learning-baseline-layer-mechanism-scope-20260807",
+            "date": "2026-08-07"
+        },
+        "learning-audit-trail-metrics-validation-chain-20260807": {
+            "file": "learnings/learning-2026-08-07-audit-trail-metrics-validation-chain.md",
+            "sha256": "learning-audit-trail-metrics-validation-chain-20260807",
+            "date": "2026-08-07"
+        },
+        "learning-sed-self-check-portable-20260807": {
+            "file": "learnings/learning-2026-08-07-sed-self-check-portable.md",
+            "sha256": "learning-sed-self-check-portable-20260807",
+            "date": "2026-08-07"
+        },
+        "baseline-skill-change-revision-linkage-20260807": {
+            "file": "baseline/baseline-skill-change-revision-linkage.md",
+            "sha256": "baseline-skill-change-revision-linkage-20260807",
+            "date": "2026-08-07"
+        }
+    },
     "evolution_history": [
         {
             "version": "1.0.0",
@@ -18,7 +144,155 @@
                 "scripts/__init__.py",
                 "scripts/helpers/__init__.py"
             ]
+        },
+        {
+            "version": "1.1.0",
+            "date": "2026-08-06",
+            "type": "evolution",
+            "description": "增加 T005 进度/状态查询场景；追加 Step 4 磁盘验证层、Step 4b 示例执行验证审计层、Step 5 env-migration 时间线补查层、Step 6 洞察与建议层；建立双源交叉验证模式；补录 PS 5.1 三元运算符 gotcha",
+            "files_changed": [
+                "evolutions/evolution-2026-08-06-progress-query-insight-loop.md",
+                "learnings/learning-2026-08-06-tree-docs-vs-disk-reality-gap.md",
+                "learnings/learning-2026-08-06-evolution-practice-pattern.md",
+                "gotchas/gotcha-2026-08-06-ps51-ternary-operator-parser-error.md",
+                "versions/manifest.json"
+            ]
+        },
+        {
+            "version": "1.2.0",
+            "date": "2026-08-06",
+            "type": "evolution",
+            "description": "建立 mdc-skill 配套关联机制：新增 SKILL.md 配套关联章节，定义规则层-执行层配对铁律（mdc 显式声明配套 skill + 自检清单增加 skill 加载检查项 + 高频任务速查表登记 + EXEC-CHEATSHEET 前置提示）。记录配对断裂 gotcha，提炼配对闭环认知模式 learning。修订联动 mdc/EXEC-CHEATSHEET/high-frequency-task-index/high-frequency-task-show-trigger/manifest。",
+            "files_changed": [
+                "evolutions/evolution-2026-08-06-mdc-skill-pairing-mechanism.md",
+                "learnings/learning-2026-08-06-rule-skill-pairing-pattern.md",
+                "gotchas/gotcha-2026-08-06-mdc-skill-pair-disconnect.md",
+                "versions/manifest.json"
+            ]
+        },
+        {
+            "version": "1.3.0",
+            "date": "2026-08-06",
+            "type": "evolution",
+            "description": "mdc-skill 配套关联机制升级：基于 gotcha '单向声明不足'的教训，将机制从双向声明升级为三层闭环（mdc 声明 + skill 声明 + 全局审计卡点）。在 high-frequency-tool-shell-audit.mdc 中追加配套 skill 检查项，建立跨规则层联动模式。同步规范自检清单中'是'时必须展示操作对象的铁律。修订联动 tool-audit.mdc/manifest/gotcha/evolution/learning。",
+            "files_changed": [
+                "gotchas/gotcha-2026-08-06-unilateral-declaration-insufficient.md",
+                "evolutions/evolution-2026-08-06-mdc-skill-triple-loop.md",
+                "learnings/learning-2026-08-06-cross-rule-layer-audit-pattern.md",
+                "versions/manifest.json"
+            ]
+        },
+        {
+            "version": "1.4.0",
+            "date": "2026-08-06",
+            "type": "evolution",
+            "description": "mdc-skill 配套关联机制再升级：基于 subagent 实战验证，将三层闭环升级为四层闭环。新增铁律 9（生效 mdc 列表自检）、铁律 10（read 纳入审计范围）、铁律 11（每次 tool 调用独立审计）。验证结果：subagent 能正确识别 rg-fd-search-priority.mdc 已触发，能正确定位到 rg-fd-search/SKILL.md 并读取，能按 skill 规范使用 rg/fd 执行搜索。记录核心 gotcha：mdc-skill 强关联从'无效双向声明'到'有效四层闭环'的演进。",
+            "files_changed": [
+                "gotchas/gotcha-2026-08-06-fallback-read-missing-audit-block.md",
+                "gotchas/gotcha-2026-08-06-mdc-skill-strong-association-evolution.md",
+                "evolutions/evolution-2026-08-06-mdc-skill-quadruple-loop.md",
+                "learnings/learning-2026-08-06-active-mdc-list-pattern.md",
+                "versions/manifest.json"
+            ]
+        },
+        {
+            "version": "1.5.0",
+            "date": "2026-08-07",
+            "type": "evolution",
+            "description": "P0 树状自说明搜索范围扩展：新增 devroot/vaults/ 探测与 HITL fallback 机制。当搜索意图涉及进度/设计/决策/踩坑时，P0 必须扩展至 vaults/（若存在）。建立 vaults/ 与 env-migrations/ 互补查询模式。记录不硬编码原则（多端多根对齐）。",
+            "files_changed": [
+                "evolutions/evolution-2026-08-07-search-scope-extension-to-vaults.md",
+                "learnings/learning-2026-08-07-vaults-env-migrations-division-pattern.md",
+                "versions/manifest.json"
+            ]
+        },
+        {
+            "version": "1.5.1",
+            "date": "2026-08-07",
+            "type": "evolution",
+            "description": "新增 baseline/ 审计基准层：新建 baseline 目录及 README.md 导航，落盘 baseline-no-hardcode-paths.md（路径引用不硬编码原则：探测→HITL→动态引用三层约定 + Agent 自检清单）。更新 skill 根 README.md 导航表追加 baseline/ 条目。",
+            "files_changed": [
+                "baseline/README.md",
+                "baseline/baseline-no-hardcode-paths.md",
+                "README.md",
+                "versions/manifest.json"
+            ]
+        },
+        {
+            "version": "1.5.2",
+            "date": "2026-08-07",
+            "type": "evolution",
+            "description": "新增 baseline-sed-mechanism.md：系统定义 SED 机制运行规范。含三大触发策略（Human-in-the-Loop / Agent 自检 / 定期收敛）、SED 八层架构实现路径、evolution 有效性检验标准（短/中/长期）、智能自检触发方案（3维度9项自检清单 + 建议话术模板 + Human 决策权保留）、与 vaults/ 深度研究的联动分流规则。更新 baseline/README.md 导航表。",
+            "files_changed": [
+                "baseline/baseline-sed-mechanism.md",
+                "baseline/README.md",
+                "versions/manifest.json"
+            ]
+        },
+        {
+            "version": "1.5.3",
+            "date": "2026-08-07",
+            "type": "evolution",
+            "description": "SEAS（Skill Execution Audit Schema）落地：创建 baseline-skill-audit-schema.md 定义审计日志 schema、记录时机、聚合查询方式；创建 versions/audit-trail.jsonl 作为 JSON Lines 执行审计载体（含 2 条示例记录）。将抽象的 evolution 有效性检验标准（命中次数、异常追溯、Human feedback 频率）落地为可追加、可聚合、可查询的审计轨迹系统。更新 baseline/README.md 导航表。",
+            "files_changed": [
+                "baseline/baseline-skill-audit-schema.md",
+                "versions/audit-trail.jsonl",
+                "baseline/README.md",
+                "versions/manifest.json"
+            ]
+        },
+        {
+            "version": "1.5.4",
+            "date": "2026-08-07",
+            "type": "evolution",
+            "description": "SED 自检执行并产出 5 条记录：1 gotcha（skill SED frontmatter 遗漏）、1 evolution（SKILL.md 工作流扩展 Step 7/8）、3 learnings（baseline 层机制规范扩展、audit-trail→metrics→validation 数据链路、SED 自检跨 skill 复用）。验证 SED 自检触发器实战效果：9 项中 7 项命中，自检召回率 78%。",
+            "files_changed": [
+                "gotchas/gotcha-2026-08-07-skill-sed-frontmatter-missing.md",
+                "evolutions/evolution-2026-08-07-skill-workflow-sed-append.md",
+                "learnings/learning-2026-08-07-baseline-layer-mechanism-scope.md",
+                "learnings/learning-2026-08-07-audit-trail-metrics-validation-chain.md",
+                "learnings/learning-2026-08-07-sed-self-check-portable.md",
+                "versions/manifest.json"
+            ]
+        },
+        {
+            "version": "2.0.1",
+            "date": "2026-08-07",
+            "type": "evolution",
+            "description": "新增 baseline-skill-change-revision-linkage.md：定义 skill 变更后的五级联动自检义务清单（Level 1 Skill内部导航 / Level 2 父级索引 / Level 3 配套规则层 / Level 4 审计轨迹 / Level 5 归档备份），含审计块模板和反面教材。修复本次session中遗漏的evolutions/README.md演进脉络更新和rg-fd-search/README.md目录描述同步。更新baseline/README.md导航表。",
+            "files_changed": [
+                "baseline/baseline-skill-change-revision-linkage.md",
+                "baseline/README.md",
+                "evolutions/README.md",
+                "rg-fd-search/README.md",
+                "versions/manifest.json"
+            ]
         }
     ],
-    "convergence_history": []
+    "convergence_history": [
+        {
+            "version": "2.0.0",
+            "date": "2026-08-07",
+            "type": "convergence",
+            "description": "将 6 个 evolution 收敛回 SKILL.md：T005 进度查询触发场景 + P0 vaults/ 扩展 + Step 4-8（磁盘验证/上下文补查/洞察建议/SED自检/SEAS审计）+ 配套 skill 关联机制（铁律 1-11）+ 目录结构扩展 baseline/ + frontmatter 规范扩展 description/meta。归档原 SKILL.md 到 archive/SKILL-v1.0.0-20260807-convergence-backup.md，已收敛 evolution 移入 archive/。",
+            "converged_evolutions": [
+                "evolution-2026-08-06-progress-query-insight-loop.md",
+                "evolution-2026-08-06-mdc-skill-pairing-mechanism.md",
+                "evolution-2026-08-06-mdc-skill-triple-loop.md",
+                "evolution-2026-08-06-mdc-skill-quadruple-loop.md",
+                "evolution-2026-08-07-search-scope-extension-to-vaults.md",
+                "evolution-2026-08-07-skill-workflow-sed-append.md"
+            ],
+            "files_changed": [
+                "SKILL.md",
+                "README.md",
+                "baseline/README.md",
+                "baseline/baseline-no-hardcode-paths.md",
+                "baseline/baseline-sed-mechanism.md",
+                "baseline/baseline-skill-audit-schema.md",
+                "versions/audit-trail.jsonl",
+                "versions/manifest.json"
+            ]
+        }
+    ]
 }
