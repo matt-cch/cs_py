@@ -6,7 +6,7 @@ download-runtime/wf-download-runtime.py — 运行时下载 Workflow（v2.0.0）
 
 用法：
     python wf-download-runtime.py --tool-name node
-    python wf-download-runtime.py --tool-name node --force
+    python wf-download-runtime.py --tool-name node --force   # 下载并替换
 """
 import argparse
 import json
@@ -365,15 +365,41 @@ def main():
         print(f"  找到 exe: {extract_result.get('found_exe')}")
     print(f"  版本验证: {extract_result.get('downloaded_version')}")
 
-    # Step 7: 默认不替换，清理后完成
-    tool_dir = os.path.dirname(os.path.join(paths["devroot"], local_cfg.get("exe_path", "").replace("${devroot}", paths["devroot"])))
-    print(f"\n[结果] 下载完成，未替换")
+    # Step 7: 替换（仅在 --force 时执行）
+    print("\n[Step 7] 替换")
+    if args.force:
+        exe_path = ""
+        try:
+            with open(paths["index_path"], "r", encoding="utf-8") as f:
+                idx_data = json.load(f)
+            exe_path = idx_data.get("toolchain", {}).get(args.tool_name, {}).get("executable", "")
+        except Exception:
+            pass
+        found_exe = extract_result.get("found_exe", "")
+        if exe_path and found_exe:
+            replace_result = run_atomic(
+                os.path.join(paths["atomic_dir"], "atomic-04-backup-replace.py"),
+                ["--exe-path", exe_path,
+                 "--found-exe", found_exe]
+            )
+            if replace_result.get("replaced"):
+                print(f"  替换成功: {replace_result.get('tool_dir')}")
+                if replace_result.get("backup_dir"):
+                    print(f"  备份目录: {replace_result['backup_dir']}")
+            elif replace_result.get("error"):
+                print(f"  [FAIL] 替换失败: {replace_result['error']}")
+            else:
+                print(f"  替换状态: {replace_result}")
+        else:
+            print(f"  [SKIP] 参数不足，无法自动替换: exe_path={exe_path}, found_exe={found_exe}")
+            print(f"  提示: 如需手动替换，执行 atomic-04-backup-replace.py")
+    else:
+        print("  默认不替换（如需替换，使用 --force）")
 
     # Step 8: 保留产物（解压目录 + ZIP 均保留，供手工升级）
     print("\n[Step 8] 产物保留")
     print(f"  ZIP 文件: {zip_file}")
     print(f"  解压目录: {extract_result.get('extract_dir')}")
-    print(f"  提示: 如需替换，执行 atomic-04-backup-replace.py")
 
     print("\n[完成]")
     sys.exit(0)

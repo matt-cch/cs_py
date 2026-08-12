@@ -148,6 +148,16 @@ meta: {}
 | [env-migration-mdc-skill-strong-association-full-session-2026-08-06-173920.md](env-migration-mdc-skill-strong-association-full-session-2026-08-06-173920.md) | mdc-skill 强关联从无效到有效——四层闭环改造 + subagent 实战验证 + SED 双轮迭代（完整 session） | 2026-08-06-173920 |
 | [env-migration-rg-fd-search-sed-convergence-2026-08-07-114952.md](env-migration-rg-fd-search-sed-convergence-2026-08-07-114952.md) | rg-fd-search Skill SED 体系建设与收敛（v2.0.0）+ 真源检测与 Chromium 版本更新 | 2026-08-07-114952 |
 | [env-migration-jsonl-lint-integration-2026-08-07-123115.md](env-migration-jsonl-lint-integration-2026-08-07-123115.md) | JSON Lines (.jsonl) 纳入 run-lint 编码与语法检测体系（lint_encoding + lint_json 双重验证） | 2026-08-07-123115 |
+| [env-migration-download-runtime-force-closure-2026-08-10-110139.md](env-migration-download-runtime-force-closure-2026-08-10-110139.md) | wf-download-runtime.py `--force` 替换闭环修复 + Chromium 路径纠偏 + cs-py.code-workspace 解释器配置 | 2026-08-10-110139 |
+| [env-migration-opencode-plugin-sdk-upgrade-and-atomic-npm-update-2026-08-10-125601.md](env-migration-opencode-plugin-sdk-upgrade-and-atomic-npm-update-2026-08-10-125601.md) | OpenCode Plugin SDK 1.14.28→1.18.15 升级、atomic-npm-update.py 原子 CLI 新建、开发部署指南撰写、修订联动全链路 | 2026-08-10-125601 |
+| [env-migration-session-tracer-plugin-and-subagent-validation-2026-08-10-141741.md](env-migration-session-tracer-plugin-and-subagent-validation-2026-08-10-141741.md) | Session-Tracer Plugin 开发、Subagent 验证失败、Runtime Session Messages 记录需求讨论 | 2026-08-10-141741 |
+| [env-migration-session-tracer-sdk-compatibility-fix-2026-08-10-164345.md](env-migration-session-tracer-sdk-compatibility-fix-2026-08-10-164345.md) | session-tracer.ts SDK 契约适配修复（ToolResult output 字段必填） | 2026-08-10-164345 |
+| [env-migration-opencode-plugin-tool-schema-architecture-2026-08-10-162736.md](env-migration-opencode-plugin-tool-schema-architecture-2026-08-10-162736.md) | OpenCode Plugin Tool Schema 分层架构建设（ToolResult / ToolManifest / TraceEvent / TraceIndex / VersionControl） | 2026-08-10-162736 |
+| [env-migration-session-tracer-v2-smoke-test-and-manifest-bugfix-2026-08-10-165341.md](env-migration-session-tracer-v2-smoke-test-and-manifest-bugfix-2026-08-10-165341.md) | session-tracer v2.0.0 Smoke Test 与 Manifest 落盘时序 Bug 修复（finalizeManifest 后追加 writeManifestFile） | 2026-08-10-165341 |
+| [env-migration-session-tracer-event-type-docstring-guard-2026-08-10-172609.md](env-migration-session-tracer-event-type-docstring-guard-2026-08-10-172609.md) | session-tracer event-type 使用场景梳理与 docstring 防呆改造（milestone parseError 遗漏纠偏 + 当场拦截） | 2026-08-10-172609 |
+| [env-migration-session-tracer-final-verification-and-lessons-2026-08-10-173840.md](env-migration-session-tracer-final-verification-and-lessons-2026-08-10-173840.md) | session-tracer v2.0.0 最终验证通过 + 全周期经验教训沉淀（gotcha 文件 + 设计文档补充） | 2026-08-10-173840 |
+| [env-migration-runtime-download-replace-logic-2026-08-12-112718.md](env-migration-runtime-download-replace-logic-2026-08-12-112718.md) | 运行时下载替换逻辑层级对齐改造（Git + Chrome 双工具实证） | 2026-08-12-112718 |
+| [env-migration-lint-js-plugin-and-edit-json-batch-only-2026-08-11-122858.md](env-migration-lint-js-plugin-and-edit-json-batch-only-2026-08-11-122858.md) | lint_js 插件体系落地 + atomic-config-edit-json.py batch-only 重构 + 多轮踩坑复盘（compaction 死循环 / 字段名混淆 / 单条模式移除） | 2026-08-11-122858 |
 
 ## 上级导航
 - [references 总索引](../README.md)

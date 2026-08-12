@@ -18,6 +18,7 @@ import subprocess
 import sys
 import atexit
 import time
+from pathlib import Path
 
 # 编码处理闭环：保存原始编码 → 切换 UTF-8 → 退出时恢复
 _original_stdout_encoding = sys.stdout.encoding
@@ -40,6 +41,48 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 
 
+def derive_tool_dir(exe_path: str) -> str:
+    """从 exe_path 推导工具根目录：优先取 venv 后的第一级，否则取父目录"""
+    p = Path(exe_path)
+    parts = list(p.parts)
+    for i, part in enumerate(parts):
+        if part.lower() == "venv" and i + 1 < len(parts):
+            return str(Path(*parts[:i + 2]))
+    return str(p.parent)
+
+
+def derive_source_dir(exe_path: str, found_exe: str) -> str:
+    """
+    按 exe_path 去掉 venv 后的目录层级深度，从 found_exe 的父目录
+    往上回溯同样深度，推导 download 下的解压根目录。
+
+    例：venv/node/node.exe（1 层）→ found_exe 父目录即 source_dir
+        venv/git/cmd/git.exe（2 层）→ found_exe 父目录往上 1 层
+    """
+    exe_p = Path(exe_path)
+    parts = list(exe_p.parts)
+
+    venv_idx = -1
+    for i, p in enumerate(parts):
+        if p.lower() == "venv":
+            venv_idx = i
+            break
+
+    if venv_idx == -1 or venv_idx + 1 >= len(parts):
+        return str(Path(found_exe).parent)
+
+    # venv 后的相对路径，如 ["node", "node.exe"] 或 ["git", "cmd", "git.exe"]
+    rel_parts = parts[venv_idx + 1:]
+    # exe 以上的目录层数（node\node.exe → 1，git\cmd\git.exe → 2）
+    dir_depth = len(rel_parts) - 1
+
+    source = Path(found_exe).parent
+    for _ in range(dir_depth - 1):
+        source = source.parent
+
+    return str(source)
+
+
 def get_running_process_info(exe_path: str) -> str:
     try:
         result = subprocess.run(
@@ -52,10 +95,14 @@ def get_running_process_info(exe_path: str) -> str:
         return ""
 
 
-def backup_and_replace(tool_dir: str, source_dir: str, exe_path: str) -> dict:
-    result = {"backup_dir": "", "replaced": False, "error": None}
+def backup_and_replace(exe_path: str, found_exe: str) -> dict:
+    result = {"backup_dir": "", "replaced": False, "error": None, "tool_dir": "", "source_dir": ""}
 
-    # 先检查源目录是否存在
+    tool_dir = derive_tool_dir(exe_path)
+    source_dir = derive_source_dir(exe_path, found_exe)
+    result["tool_dir"] = tool_dir
+    result["source_dir"] = source_dir
+
     if not os.path.exists(source_dir):
         result["error"] = f"源目录不存在: {source_dir}"
         return result
@@ -72,34 +119,23 @@ def backup_and_replace(tool_dir: str, source_dir: str, exe_path: str) -> dict:
         shutil.move(tool_dir, backup_name)
         result["backup_dir"] = backup_name
 
-    # 替换
-    if os.path.normpath(source_dir) == os.path.normpath(tool_dir):
+    # 替换：完整目录覆盖
+    try:
+        shutil.copytree(source_dir, tool_dir)
         result["replaced"] = True
-    elif os.path.normpath(os.path.dirname(source_dir)) == os.path.normpath(os.path.dirname(tool_dir)):
-        shutil.move(source_dir, tool_dir)
-        result["replaced"] = True
-    else:
-        os.makedirs(tool_dir, exist_ok=True)
-        for item in os.listdir(source_dir):
-            s = os.path.join(source_dir, item)
-            d = os.path.join(tool_dir, item)
-            if os.path.isdir(s):
-                shutil.copytree(s, d, dirs_exist_ok=True)
-            else:
-                shutil.copy2(s, d)
-        result["replaced"] = True
+    except Exception as e:
+        result["error"] = f"替换失败: {e}"
 
     return result
 
 
 def main():
     parser = argparse.ArgumentParser(description="备份与替换原子")
-    parser.add_argument("--tool-dir", required=True, help="目标工具目录")
-    parser.add_argument("--source-dir", required=True, help="新版本的源目录")
-    parser.add_argument("--exe-path", required=True, help="可执行文件路径（用于进程检测）")
+    parser.add_argument("--exe-path", required=True, help="venv 中当前工具的可执行文件路径")
+    parser.add_argument("--found-exe", required=True, help="下载解压后检测到的可执行文件路径")
     args = parser.parse_args()
 
-    result = backup_and_replace(args.tool_dir, args.source_dir, args.exe_path)
+    result = backup_and_replace(args.exe_path, args.found_exe)
     print(json.dumps(result, ensure_ascii=False))
     sys.exit(0 if result["replaced"] else 1)
 

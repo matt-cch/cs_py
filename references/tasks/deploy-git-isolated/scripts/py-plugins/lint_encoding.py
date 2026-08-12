@@ -33,6 +33,7 @@ __plugin_registry__ = None
 # AGENTS.md 定义的编码要求
 NO_BOM_EXTENSIONS = {
     ".py", ".js", ".ts", ".jsx", ".tsx",
+    ".mjs", ".cjs",
     ".html", ".css", ".md", ".json", ".jsonc",
     ".yml", ".yaml", ".toml", ".sh",
     ".jsonl",

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 r"""
-py-tools/atomic-config-edit-json.py — JSON 配置原子编辑工具（v1.0.1）
+py-tools/atomic-config-edit-json.py — JSON 配置原子编辑工具（v1.1.2）
 标签：py-tools
-版本：v1.0.1
+版本：v1.1.2
 日期：2026-07-22
 
 【意图】
@@ -12,9 +12,17 @@ Agent 用 `edit` 工具修改 JSON 文件时高频失败：缩进微差导致 ol
 支持 RFC 6902 JSON Pointer 定位 + JSON Patch 批量操作，是全部 JSON 配置/索引
 文件修订的唯一推荐入口。
 
+【意图演变 / 设计决策】
+> v1.0 → v1.1：曾同时支持「单条模式（--op/--path/--value）」和「batch 模式（--batch）」。
+> 实测发现单条模式的 --value 要求通过 Shell 传递 JSON 字面量，引号嵌套 + 转义层级
+> 一多就翻车。Agent 宁可额外写一个临时 .py 脚本来绕路，也不愿意直接用 --value。
+> 这说明单条模式节省的「少写几行代码」的优势，完全被「Shell 转义风险」抵消。
+> 结论：彻底移除单条模式，只保留 --batch 唯一路径。Agent 永远只需 write patch.json
+> → --batch @file，无需判断、无需转义、无歧义。
+
 【职责】
   1. 读取 JSON 文件，按 JSON Pointer（RFC 6902）定位字段
-  2. 支持单条操作（--operation + --json-pointer + --value）或批量操作（--batch）
+  2. 唯一入口：--batch JSON Patch 批量操作（RFC 6902 数组格式）
   3. 支持 add / replace / remove（标准 RFC 6902）+ merge（对象深度合并，扩展）
   4. 安全写回：强制 LF（newline="\n"）+ UTF-8 无 BOM + 可选备份
   5. 生成 manifest 供审计追踪
@@ -35,12 +43,9 @@ Agent 用 `edit` 工具修改 JSON 文件时高频失败：缩进微差导致 ol
 
 【调用参数】
   --file          <str, 必填>                目标 JSON 文件路径
-  --operation     <str, 可选>                单条操作类型: add | replace | remove | merge
-  --json-pointer  <str, 可选>                JSON Pointer 路径（RFC 6902，如 /a/b/0）
-  --value         <str, 可选>                JSON 值（JSON 字符串，如 '{"x":1}' 或 '"hello"'）
-  --batch         <str, 可选>                JSON Patch 批量操作（RFC 6902 数组格式）
+  --batch         <str, 必填>                JSON Patch 批量操作（RFC 6902 数组格式）
   --indent        <int, 可选, 默认=4>         JSON 输出缩进空格数
-  --backup        <flag, 可选>               修改前备份原文件，bak 落盘位置由 manifest_path 插件统一决定（TMP/TEMP 优先，fallback 到 devroot/venv/tmp/），禁止在 JSON 同目录生成 .bak
+  --backup        <flag, 可选>               修改前备份原文件为 .json.bak
   --dry-run       <flag, 可选>               仅预览修改结果，不写入磁盘
   --output        <str, 可选>                产物输出路径（workflow 调用时必须显式传入；未传时回退到 devroot/venv/tmp/atomic-config-edit-json-manifest-{timestamp}.json）
 
@@ -51,54 +56,40 @@ Agent 用 `edit` 工具修改 JSON 文件时高频失败：缩进微差导致 ol
   /foo~1bar     → 键名为 "foo/bar"（/ 转义为 ~1）
 
 【用法示例】
-    # 标准三步流程（中文内容 / 批量更新 / 任何复杂 value）：
+    # 标准三步流程（唯一路径，单条/多条均走 batch）：
     #   Step 1: write 工具写入 patch 内容到 venv/tmp/patch.json（不经 Shell）
     #   Step 2: atomic-config-edit-json.py --batch @venv/tmp/patch.json --backup
     #   Step 3: run-lint.py 验证修改后的 JSON
     #
-    # 单条简单操作（value 为短字符串且无中文时可用）：
-    & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-config-edit-json.py" `
-        --file "${devroot}\references\runtime\verified-task-index.json" `
-        --operation replace `
-        --json-pointer "/meta/last_updated" `
-        --value '"2026-07-22T14:00:00"'
-
-    # 批量操作（推荐，中文内容必须走此流程）
-    # Step 1: write 工具写入 patch 文件
-    # Step 2:
     & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-config-edit-json.py" `
         --file "${devroot}\references\runtime\verified-task-index.json" `
         --batch "@venv/tmp/patch.json" `
         --backup
 
     # batch 文件示例（venv/tmp/patch.json）：
+    # 单条修改：
+    # [
+    #   {"op": "replace", "path": "/meta/last_updated", "value": "2026-07-22T14:00:00"}
+    # ]
+    # 多条修改：
     # [
     #   {"op": "replace", "path": "/meta/last_updated", "value": "2026-07-22T14:00:00"},
     #   {"op": "add", "path": "/available_scripts_and_tools/my-tool", "value": {"name": "..."}}
     # ]
-
-    # 数组追加：向 trigger_words 追加一个词
-    & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-config-edit-json.py" `
-        --file "${devroot}\references\runtime\verified-task-index.json" `
-        --operation add `
-        --json-pointer "/high_frequency_tasks/verify_runtime/trigger_words/-" `
-        --value '"真源检测"'
-
+    # 数组追加：
+    # [
+    #   {"op": "add", "path": "/high_frequency_tasks/verify_runtime/trigger_words/-", "value": "真源检测"}
+    # ]
     # 对象深度合并（merge）：只更新部分字段，不覆盖整个对象
-    & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-config-edit-json.py" `
-        --file "${devroot}\references\runtime\verified-task-index.json" `
-        --operation merge `
-        --json-pointer "/available_scripts_and_tools/run-lint" `
-        --value '{"verified_at": "2026-07-22T14:00:00"}'
+    # [
+    #   {"op": "merge", "path": "/available_scripts_and_tools/run-lint", "value": {"verified_at": "2026-07-22T14:00:00"}}
+    # ]
 
     # 仅预览（dry-run）
     & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-config-edit-json.py" `
         --file "${devroot}\references\runtime\verified-task-index.json" `
-        --operation replace `
-        --json-pointer "/meta/last_updated" `
-        --value '"2026-07-22T14:00:00"' `
+        --batch "@venv/tmp/patch.json" `
         --dry-run
-
 【返回】
     exit 0 = 修改成功（或 --dry-run 预览成功）
     exit 1 = 失败（文件不存在、JSON 语法错误、路径不存在、操作非法等）
@@ -299,9 +290,10 @@ def _op_merge(data, tokens: list, value):
 
 
 def _apply_op(data: dict, op: dict) -> dict:
-    """应用单条 JSON Patch 操作。"""
-    operation = op.get("op")
-    path = op.get("path", "")
+    """应用单条 JSON Patch 操作。兼容单条模式参数名（operation/json_pointer）与 RFC 6902 标准（op/path）。"""
+    # 字段名兼容：单条模式用 --operation/--json-pointer，batch 模式用 op/path
+    operation = op.get("op") or op.get("operation")
+    path = op.get("path") or op.get("json_pointer")
     value = op.get("value")
     tokens = _parse_pointer(path)
 
@@ -341,14 +333,11 @@ def _save_manifest(devroot: Path, data: dict, output_path: str = None) -> Path:
 def main():
     parser = argparse.ArgumentParser(description="JSON 配置原子编辑工具（RFC 6902 JSON Pointer + JSON Patch）")
     parser.add_argument("--file", required=True, help="目标 JSON 文件路径")
-    parser.add_argument("--operation", choices=["add", "replace", "remove", "merge"], help="单条操作类型")
-    parser.add_argument("--json-pointer", "--path", dest="path", default=None, help="JSON Pointer 路径（RFC 6902，如 /a/b/0）。不支持 JSON Path（$.foo）或 jq（.foo.bar）风格")
-    parser.add_argument("--value", default=None, help="JSON 值（JSON 字符串）")
-    parser.add_argument("--batch", default=None, help='JSON Patch 批量操作。支持两种形式：① JSON 字符串（如 \'[{"op":"add",...}]\'）；② @文件路径（如 @venv/tmp/patch.json，从文件读取）')
+    parser.add_argument("--batch", required=True, help='JSON Patch 批量操作（RFC 6902 数组格式）。支持两种形式：① JSON 字符串（如 \'[{"op":"add",...}]\'）；② @文件路径（如 @venv/tmp/patch.json，从文件读取）')
     parser.add_argument("--indent", type=int, default=4, help="JSON 输出缩进空格数（默认 4）")
     parser.add_argument("--backup", action="store_true", help="修改前备份原文件为 .json.bak")
     parser.add_argument("--dry-run", action="store_true", help="仅预览修改结果，不写入磁盘")
-    parser.add_argument("--output", default=None, help="产物输出路径（workflow 调用时必须显式传入；未传时回退到 devroot/venv/tmp/config-edit-manifest-{timestamp}.json）")
+    parser.add_argument("--output", default=None, help="产物输出路径（workflow 调用时必须显式传入；未传时回退到 devroot/venv/tmp/atomic-config-edit-json-manifest-{timestamp}.json）")
     args = parser.parse_args()
 
     file_path = Path(args.file)
@@ -373,53 +362,34 @@ def main():
         print(f"[ERROR] JSON 解析失败: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # 构建操作列表
+    # 构建操作列表（唯一路径：batch）
     operations = []
-    if args.batch:
-        batch_raw = args.batch.strip()
-        # 支持 @file 语法：从文件读取 batch
-        if batch_raw.startswith("@"):
-            batch_path = Path(batch_raw[1:])
-            if not batch_path.exists():
-                print(f"[ERROR] batch 文件不存在: {batch_path}", file=sys.stderr)
-                sys.exit(1)
-            try:
-                batch_raw = batch_path.read_text(encoding="utf-8")
-            except Exception as e:
-                print(f"[ERROR] 读取 batch 文件失败: {e}", file=sys.stderr)
-                sys.exit(1)
+    batch_raw = args.batch.strip()
+    # 支持 @file 语法：从文件读取 batch
+    if batch_raw.startswith("@"):
+        batch_path = Path(batch_raw[1:])
+        if not batch_path.exists():
+            print(f"[ERROR] batch 文件不存在: {batch_path}", file=sys.stderr)
+            sys.exit(1)
         try:
-            batch_ops = json.loads(batch_raw)
-            if not isinstance(batch_ops, list):
-                raise ValueError("--batch 必须是 JSON 数组")
-            operations = batch_ops
-        except json.JSONDecodeError as e:
-            print(f"[ERROR] --batch JSON 解析失败: {e}", file=sys.stderr)
+            batch_raw = batch_path.read_text(encoding="utf-8")
+        except Exception as e:
+            print(f"[ERROR] 读取 batch 文件失败: {e}", file=sys.stderr)
             sys.exit(1)
-    elif args.operation:
-        if not args.path:
-            print("[ERROR] 单条操作必须提供 --json-pointer（或兼容别名 --path）", file=sys.stderr)
-            sys.exit(1)
-        op = {"op": args.operation, "path": args.path}
-        if args.operation in ("add", "replace", "merge"):
-            if args.value is None:
-                print(f"[ERROR] {args.operation} 操作必须提供 --value", file=sys.stderr)
-                sys.exit(1)
-            try:
-                op["value"] = json.loads(args.value)
-            except json.JSONDecodeError as e:
-                print(f"[ERROR] --value JSON 解析失败: {e}", file=sys.stderr)
-                sys.exit(1)
-        operations.append(op)
-    else:
-        print("[ERROR] 必须提供 --operation + --json-pointer（或兼容别名 --path）+ --value 或 --batch", file=sys.stderr)
+    try:
+        batch_ops = json.loads(batch_raw)
+        if not isinstance(batch_ops, list):
+            raise ValueError("--batch 必须是 JSON 数组")
+        operations = batch_ops
+    except json.JSONDecodeError as e:
+        print(f"[ERROR] --batch JSON 解析失败: {e}", file=sys.stderr)
         sys.exit(1)
 
     # 执行操作
     modified = copy.deepcopy(data)
     manifest = {
         "atomic_tool": "atomic-config-edit-json",
-        "version": "1.0.1",
+        "version": "1.1.2",
         "file": str(file_path),
         "operations": operations,
         "dry_run": args.dry_run,

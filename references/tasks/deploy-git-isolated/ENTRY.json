@@ -1,7 +1,7 @@
 {
     "meta": {
         "description": "deploy-git-isolated 机器可读真源索引",
-        "version": "0.23.0",
+        "version": "0.24.0",
         "version_history": [
             {
                 "version": "0.1.0",
@@ -136,9 +136,30 @@
                 "date": "2026-08-05",
                 "slug": "rg-fd-search-sed",
                 "note": "rg-fd-search skill 引入 SED（Self-Evolution Directory）模式：新增 scripts/ references/ assets/ templates/ examples/ versions/ gotchas/ evolutions/ learnings/ 九个子目录，建立 skill 自闭环骨架。SKILL.md 追加加载机制声明、三类增量 frontmatter 规范、Self-Evolution 复盘自检块。versions/manifest.json 初始创建。scripts/ 为 skill 私有实现，不对外登记。修订联动 ENTRY/README/verified-task-index。"
+            },
+            {
+                "version": "0.26.0",
+                "date": "2026-08-10",
+                "slug": "atomic-npm-update",
+                "note": "新增 atomic-npm-update.py 原子 CLI：在已有 Local 安装结构的隔离目录中安全更新 npm 包。支持单包精确版本（npm install pkg@version）、单包 semver 更新（npm update pkg）、全量更新（npm update）。与 atomic-npm-isolated-install.py 成对使用（install 首次落盘，update 后续升级）。内置重组安全检查（目标目录必须存在 package.json）、旧版本记录、新版本对比、bin 可用性验证。修订联动 ENTRY/TASK-TOOLS-INDEX/EXEC-CHEATSHEET/verified-task-index。"
+            },
+            {
+                "version": "0.24.0",
+                "date": "2026-08-11",
+                "note": "新增 lint_js 插件：JS/TS 语法与风格检测（ESLint CLI 隔离安装）。修复 atomic-npm-isolated-install.py 的 npm init 跳过逻辑与 bin 按类型验证逻辑。更新 run-lint.py 路由表支持 .js/.ts/.jsx/.tsx/.mjs/.cjs。lint_encoding 扩展名映射追加 .mjs/.cjs。"
+            },
+            {
+                "version": "0.24.1",
+                "date": "2026-08-11",
+                "note": "atomic-config-edit-json.py v1.0.2：batch 模式兼容单条模式字段名（operation/json_pointer 与 op/path 等效），消除 Agent 反复混淆的根因。docstring 增加字段名对照表。"
+            },
+            {
+                "version": "0.24.2",
+                "date": "2026-08-11",
+                "note": "atomic-config-edit-json.py v1.1.2：彻底移除单条模式（--op/--path/--value），只保留 --batch 唯一路径。消除 Agent 在单条 vs batch 间的选择歧义，以及 --value 的 Shell 转义陷阱。标准三步流程简化为 batch-only。"
             }
         ],
-        "last_updated": "2026-08-06T15:13:00",
+        "last_updated": "2026-08-11T11:41:53",
         "source_of_truth": "README.md",
         "trigger_index": "references/tasks/deploy-git-isolated/task-scenario-triggers.json",
         "tools_index": "references/tasks/deploy-git-isolated/TASK-TOOLS-INDEX.md",
@@ -968,6 +989,12 @@
             "name": "atomic-gh-repo-verify.py",
             "role": "原子 CLI：GitHub 仓库真源验证入口。标准 atomic 调用契约（--devroot + --target 必填），调用 source_truth 插件执行 L1-L5 推理链，输出 JSON manifest 供下游 PR 创建/合并复用。",
             "path": "references/tasks/deploy-git-isolated/scripts/py-tools/atomic-gh-repo-verify.py",
+            "status": "ready"
+        },
+        {
+            "name": "atomic-npm-update.py",
+            "role": "原子：npm 隔离更新 CLI。在已有 Local 安装结构的隔离目录中安全更新指定 npm 包（或全部包）。支持精确版本锁定（--to-version）、semver 范围更新、全量更新。内置重组安全检查（必须存在 package.json）、旧→新版本对比、bin 可用性验证。与 atomic-npm-isolated-install.py 成对使用。",
+            "path": "references/tasks/deploy-git-isolated/scripts/py-tools/atomic-npm-update.py",
             "status": "ready"
         }
     ],

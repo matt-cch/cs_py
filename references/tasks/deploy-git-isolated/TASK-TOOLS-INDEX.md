@@ -398,6 +398,7 @@ Python 版部署流水线，与 PS 版 Step 1-8 功能对等。`workflow-deploy-
 | `atomic-config-edit-json.py` | **原子：JSON 配置结构化编辑**。RFC 6902 JSON Pointer + JSON Patch，支持单条/批量（@file）、add/replace/remove/merge、强制 LF、备份、dry-run | 修订 JSON 索引/配置文件（替代手敲 edit） | ready |
 | `atomic-csv-column-transform.py` | **原子：CSV 列无损转换**。读取源 CSV，按配置规则对指定列进行无损转换（today_ymd / today_iso / fixed / regex_replace / empty），写入新 CSV，生成 manifest。配置驱动，改 JSON 配置即可适配新场景，py 框架不变。源于 feiliks-invoice-csv 工具的泛化 | CSV 列内容转换、Invoice date 批量更新、CSV 数据处理 | ready |
 | `atomic-npm-isolated-install.py` | **原子：npm 隔离安装**。将 npm 包安全安装到隔离目录，支持 Local（带 package.json）和 Global（单包）双模式。内置重组安全检查、CWD 切换检查、--show-progress 实时输出、bin 可用性验证（--version/--help）。生成 JSON manifest。 | 安装 node 工具到隔离目录、scriptc 等 npm 包隔离安装 | ready |
+| `atomic-npm-update.py` | **原子：npm 隔离更新**。在已有 Local 安装结构的隔离目录中安全更新 npm 包（或全部包）。支持精确版本锁定（--to-version）、semver 范围更新（npm update pkg）、全量更新（npm update）。内置重组安全检查（目标目录必须存在 package.json）、旧→新版本对比、bin 可用性验证。与 install 成对使用。 | 更新隔离目录中的 npm 包、同步 CLI 与 SDK 版本、npm 包升级 | ready |
 
 **架构**：
 ```
@@ -502,6 +503,8 @@ $env:GH_CONFIG_DIR = "${devroot}\venv\data-gh"        # 隔离配置目录
 | 项目归档（cs_py） | `archive_cs_py.py`（本地 workflow） | `archive_project.py --group cs_py` | 禁止裸 `7z`/`zip` 命令归档 |
 | 项目归档（venv） | `archive_venv.py`（本地 workflow） | `archive_project.py --group venv` | 禁止裸 `7z`/`zip` 命令归档 |
 | 版本记录更新 | `update-version.py`（本地 workflow） | — | 禁止自行写 `python -c` 测版本 |
+| npm 包隔离安装 | `atomic-npm-isolated-install.py`（本地原子） | — | 禁止直接用系统 npm 安装到全局目录 |
+| npm 包隔离更新 | `atomic-npm-update.py`（本地原子） | — | 禁止裸 `npm update` / `npm install` 直接操作 venv/ 下目录 |
 | 获取时间戳 | `get-timestamp.py`（本地 workflow） | — | 禁止内嵌 `Get-Date` 拼文件名 |
 | 全链条部署（Step 4-9） | `workflow-deploy-full.py`（本地 workflow） | PS 版 Step 1-8 | 禁止手动逐条调用 ps-steps |
 | 在线文章下载（URL → Markdown） | `download-article.py`（本地 workflow） | — | 禁止自行写 Playwright 下载文章 |

@@ -51,13 +51,18 @@ EXT_TO_PLUGIN = {
     ".code-workspace": ["lint_json"],
     ".md": ["md_lint", "link_checker"],
     ".mdc": ["md_lint", "link_checker"],
+    ".js": ["lint_js", "lint_encoding"],
+    ".ts": ["lint_js", "lint_encoding"],
+    ".jsx": ["lint_js", "lint_encoding"],
+    ".tsx": ["lint_js", "lint_encoding"],
 }
 
 # 默认走编码检测的其他文本扩展名
 FIX_CAPABLE_PLUGINS = {"lint_encoding", "md_lint"}
 
 ENCODING_EXTENSIONS = {
-    ".js", ".ts", ".jsx", ".tsx", ".html", ".css",
+    ".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs",
+    ".html", ".css",
     ".yml", ".yaml", ".toml", ".sh", ".txt",
     ".ini", ".cfg", ".log",
 }
@@ -294,6 +299,11 @@ def run_files_via_py_lib(devroot: str, files: list, fix: bool = False):
                     print(f"       ✅ PowerShell 语法解析（PSParser::Tokenize）— 通过")
                 else:
                     print(f"       ❌ PowerShell 语法解析（PSParser::Tokenize）— {v_found} 处错误")
+            elif pname == "lint_js":
+                if v_found == 0:
+                    print(f"       ✅ JS/TS 语法与风格检测（ESLint）— 通过")
+                else:
+                    print(f"       ❌ JS/TS 语法与风格检测（ESLint）— {v_found} 处错误")
             elif pname == "md_lint":
                 details = pr.get("metadata", {}).get("check_details", {})
                 # 例外文件（SKILL.md / AGENTS.md / .mdc）不检查 frontmatter
@@ -421,6 +431,11 @@ def run_files_via_py_lib(devroot: str, files: list, fix: bool = False):
                         print(f"       ✅ PowerShell 语法解析（PSParser::Tokenize）— 通过")
                     else:
                         print(f"       ❌ PowerShell 语法解析（PSParser::Tokenize）— {v_found} 处错误")
+                elif pname == "lint_js":
+                    if v_found == 0:
+                        print(f"       ✅ JS/TS 语法与风格检测（ESLint）— 通过")
+                    else:
+                        print(f"       ❌ JS/TS 语法与风格检测（ESLint）— {v_found} 处错误")
                 elif pname == "md_lint":
                     details = pr.get("metadata", {}).get("check_details", {})
                     # 例外文件（SKILL.md / AGENTS.md / .mdc）不检查 frontmatter

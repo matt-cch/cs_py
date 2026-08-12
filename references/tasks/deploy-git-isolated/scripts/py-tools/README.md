@@ -45,6 +45,8 @@ meta:
 | `screenshot_verifier.py` | URL 截图验证（Playwright）| 页面截图留档 |
 | `atomic-check-chrome-session.py` | 🌐 **Chrome Session 登录态检测原子 CLI**。读取 Cookies DB，检测登录态标志 + TTL + 新鲜度，输出 A/B/C/D 四级结论，支持 `--output` manifest 落盘供 pipeline 复用 | 头条/GitHub 等域名登录态验证 |
 | `chrome_extension_manager.py` | Chrome 扩展管理器（搜索 / 下载 CRX / 解压）| 管理浏览器扩展 |
+| `atomic-npm-isolated-install.py` | **原子：npm 隔离安装**。将 npm 包安全安装到隔离目录，支持 Local（带 package.json）和 Global（单包）双模式。内置重组安全检查、CWD 切换检查、bin 可用性验证 | 安装 node 工具到隔离目录 |
+| `atomic-npm-update.py` | **原子：npm 隔离更新**。在已有 Local 安装结构的隔离目录中安全更新 npm 包。支持精确版本锁定、semver 范围更新、全量更新。与 install 成对使用 | 更新隔离目录中的 npm 包、同步 CLI 与 SDK 版本 |
 
 ### GitHub PR / 分支管理
 

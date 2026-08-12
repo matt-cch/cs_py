@@ -463,6 +463,11 @@ def _verify_installation(target_dir: Path, pkg_name: str, bin_name: str | None, 
 def _test_bin_executable(bin_path: str) -> dict:
     """
     验证 bin 文件是否可实际执行。
+    根据文件扩展名选择正确的解释器/执行方式：
+      - .cmd/.exe/.com/.bat → 直接执行
+      - .py → python 解释器
+      - .ps1 → powershell -File
+      - .js/.mjs/.cjs 或无扩展名 → node 解释器（npm CLI 绝大多数为 Node.js 脚本）
     优先尝试 --version，失败则尝试 --help。
     返回结构化测试结果（含命令、退出码、输出预览、耗时）。
     """
@@ -477,8 +482,47 @@ def _test_bin_executable(bin_path: str) -> dict:
         "usable": False,
     }
 
+    bp = Path(bin_path)
+    ext = bp.suffix.lower()
+
+    # 根据扩展名路由到正确的执行器
+    if ext in (".cmd", ".exe", ".com", ".bat"):
+        base_cmd = [bin_path]
+    elif ext == ".py":
+        base_cmd = [sys.executable, bin_path]
+    elif ext == ".ps1":
+        base_cmd = ["powershell.exe", "-File", bin_path]
+    elif ext in (".js", ".mjs", ".cjs"):
+        base_cmd = ["node", bin_path]
+    elif not ext:
+        # 无扩展名：读 shebang 判断解释器
+        shebang = ""
+        try:
+            with open(bin_path, "r", encoding="utf-8", errors="replace") as f:
+                shebang = f.readline().strip()
+        except Exception:
+            pass
+        shebang_lower = shebang.lower()
+        if "python" in shebang_lower:
+            base_cmd = [sys.executable, bin_path]
+        elif "node" in shebang_lower:
+            base_cmd = ["node", bin_path]
+        elif "sh" in shebang_lower or "bash" in shebang_lower:
+            # POSIX shell 脚本（如 npm 的 .bin wrapper），Windows 上无直接执行能力
+            # 对应的 .cmd 已在同批验证中覆盖，此处标记 SKIP
+            result["elapsed_sec"] = 0.0
+            result["status"] = "SKIP"
+            result["stdout_preview"] = f"POSIX shell script (shebang: {shebang}) — Windows direct execution skipped"
+            return result
+        else:
+            # 未知 shebang，尝试 node（npm CLI 的常见 fallback）
+            base_cmd = ["node", bin_path]
+    else:
+        # 未知扩展名，直接尝试执行
+        base_cmd = [bin_path]
+
     for flag in ("--version", "--help"):
-        cmd = [bin_path, flag]
+        cmd = base_cmd + [flag]
         cmd_str = _fmt_cmd(cmd)
         t0 = time.perf_counter()
         try:
@@ -801,24 +845,31 @@ def _main_core():
             print(f"[Manifest] 已落盘: {mp}")
             sys.exit(1)
 
-        # npm init -y
-        _print_step_header(6, "Local 模式 — npm init -y")
-        exit_code, stderr, step = _run_npm_cmd(
-            npm_path, ["init", "-y"], str(target_dir), show_progress,
-            label="npm init -y", timeout=30,
-        )
-        steps.append(step)
-        print(f"  命令: {step['cmd']}")
-        _print_step_footer(step, _collect_artifacts(target_dir, pkg_name, mode) if exit_code == 0 else None)
-        if exit_code != 0:
-            manifest["errors"].append(f"npm init -y 失败 (exit {exit_code}): {stderr or '未知错误'}")
-            manifest["exit_code"] = 1
-            manifest["exit_at"] = datetime.now(timezone.utc).isoformat()
-            mp = _save_manifest(devroot, manifest, args.output)
-            os.chdir(str(original_cwd))
-            print(f"\n[FAIL] npm init -y 失败: {stderr}")
-            print(f"[Manifest] 已落盘: {mp}")
-            sys.exit(1)
+        # npm init -y（仅在 package.json 不存在时执行）
+        if (target_dir / "package.json").exists():
+            _print_step_header(6, "Local 模式 — npm init -y")
+            step = {"label": "npm init -y", "status": "SKIP", "detail": f"package.json 已存在: {target_dir / 'package.json'}"}
+            steps.append(step)
+            print(f"  [SKIP] package.json 已存在，跳过 npm init -y")
+            _print_step_footer(step)
+        else:
+            _print_step_header(6, "Local 模式 — npm init -y")
+            exit_code, stderr, step = _run_npm_cmd(
+                npm_path, ["init", "-y"], str(target_dir), show_progress,
+                label="npm init -y", timeout=30,
+            )
+            steps.append(step)
+            print(f"  命令: {step['cmd']}")
+            _print_step_footer(step, _collect_artifacts(target_dir, pkg_name, mode) if exit_code == 0 else None)
+            if exit_code != 0:
+                manifest["errors"].append(f"npm init -y 失败 (exit {exit_code}): {stderr or '未知错误'}")
+                manifest["exit_code"] = 1
+                manifest["exit_at"] = datetime.now(timezone.utc).isoformat()
+                mp = _save_manifest(devroot, manifest, args.output)
+                os.chdir(str(original_cwd))
+                print(f"\n[FAIL] npm init -y 失败: {stderr}")
+                print(f"[Manifest] 已落盘: {mp}")
+                sys.exit(1)
 
         # npm install
         _print_step_header(7, f"Local 模式 — npm install {full_pkg}")

@@ -667,6 +667,9 @@ py-plugins/*         → 底座层（具体检测/修复能力）
 
 # 仅编码/BOM/CRLF
 & "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-encoding
+
+# 仅 JavaScript/TypeScript
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\run-lint.py" --devroot "${devroot}" --profile lint-js
 ```
 
 
@@ -1121,6 +1124,63 @@ $env:GH_CONFIG_DIR = "${devroot}\venv\data-gh"
 ```
 
 > 验证：安装完成后自动执行 `bin 可用性验证`（`--version` 或 `--help`），失败则报错并保留现场供排查。
+
+
+## Stage S8.6: npm 隔离更新
+
+> **设计意图**：在已有 Local 安装结构的隔离目录中安全更新 npm 包。与 atomic-npm-isolated-install.py 成对使用：install 负责首次落盘，update 负责后续升级。
+> **核心场景**：OpenCode CLI 升级后，同步更新 venv/.opencode/ 下的 @opencode-ai/plugin SDK，解决 CLI 与 npm 包版本不同步问题。
+> **禁止行为**：禁止裸 `npm update` / `npm install` 直接操作 venv/ 下已有目录；必须使用本原子工具，确保重组安全检查、版本对比、bin 可用性验证全部执行。
+
+### 精确版本锁定（推荐，如升级 SDK 到 latest）
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-npm-update.py" `
+    --devroot "${devroot}" `
+    --target-dir "${devroot}\venv\.opencode" `
+    --package "@opencode-ai/plugin" `
+    --to-version "latest" `
+    --show-progress
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-npm-update.py" --devroot "${devroot}" --target-dir "${devroot}\venv\.opencode" --package "@opencode-ai/plugin" --to-version "latest" --show-progress
+```
+
+### 单包 semver 范围更新（不锁定版本）
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-npm-update.py" `
+    --devroot "${devroot}" `
+    --target-dir "${devroot}\venv\.opencode" `
+    --package "@opencode-ai/plugin" `
+    --show-progress
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-npm-update.py" --devroot "${devroot}" --target-dir "${devroot}\venv\.opencode" --package "@opencode-ai/plugin" --show-progress
+```
+
+### 全量更新（不指定 --package）
+
+**Agent:**
+```powershell
+& "${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-npm-update.py" `
+    --devroot "${devroot}" `
+    --target-dir "${devroot}\venv\.opencode" `
+    --show-progress
+```
+
+**终端:**
+```powershell
+"${devroot}\venv\py\python.exe" "${devroot}\references\tasks\deploy-git-isolated\scripts\py-tools\atomic-npm-update.py" --devroot "${devroot}" --target-dir "${devroot}\venv\.opencode" --show-progress
+```
+
+> 验证：更新完成后自动执行 bin 可用性验证（`--version` 或 `--help`），输出旧版 → 新版版本号对比。
 
 
 ## rg/fd 搜索（通用工具链）

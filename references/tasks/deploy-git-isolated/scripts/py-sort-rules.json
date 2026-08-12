@@ -182,6 +182,13 @@
       "description": "文件编码/BOM/行尾符检测器：检测 BOM、双 BOM、CRLF/LF（按 AGENTS.md 规范）"
     },
     {
+      "name": "lint_js",
+      "module": "lint_js",
+      "depends": ["core"],
+      "tags": ["lint", "js"],
+      "description": "JavaScript/TypeScript 语法与风格验证器：调用 ESLint CLI 检测 .js/.ts/.jsx/.tsx"
+    },
+    {
       "name": "gh_preflight",
       "module": "gh_preflight",
       "depends": ["constants", "env_config"],
